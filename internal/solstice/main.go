@@ -3,9 +3,9 @@ package solstice
 import (
 	"fmt"
 	"log"
-	"time"
 
 	"github.com/hajimehoshi/ebiten/v2"
+	"github.com/hajimehoshi/ebiten/v2/inpututil"
 )
 
 const (
@@ -14,27 +14,38 @@ const (
 )
 
 type Game struct {
-	assets    *Assets
-	terminal  *Terminal
-	startTime time.Time
+	assets     *Assets
+	terminal   *Terminal
+	currentMap *Map
+	spriteDefs map[string]SpriteDef
+	mapScale   int
 }
 
 func (g *Game) Update() error {
 	if g.terminal != nil {
 		g.terminal.HandleInput()
 	}
+
+	if inpututil.IsKeyJustPressed(ebiten.KeyZ) {
+		if g.mapScale == 2 {
+			g.mapScale = 1
+		} else {
+			g.mapScale = 2
+		}
+	}
+
 	return nil
 }
 
 func (g *Game) Draw(screen *ebiten.Image) {
-	// Swap between scale 1 and scale 2 every 2 seconds
-	scale := 1
-	if (int(time.Since(g.startTime).Seconds())/2)%2 == 1 {
-		scale = 2
+	// Draw the currently loaded map using the active map scale
+	if g.currentMap != nil {
+		scale := g.mapScale
+		if scale == 0 {
+			scale = 2
+		}
+		g.currentMap.Draw(screen, g.assets, scale)
 	}
-
-	// Fill the map screen area with tile index 5
-	g.assets.FillMapScreen(screen, 5, scale)
 
 	// Draw terminal UI
 	if g.terminal != nil {
@@ -53,14 +64,30 @@ func Main() {
 		log.Fatalf("failed to load assets: %v", err)
 	}
 
+	if _, err := PreloadTileSet(); err != nil {
+		log.Fatalf("failed to preload tileset: %v", err)
+	}
+
+	homeMap, err := LoadMap("home")
+	if err != nil {
+		log.Fatalf("failed to load home map: %v", err)
+	}
+
+	spriteDefs, err := PreloadSpriteDefs()
+	if err != nil {
+		log.Fatalf("failed to preload sprite defs: %v", err)
+	}
+
 	ebiten.SetWindowSize(screenWidth, screenHeight)
 	ebiten.SetWindowTitle("Solstice")
 	ebiten.SetWindowResizingMode(ebiten.WindowResizingModeEnabled)
 
 	game := &Game{
-		assets:    assets,
-		terminal:  NewTerminal(),
-		startTime: time.Now(),
+		assets:     assets,
+		terminal:   NewTerminal(),
+		currentMap: homeMap,
+		spriteDefs: spriteDefs,
+		mapScale:   2,
 	}
 
 	if err := ebiten.RunGame(game); err != nil {

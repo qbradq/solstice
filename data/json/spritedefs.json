@@ -1,0 +1,7 @@
+{
+    "party-standing": {
+        "tile": 332,
+        "animated": true,
+        "frames": 4
+    }
+}
