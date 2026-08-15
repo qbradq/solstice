@@ -279,9 +279,21 @@
    <property name="walkable" type="bool" value="true"/>
   </properties>
  </tile>
+ <tile id="74">
+  <properties>
+   <property name="spirit_passable" type="bool" value="true"/>
+  </properties>
+ </tile>
+ <tile id="75">
+  <properties>
+   <property name="spirit_passable" type="bool" value="true"/>
+  </properties>
+ </tile>
  <tile id="78">
   <properties>
    <property name="blocks_vis" type="bool" value="true"/>
+   <property name="door" type="bool" value="true"/>
+   <property name="spirit_passable" type="bool" value="true"/>
   </properties>
  </tile>
  <tile id="79">
@@ -367,6 +379,42 @@
  <tile id="111">
   <properties>
    <property name="water" type="bool" value="true"/>
+  </properties>
+ </tile>
+ <tile id="151">
+  <properties>
+   <property name="door" type="bool" value="true"/>
+   <property name="spirit_passable" type="bool" value="true"/>
+  </properties>
+ </tile>
+ <tile id="152">
+  <properties>
+   <property name="door" type="bool" value="true"/>
+   <property name="spirit_passable" type="bool" value="true"/>
+  </properties>
+ </tile>
+ <tile id="184">
+  <properties>
+   <property name="door" type="bool" value="true"/>
+   <property name="spirit_passable" type="bool" value="true"/>
+  </properties>
+ </tile>
+ <tile id="185">
+  <properties>
+   <property name="door" type="bool" value="true"/>
+   <property name="spirit_passable" type="bool" value="true"/>
+  </properties>
+ </tile>
+ <tile id="186">
+  <properties>
+   <property name="door" type="bool" value="true"/>
+   <property name="spirit_passable" type="bool" value="true"/>
+  </properties>
+ </tile>
+ <tile id="187">
+  <properties>
+   <property name="door" type="bool" value="true"/>
+   <property name="spirit_passable" type="bool" value="true"/>
   </properties>
  </tile>
 </tileset>

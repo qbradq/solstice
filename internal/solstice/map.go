@@ -11,6 +11,16 @@ import (
 	"github.com/hajimehoshi/ebiten/v2"
 )
 
+// TileProperties holds boolean physical and gameplay properties for a tile.
+type TileProperties struct {
+	Walkable       bool `json:"walkable"`
+	BlocksVis      bool `json:"blocks_vis"`
+	DeepWater      bool `json:"deep_water"`
+	Water          bool `json:"water"`
+	Door           bool `json:"door"`
+	SpiritPassable bool `json:"spirit_passable"`
+}
+
 // TileSet holds tileset information loaded from a Tiled .tsx file.
 type TileSet struct {
 	Name       string
@@ -18,7 +28,7 @@ type TileSet struct {
 	TileHeight int
 	TileCount  int
 	Columns    int
-	Properties map[int]map[string]string // Tile ID -> property name -> value
+	Properties map[int]TileProperties // Tile ID -> TileProperties
 }
 
 // Map represents a 2D tile map loaded from a Tiled .tmx file.
@@ -91,7 +101,7 @@ func PreloadTileSet() (*TileSet, error) {
 	return LoadTileSet("maps/tileset.tsx")
 }
 
-// LoadTileSet loads a .tsx tileset file from data.FS.
+// LoadTileSet loads a .tsx tileset file from data.FS into a TileSet struct.
 func LoadTileSet(path string) (*TileSet, error) {
 	cleanPath := strings.TrimPrefix(path, "data/")
 	if !strings.HasPrefix(cleanPath, "maps/") {
@@ -114,19 +124,49 @@ func LoadTileSet(path string) (*TileSet, error) {
 		TileHeight: raw.TileHeight,
 		TileCount:  raw.TileCount,
 		Columns:    raw.Columns,
-		Properties: make(map[int]map[string]string),
+		Properties: make(map[int]TileProperties),
 	}
 
 	for _, t := range raw.Tiles {
-		props := make(map[string]string)
+		var tp TileProperties
 		for _, p := range t.Properties {
-			props[p.Name] = p.Value
+			val, _ := strconv.ParseBool(p.Value)
+			switch p.Name {
+			case "walkable":
+				tp.Walkable = val
+			case "blocks_vis":
+				tp.BlocksVis = val
+			case "deep_water":
+				tp.DeepWater = val
+			case "water":
+				tp.Water = val
+			case "door":
+				tp.Door = val
+			case "spirit_passable":
+				tp.SpiritPassable = val
+			}
 		}
-		ts.Properties[t.ID] = props
+		ts.Properties[t.ID] = tp
 	}
 
 	defaultTileSet = ts
 	return ts, nil
+}
+
+// GetTileProperties returns the TileProperties for the given tile ID.
+func (ts *TileSet) GetTileProperties(tileID int) TileProperties {
+	if ts == nil || ts.Properties == nil {
+		return TileProperties{}
+	}
+	return ts.Properties[tileID]
+}
+
+// GetTileProperties returns the TileProperties for the given tile ID from defaultTileSet.
+func GetTileProperties(tileID int) TileProperties {
+	if defaultTileSet != nil {
+		return defaultTileSet.GetTileProperties(tileID)
+	}
+	return TileProperties{}
 }
 
 // LoadMap loads a TMX map by name from data.FS (e.g. "home" loads "data/maps/home.tmx").
@@ -202,6 +242,35 @@ func (m *Map) SetTile(x, y int, tileIdx int) {
 		return
 	}
 	m.Tiles[y*m.Width+x] = tileIdx
+}
+
+// MoveParty handles relative party movement on the map.
+// The party can move onto a tile if the tile is "walkable",
+// or additionally if the party is in "spirit mode" and the tile has the "spirit_passable" property set to true.
+// Returns true if movement succeeded, or false if blocked.
+func (m *Map) MoveParty(p *Party, dx, dy int) bool {
+	if m == nil || p == nil || (dx == 0 && dy == 0) {
+		return false
+	}
+
+	targetX := p.X + dx
+	targetY := p.Y + dy
+
+	if targetX < 0 || targetX >= m.Width || targetY < 0 || targetY >= m.Height {
+		return false
+	}
+
+	tileIdx := m.GetTile(targetX, targetY)
+	props := GetTileProperties(tileIdx)
+
+	passable := props.Walkable || (p.IsSpiritMode() && props.SpiritPassable)
+	if !passable {
+		return false
+	}
+
+	p.X = targetX
+	p.Y = targetY
+	return true
 }
 
 // DrawCentered renders the map centered on map coordinates (centerX, centerY) into the map view area using assets at scale 1 or 2.

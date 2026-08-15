@@ -95,7 +95,7 @@ func (p *Party) RemoveMember(index int) error {
 }
 
 // HandleInput processes movement inputs (WASD, Arrow keys, VI-style HJKL).
-// Movement is constrained to the map boundaries if map m is provided.
+// Movement is performed using m.MoveParty, enforcing walkable terrain rules.
 func (p *Party) HandleInput(m *Map) {
 	if p == nil {
 		return
@@ -121,19 +121,11 @@ func (p *Party) HandleInput(m *Map) {
 	}
 
 	if dx != 0 || dy != 0 {
-		newX := p.X + dx
-		newY := p.Y + dy
-
 		if m != nil {
-			if newX >= 0 && newX < m.Width {
-				p.X = newX
-			}
-			if newY >= 0 && newY < m.Height {
-				p.Y = newY
-			}
+			m.MoveParty(p, dx, dy)
 		} else {
-			p.X = newX
-			p.Y = newY
+			p.X += dx
+			p.Y += dy
 		}
 	}
 }
