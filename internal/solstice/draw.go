@@ -11,15 +11,43 @@ import (
 	"github.com/hajimehoshi/ebiten/v2"
 )
 
+// Global animation frame ticker state
+var (
+	globalAnimTicks int
+	globalAnimFrame int
+)
+
+// UpdateAnimTicker advances the global animation frame ticker.
+// Call this once per frame in Update().
+func UpdateAnimTicker() {
+	globalAnimTicks++
+	// Advance animation frame every 15 ticks (approx 4 FPS animation rate at 60 FPS update rate)
+	if globalAnimTicks >= 15 {
+		globalAnimTicks = 0
+		globalAnimFrame++
+	}
+}
+
+// GetAnimFrame returns the current state of the global animation frame ticker.
+func GetAnimFrame() int {
+	return globalAnimFrame
+}
+
+// SetAnimFrame sets the global animation frame ticker value (useful for tests).
+func SetAnimFrame(frame int) {
+	globalAnimFrame = frame
+}
+
 // Assets holds graphical assets for Solstice.
 type Assets struct {
-	FontIBM8x8    *ebiten.Image
-	FontIBM16x12  *ebiten.Image
-	FontRune8x8   *ebiten.Image
-	FontRune16x12 *ebiten.Image
-	Tiles16       *ebiten.Image
+	FontIBM8x8     *ebiten.Image
+	FontIBM16x12   *ebiten.Image
+	FontRune8x8    *ebiten.Image
+	FontRune16x12  *ebiten.Image
+	Tiles16        *ebiten.Image
 
-	blackTile8x8 *ebiten.Image
+	blackTile8x8   *ebiten.Image
+	blackTile16x16 *ebiten.Image
 }
 
 var defaultAssets *Assets
@@ -51,16 +79,20 @@ func LoadAssets() (*Assets, error) {
 		return nil, err
 	}
 
-	blackTile := ebiten.NewImage(8, 8)
-	blackTile.Fill(color.Black)
+	blackTile8 := ebiten.NewImage(8, 8)
+	blackTile8.Fill(color.Black)
+
+	blackTile16 := ebiten.NewImage(16, 16)
+	blackTile16.Fill(color.Black)
 
 	assets := &Assets{
-		FontIBM8x8:    ibm8x8,
-		FontIBM16x12:  ibm16x12,
-		FontRune8x8:   rune8x8,
-		FontRune16x12: rune16x12,
-		Tiles16:       tiles16,
-		blackTile8x8:  blackTile,
+		FontIBM8x8:     ibm8x8,
+		FontIBM16x12:   ibm16x12,
+		FontRune8x8:    rune8x8,
+		FontRune16x12:  rune16x12,
+		Tiles16:        tiles16,
+		blackTile8x8:   blackTile8,
+		blackTile16x16: blackTile16,
 	}
 
 	defaultAssets = assets
@@ -165,6 +197,54 @@ func (a *Assets) DrawMapTile(dst *ebiten.Image, tileIdx int, tileX, tileY int, s
 func DrawMapTile(dst *ebiten.Image, tileIdx int, tileX, tileY int, scale int) {
 	if defaultAssets != nil {
 		defaultAssets.DrawMapTile(dst, tileIdx, tileX, tileY, scale)
+	}
+}
+
+// DrawBlackMapTile draws a black tile cell into the map view area at screen tile coordinates (tileX, tileY).
+func (a *Assets) DrawBlackMapTile(dst *ebiten.Image, tileX, tileY int, scale int) {
+	if a == nil || a.blackTile16x16 == nil {
+		return
+	}
+
+	mapArea := dst.SubImage(image.Rect(0, 0, 352, 352)).(*ebiten.Image)
+	op := &ebiten.DrawImageOptions{}
+
+	if scale == 2 {
+		op.GeoM.Scale(2, 2)
+		px := float64(tileX * 32)
+		py := float64(tileY * 32)
+		op.GeoM.Translate(px, py)
+	} else {
+		px := float64(-8 + tileX*16)
+		py := float64(-8 + tileY*16)
+		op.GeoM.Translate(px, py)
+	}
+
+	mapArea.DrawImage(a.blackTile16x16, op)
+}
+
+// DrawBlackMapTile draws a black tile cell into the map view area using defaultAssets.
+func DrawBlackMapTile(dst *ebiten.Image, tileX, tileY int, scale int) {
+	if defaultAssets != nil {
+		defaultAssets.DrawBlackMapTile(dst, tileX, tileY, scale)
+	}
+}
+
+// DrawSpriteDef draws a SpriteDef onto dst at screen tile coordinates (screenTileX, screenTileY)
+// using scale and the current state of the global animation frame ticker.
+// It calls DrawMapTile to draw graphics onto the map view area, overwriting what was there previously.
+func (a *Assets) DrawSpriteDef(dst *ebiten.Image, sd SpriteDef, screenTileX, screenTileY int, scale int) {
+	tileIdx := sd.Tile
+	if sd.Animated && sd.Frames > 1 {
+		tileIdx += (GetAnimFrame() % sd.Frames)
+	}
+	a.DrawMapTile(dst, tileIdx, screenTileX, screenTileY, scale)
+}
+
+// DrawSpriteDef draws a SpriteDef onto dst using defaultAssets.
+func DrawSpriteDef(dst *ebiten.Image, sd SpriteDef, screenTileX, screenTileY int, scale int) {
+	if defaultAssets != nil {
+		defaultAssets.DrawSpriteDef(dst, sd, screenTileX, screenTileY, scale)
 	}
 }
 

@@ -3,5 +3,10 @@
         "tile": 332,
         "animated": true,
         "frames": 4
+    },
+    "party-spirit-mode": {
+        "tile": 372,
+        "animated": true,
+        "frames": 4
     }
 }

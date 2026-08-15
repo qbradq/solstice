@@ -204,25 +204,49 @@ func (m *Map) SetTile(x, y int, tileIdx int) {
 	m.Tiles[y*m.Width+x] = tileIdx
 }
 
-// Draw renders the map into the map view display area using assets at scale 1 or 2.
-func (m *Map) Draw(dst *ebiten.Image, assets *Assets, scale int) {
-	if m == nil || assets == nil {
+// DrawCentered renders the map centered on map coordinates (centerX, centerY) into the map view area using assets at scale 1 or 2.
+// Out-of-bounds map tiles are drawn as a black void.
+func (m *Map) DrawCentered(dst *ebiten.Image, assets *Assets, centerX, centerY int, scale int) {
+	if assets == nil {
 		return
 	}
 
 	cols := 11
 	rows := 11
+	centerStx := 5
+	centerSty := 5
+
 	if scale == 1 {
 		cols = 23
 		rows = 23
+		centerStx = 11
+		centerSty = 11
 	}
 
-	for ty := 0; ty < rows; ty++ {
-		for tx := 0; tx < cols; tx++ {
-			tileIdx := m.GetTile(tx, ty)
-			assets.DrawMapTile(dst, tileIdx, tx, ty, scale)
+	for sty := 0; sty < rows; sty++ {
+		for stx := 0; stx < cols; stx++ {
+			mx := centerX + (stx - centerStx)
+			my := centerY + (sty - centerSty)
+
+			if m != nil && mx >= 0 && mx < m.Width && my >= 0 && my < m.Height {
+				tileIdx := m.GetTile(mx, my)
+				assets.DrawMapTile(dst, tileIdx, stx, sty, scale)
+			} else {
+				assets.DrawBlackMapTile(dst, stx, sty, scale)
+			}
 		}
 	}
+}
+
+// Draw renders the map centered on (5, 5) or (11, 11) into the map view display area.
+func (m *Map) Draw(dst *ebiten.Image, assets *Assets, scale int) {
+	centerX := 5
+	centerY := 5
+	if scale == 1 {
+		centerX = 11
+		centerY = 11
+	}
+	m.DrawCentered(dst, assets, centerX, centerY, scale)
 }
 
 func parseCSV(raw string) ([]int, error) {

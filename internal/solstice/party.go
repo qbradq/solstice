@@ -2,10 +2,25 @@ package solstice
 
 import (
 	"fmt"
+
+	"github.com/hajimehoshi/ebiten/v2"
+	"github.com/hajimehoshi/ebiten/v2/inpututil"
 )
 
 // MaxPartyMembers defines the maximum number of members a party can hold.
 const MaxPartyMembers = 4
+
+var defaultParty *Party
+
+// GetParty returns the global party instance.
+func GetParty() *Party {
+	return defaultParty
+}
+
+// SetParty sets the global party instance.
+func SetParty(p *Party) {
+	defaultParty = p
+}
 
 // PartyMember represents an individual member of the party.
 // It embeds Entity for map positioning and individual graphical representation.
@@ -22,16 +37,20 @@ type Party struct {
 }
 
 // NewParty creates a new Party with the specified position and initial members.
-// It copies the "party-standing" SpriteDef for the party's Entity.
+// It copies the "party-spirit-mode" SpriteDef for the party's Entity.
 func NewParty(x, y int, members ...PartyMember) (*Party, error) {
 	if len(members) > MaxPartyMembers {
 		return nil, fmt.Errorf("cannot create party with %d members (maximum allowed is %d)", len(members), MaxPartyMembers)
 	}
 
-	spriteDef, ok := GetSpriteDef("party-standing")
+	spriteDef, ok := GetSpriteDef("party-spirit-mode")
 	if !ok {
-		// Fallback to empty SpriteDef if "party-standing" is not found
-		spriteDef = SpriteDef{}
+		// Fallback if "party-spirit-mode" is not found in loaded sprite defs
+		spriteDef = SpriteDef{
+			Tile:     372,
+			Animated: true,
+			Frames:   4,
+		}
 	}
 
 	memberSlice := make([]PartyMember, len(members))
@@ -73,4 +92,48 @@ func (p *Party) RemoveMember(index int) error {
 	}
 	p.Members = append(p.Members[:index], p.Members[index+1:]...)
 	return nil
+}
+
+// HandleInput processes movement inputs (WASD, Arrow keys, VI-style HJKL).
+// Movement is constrained to the map boundaries if map m is provided.
+func (p *Party) HandleInput(m *Map) {
+	if p == nil {
+		return
+	}
+
+	dx, dy := 0, 0
+
+	// Up: W, ArrowUp, K
+	if inpututil.IsKeyJustPressed(ebiten.KeyW) || inpututil.IsKeyJustPressed(ebiten.KeyUp) || inpututil.IsKeyJustPressed(ebiten.KeyK) {
+		dy = -1
+	}
+	// Down: S, ArrowDown, J
+	if inpututil.IsKeyJustPressed(ebiten.KeyS) || inpututil.IsKeyJustPressed(ebiten.KeyDown) || inpututil.IsKeyJustPressed(ebiten.KeyJ) {
+		dy = 1
+	}
+	// Left: A, ArrowLeft, H
+	if inpututil.IsKeyJustPressed(ebiten.KeyA) || inpututil.IsKeyJustPressed(ebiten.KeyLeft) || inpututil.IsKeyJustPressed(ebiten.KeyH) {
+		dx = -1
+	}
+	// Right: D, ArrowRight, L
+	if inpututil.IsKeyJustPressed(ebiten.KeyD) || inpututil.IsKeyJustPressed(ebiten.KeyRight) || inpututil.IsKeyJustPressed(ebiten.KeyL) {
+		dx = 1
+	}
+
+	if dx != 0 || dy != 0 {
+		newX := p.X + dx
+		newY := p.Y + dy
+
+		if m != nil {
+			if newX >= 0 && newX < m.Width {
+				p.X = newX
+			}
+			if newY >= 0 && newY < m.Height {
+				p.Y = newY
+			}
+		} else {
+			p.X = newX
+			p.Y = newY
+		}
+	}
 }

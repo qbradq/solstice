@@ -39,11 +39,21 @@ func TestLoadAssetsAndDraw(t *testing.T) {
 	// Test string drawing
 	assets.DrawString8x8(screen, "Hello World", 0, 0)
 
-	// Test Map Tile drawing at 2x scale (coordinate 2,3 -> 64, 96)
+	// Test Map Tile drawing at 2x scale
 	assets.DrawMapTile(screen, 5, 2, 3, 2)
-
-	// Test Map Tile drawing at 1x scale (coordinate 2,3 -> 24, 40)
 	assets.DrawMapTile(screen, 5, 2, 3, 1)
+
+	// Test Black Map Tile drawing
+	assets.DrawBlackMapTile(screen, 0, 0, 2)
+	assets.DrawBlackMapTile(screen, 0, 0, 1)
+
+	// Test SpriteDef drawing with animation ticker
+	SetAnimFrame(0)
+	sd := SpriteDef{Tile: 372, Animated: true, Frames: 4}
+	assets.DrawSpriteDef(screen, sd, 5, 5, 2)
+
+	SetAnimFrame(2)
+	assets.DrawSpriteDef(screen, sd, 5, 5, 2)
 
 	// Test FillMapScreen at scale 1 and scale 2
 	assets.FillMapScreen(screen, 5, 1)
@@ -53,5 +63,22 @@ func TestLoadAssetsAndDraw(t *testing.T) {
 	DrawGlyph8x8(screen, 65, 2, 3)
 	DrawString8x8(screen, "Hello World", 0, 0)
 	DrawMapTile(screen, 5, 2, 3, 2)
+	DrawBlackMapTile(screen, 0, 0, 2)
+	DrawSpriteDef(screen, sd, 5, 5, 2)
 	FillMapScreen(screen, 5, 1)
+}
+
+func TestAnimTicker(t *testing.T) {
+	SetAnimFrame(0)
+	if f := GetAnimFrame(); f != 0 {
+		t.Errorf("Expected anim frame 0, got %d", f)
+	}
+
+	for i := 0; i < 15; i++ {
+		UpdateAnimTicker()
+	}
+
+	if f := GetAnimFrame(); f != 1 {
+		t.Errorf("Expected anim frame to advance to 1 after 15 ticks, got %d", f)
+	}
 }

@@ -17,13 +17,18 @@ func TestPartySpiritModeAndMembers(t *testing.T) {
 		t.Fatalf("NewParty(10, 20) failed: %v", err)
 	}
 
+	SetParty(party)
+	if GetParty() != party {
+		t.Error("GetParty() did not return the set global party")
+	}
+
 	if !party.IsSpiritMode() {
 		t.Error("Expected 0-member party to be in Spirit Mode")
 	}
 
-	// Verify sprite definition copy
-	if party.Tile != 332 {
-		t.Errorf("Expected party Tile to be 332, got %d", party.Tile)
+	// Verify party-spirit-mode sprite definition copy (Tile: 372, Animated: true, Frames: 4)
+	if party.Tile != 372 {
+		t.Errorf("Expected party Tile to be 372, got %d", party.Tile)
 	}
 	if !party.Animated || party.Frames != 4 {
 		t.Errorf("Expected Animated=true and Frames=4, got Animated=%v, Frames=%d", party.Animated, party.Frames)
