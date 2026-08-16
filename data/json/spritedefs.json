@@ -8,5 +8,55 @@
         "tile": 372,
         "animated": true,
         "frames": 4
+    },
+    "wizard": {
+        "tile": 320,
+        "animated": true,
+        "frames": 4
+    },
+    "rogue": {
+        "tile": 324,
+        "animated": true,
+        "frames": 4
+    },
+    "warrior": {
+        "tile": 328,
+        "animated": true,
+        "frames": 4
+    },
+    "peasant": {
+        "tile": 336,
+        "animated": true,
+        "frames": 4
+    },
+    "merchant": {
+        "tile": 340,
+        "animated": true,
+        "frames": 4
+    },
+    "jester": {
+        "tile": 344,
+        "animated": true,
+        "frames": 4
+    },
+    "bard": {
+        "tile": 348,
+        "animated": true,
+        "frames": 4
+    },
+    "child": {
+        "tile": 360,
+        "animated": true,
+        "frames": 4
+    },
+    "beggar": {
+        "tile": 364,
+        "animated": true,
+        "frames": 4
+    },
+    "guard": {
+        "tile": 368,
+        "animated": true,
+        "frames": 4
     }
 }

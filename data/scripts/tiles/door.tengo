@@ -1,4 +1,11 @@
 game := import("game")
 
 // Open the door
-game.set_map_tile(tile.x, tile.y, 68)
+game.set_map_tile(tile_x, tile_y, 68)
+
+// Schedule the door to close in 5 turns
+game.add_timer(5, "tiles/close_door.tengo", {
+	"tile_x": tile_x,
+	"tile_y": tile_y,
+	"tile_idx": tile_idx
+})

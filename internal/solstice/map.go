@@ -32,6 +32,13 @@ type TileSet struct {
 	Properties map[int]TileProperties // Tile ID -> TileProperties
 }
 
+// MapTimer represents a scheduled timer on a map.
+type MapTimer struct {
+	RemainingTurns int
+	ScriptPath     string
+	Globals        map[string]interface{}
+}
+
 // Map represents a 2D tile map loaded from a Tiled .tmx file.
 type Map struct {
 	Name       string
@@ -40,7 +47,8 @@ type Map struct {
 	TileWidth  int
 	TileHeight int
 	FirstGID   int
-	Tiles      []int // 0-indexed tile indices
+	Tiles      []int       // 0-indexed tile indices
+	Timers     []*MapTimer // Scheduled map timers
 }
 
 var defaultTileSet *TileSet
@@ -235,6 +243,7 @@ func LoadMap(name string) (*Map, error) {
 		TileHeight: raw.TileHeight,
 		FirstGID:   firstGID,
 		Tiles:      tiles,
+		Timers:     make([]*MapTimer, 0),
 	}
 
 	defaultMap = m
@@ -259,6 +268,46 @@ func (m *Map) SetTile(x, y int, tileIdx int) {
 	m.Tiles[y*m.Width+x] = tileIdx
 }
 
+// AddTimer schedules a new timer on the map with a delay expressed in turns,
+// the name of the script to execute upon expiry, and global variables to inject into the script context.
+func (m *Map) AddTimer(delayTurns int, scriptPath string, globals map[string]interface{}) {
+	if m == nil {
+		return
+	}
+	timer := &MapTimer{
+		RemainingTurns: delayTurns,
+		ScriptPath:     scriptPath,
+		Globals:        globals,
+	}
+	m.Timers = append(m.Timers, timer)
+}
+
+// AdvanceTurn simulates one game turn within the current map.
+// Decrements all active map timers and executes any timers that expire.
+func (m *Map) AdvanceTurn() {
+	if m == nil || len(m.Timers) == 0 {
+		return
+	}
+
+	activeTimers := make([]*MapTimer, 0, len(m.Timers))
+	expiredTimers := make([]*MapTimer, 0)
+
+	for _, timer := range m.Timers {
+		timer.RemainingTurns--
+		if timer.RemainingTurns <= 0 {
+			expiredTimers = append(expiredTimers, timer)
+		} else {
+			activeTimers = append(activeTimers, timer)
+		}
+	}
+
+	m.Timers = activeTimers
+
+	for _, timer := range expiredTimers {
+		_ = ExecuteScriptWithGlobals(timer.ScriptPath, timer.Globals)
+	}
+}
+
 // ExecuteTileUseScript executes the use_script for the tile at tile coordinates (x, y) if defined.
 func (m *Map) ExecuteTileUseScript(x, y int) error {
 	if m == nil || x < 0 || x >= m.Width || y < 0 || y >= m.Height {
@@ -278,6 +327,7 @@ func (m *Map) ExecuteTileUseScript(x, y int) error {
 // MoveParty handles relative party movement on the map.
 // The party can move onto a tile if the tile is "walkable",
 // or additionally if the party is in "spirit mode" and the tile has the "spirit_passable" property set to true.
+// Simulates one game turn within the current map upon a successful move.
 // Returns true if movement succeeded, or false if blocked.
 func (m *Map) MoveParty(p *Party, dx, dy int) bool {
 	if m == nil || p == nil || (dx == 0 && dy == 0) {
@@ -301,6 +351,9 @@ func (m *Map) MoveParty(p *Party, dx, dy int) bool {
 
 	p.X = targetX
 	p.Y = targetY
+
+	// Advance map turn after successful party movement
+	m.AdvanceTurn()
 	return true
 }
 

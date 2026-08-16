@@ -46,6 +46,7 @@ func (m *MainMode) Update(g *Game) error {
 				func(tx, ty int) {   // On selected callback: execute tile use_script
 					if g.currentMap != nil {
 						_ = g.currentMap.ExecuteTileUseScript(tx, ty)
+						g.currentMap.AdvanceTurn()
 					}
 				},
 				nil, // On canceled callback: nil

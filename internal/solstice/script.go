@@ -63,6 +63,34 @@ func InitScriptSystem() error {
 				return tengo.UndefinedValue, nil
 			},
 		},
+		"add_timer": &tengo.UserFunction{
+			Name: "add_timer",
+			Value: func(args ...tengo.Object) (tengo.Object, error) {
+				if len(args) < 2 {
+					return tengo.UndefinedValue, fmt.Errorf("add_timer requires at least 2 arguments: delayTurns, scriptName, [globals]")
+				}
+				delayTurns, ok1 := tengo.ToInt(args[0])
+				scriptName, ok2 := tengo.ToString(args[1])
+				if !ok1 || !ok2 {
+					return tengo.UndefinedValue, fmt.Errorf("add_timer arguments: delayTurns (int), scriptName (string)")
+				}
+
+				globalsMap := make(map[string]interface{})
+				if len(args) >= 3 && args[2] != tengo.UndefinedValue {
+					if objMap, ok := args[2].(*tengo.Map); ok {
+						for k, v := range objMap.Value {
+							globalsMap[k] = tengo.ToInterface(v)
+						}
+					}
+				}
+
+				if defaultMap != nil {
+					defaultMap.AddTimer(delayTurns, scriptName, globalsMap)
+				}
+
+				return tengo.UndefinedValue, nil
+			},
+		},
 	}
 	moduleMap.AddBuiltinModule("game", gameModule)
 
@@ -92,7 +120,9 @@ func InitScriptSystem() error {
 			// Pre-compile script
 			script := tengo.NewScript(src)
 			script.SetImports(moduleMap)
-			_ = script.Add("tile", nil)
+			_ = script.Add("tile_x", nil)
+			_ = script.Add("tile_y", nil)
+			_ = script.Add("tile_idx", nil)
 			compiled, err := script.Compile()
 			if err != nil {
 				return fmt.Errorf("failed to pre-compile script %s: %w", path, err)
@@ -132,30 +162,11 @@ func RunMainScript() error {
 
 // ExecuteScript executes a script by path or name (e.g. "data/scripts/main.tengo").
 func ExecuteScript(scriptPath string) error {
-	scriptMu.RLock()
-	cleanKey := filepath.ToSlash(scriptPath)
-	compiled, ok := compiledScripts[cleanKey]
-	if !ok {
-		cleanKey = strings.TrimPrefix(cleanKey, "data/")
-		compiled, ok = compiledScripts[cleanKey]
-	}
-	scriptMu.RUnlock()
-
-	if !ok || compiled == nil {
-		return fmt.Errorf("script %s not found or not pre-compiled", scriptPath)
-	}
-
-	// Create a fresh VM clone for execution
-	vm := compiled.Clone()
-	if err := vm.Run(); err != nil {
-		return fmt.Errorf("failed to execute script %s: %w", scriptPath, err)
-	}
-
-	return nil
+	return ExecuteScriptWithGlobals(scriptPath, nil)
 }
 
-// ExecuteTileScript executes a tile script with tile coordinates (tileX, tileY) and tile index (tileIdx) passed as the "tile" object.
-func ExecuteTileScript(scriptPath string, tileX, tileY, tileIdx int) error {
+// ExecuteScriptWithGlobals executes a script with arbitrary global variables injected into its VM context.
+func ExecuteScriptWithGlobals(scriptPath string, globals map[string]interface{}) error {
 	scriptMu.RLock()
 	cleanKey := filepath.ToSlash(scriptPath)
 	compiled, ok := compiledScripts[cleanKey]
@@ -170,23 +181,26 @@ func ExecuteTileScript(scriptPath string, tileX, tileY, tileIdx int) error {
 	scriptMu.RUnlock()
 
 	if !ok || compiled == nil {
-		return fmt.Errorf("tile script %s not found or not pre-compiled", scriptPath)
+		return fmt.Errorf("script %s not found or not pre-compiled", scriptPath)
 	}
 
 	vm := compiled.Clone()
-	tileMap := map[string]interface{}{
-		"x":    tileX,
-		"y":    tileY,
-		"tile": tileIdx,
-	}
-
-	if err := vm.Set("tile", tileMap); err != nil {
-		return fmt.Errorf("failed to set tile context for script %s: %w", scriptPath, err)
+	for k, v := range globals {
+		_ = vm.Set(k, v)
 	}
 
 	if err := vm.Run(); err != nil {
-		return fmt.Errorf("failed to execute tile script %s: %w", scriptPath, err)
+		return fmt.Errorf("failed to execute script %s: %w", scriptPath, err)
 	}
 
 	return nil
+}
+
+// ExecuteTileScript executes a tile script with tile_x, tile_y, and tile_idx globals.
+func ExecuteTileScript(scriptPath string, tileX, tileY, tileIdx int) error {
+	return ExecuteScriptWithGlobals(scriptPath, map[string]interface{}{
+		"tile_x":   tileX,
+		"tile_y":   tileY,
+		"tile_idx": tileIdx,
+	})
 }
