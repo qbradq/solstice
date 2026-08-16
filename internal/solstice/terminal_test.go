@@ -48,6 +48,25 @@ func TestNewTerminalAndDraw(t *testing.T) {
 	term.Draw(screen, assets)
 }
 
+func TestTerminalInputModeEmptyOnStart(t *testing.T) {
+	term := NewTerminal()
+	term.SetInputMode(true)
+
+	if term.inputText != "" {
+		t.Errorf("Expected initial inputText to be empty string, got %q", term.inputText)
+	}
+
+	// First frame after enabling input mode ignores trigger key presses
+	_, submitted, _ := term.HandleInputMode()
+	if submitted {
+		t.Error("Expected no submit on initial frame")
+	}
+
+	if term.inputText != "" {
+		t.Errorf("Expected inputText to remain empty on initial frame, got %q", term.inputText)
+	}
+}
+
 func TestTerminalScrollBounds(t *testing.T) {
 	term := NewTerminal()
 

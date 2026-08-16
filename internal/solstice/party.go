@@ -20,6 +20,9 @@ func GetParty() *Party {
 // SetParty sets the global party instance.
 func SetParty(p *Party) {
 	defaultParty = p
+	if defaultGame != nil {
+		defaultGame.party = p
+	}
 }
 
 // Party represents the top-level player entity in the world.

@@ -222,6 +222,43 @@ func InitScriptSystem() error {
 				return args[idx], nil
 			},
 		},
+		"load_map": &tengo.UserFunction{
+			Name: "load_map",
+			Value: func(args ...tengo.Object) (tengo.Object, error) {
+				if len(args) < 1 {
+					return tengo.UndefinedValue, fmt.Errorf("load_map requires 1 argument: name")
+				}
+				mapName, ok := tengo.ToString(args[0])
+				if !ok {
+					return tengo.UndefinedValue, fmt.Errorf("load_map argument must be a string")
+				}
+				m, err := LoadMap(mapName)
+				if err != nil {
+					return tengo.UndefinedValue, fmt.Errorf("failed to load map %s: %w", mapName, err)
+				}
+				SetMap(m)
+				return tengo.UndefinedValue, nil
+			},
+		},
+		"teleport_party": &tengo.UserFunction{
+			Name: "teleport_party",
+			Value: func(args ...tengo.Object) (tengo.Object, error) {
+				if len(args) < 2 {
+					return tengo.UndefinedValue, fmt.Errorf("teleport_party requires 2 arguments: x, y")
+				}
+				x, ok1 := tengo.ToInt(args[0])
+				y, ok2 := tengo.ToInt(args[1])
+				if !ok1 || !ok2 {
+					return tengo.UndefinedValue, fmt.Errorf("teleport_party arguments must be integers")
+				}
+				party := GetParty()
+				if party != nil {
+					party.X = x
+					party.Y = y
+				}
+				return tengo.UndefinedValue, nil
+			},
+		},
 	}
 	moduleMap.AddBuiltinModule("game", gameModule)
 

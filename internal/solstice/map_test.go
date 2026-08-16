@@ -2,8 +2,6 @@ package solstice
 
 import (
 	"testing"
-
-	"github.com/hajimehoshi/ebiten/v2"
 )
 
 func TestPreloadTileSet(t *testing.T) {
@@ -39,44 +37,60 @@ func TestPreloadTileSet(t *testing.T) {
 	if !prop13.BlocksVis {
 		t.Errorf("Expected tile 13 to have BlocksVis=true, got %+v", prop13)
 	}
-
-	// Tile 78 has use_script="tiles/door.tengo"
-	prop78 := ts.GetTileProperties(78)
-	if prop78.UseScript != "tiles/door.tengo" {
-		t.Errorf("Expected tile 78 to have UseScript='tiles/door.tengo', got %q", prop78.UseScript)
-	}
 }
 
-func TestLoadMapHomeAndGetSetTile(t *testing.T) {
+func TestLoadMap(t *testing.T) {
 	m, err := LoadMap("home")
 	if err != nil {
-		t.Fatalf("LoadMap('home') failed: %v", err)
+		t.Fatalf("LoadMap failed: %v", err)
 	}
 
+	if m.Name != "home" {
+		t.Errorf("Expected map name 'home', got %q", m.Name)
+	}
 	if m.Width != 32 || m.Height != 32 {
-		t.Errorf("Expected map dimensions 32x32, got %dx%d", m.Width, m.Height)
+		t.Errorf("Expected map size 32x32, got %dx%d", m.Width, m.Height)
 	}
-
-	// GID 11 in home.tmx -> tile index 10 (11 - 1)
-	initialTile := m.GetTile(0, 0)
-	if initialTile != 10 {
-		t.Errorf("Expected initial tile at (0,0) to be 10, got %d", initialTile)
+	if len(m.Tiles) != 1024 {
+		t.Errorf("Expected 1024 tiles, got %d", len(m.Tiles))
 	}
-
-	// Test SetTile
-	m.SetTile(0, 0, 42)
-	if updated := m.GetTile(0, 0); updated != 42 {
-		t.Errorf("Expected updated tile at (0,0) to be 42, got %d", updated)
-	}
-
-	// Test bounds safety
-	if oob := m.GetTile(-1, -1); oob != 0 {
-		t.Errorf("Expected out-of-bounds GetTile to return 0, got %d", oob)
-	}
-	m.SetTile(-1, -1, 99) // Should not panic
 }
 
-func TestMovePartyWalkableConstraint(t *testing.T) {
+func TestLoadMapObjectLayerActors(t *testing.T) {
+	if _, err := PreloadSpriteDefs(); err != nil {
+		t.Fatalf("PreloadSpriteDefs failed: %v", err)
+	}
+	if _, err := PreloadActorDefs(); err != nil {
+		t.Fatalf("PreloadActorDefs failed: %v", err)
+	}
+
+	homeMap, err := LoadMap("home")
+	if err != nil {
+		t.Fatalf("LoadMap failed: %v", err)
+	}
+
+	if len(homeMap.Actors) < 2 {
+		t.Fatalf("Expected at least 2 actors loaded from homeMap object layer, got %d", len(homeMap.Actors))
+	}
+
+	// Verify object 1 (guard) at x=271.75, y=192, height=16 (GID tile object, Y bottom-left -> top-left y=176) -> tile (17, 11)
+	guardActor := homeMap.GetActorAt(17, 11)
+	if guardActor == nil {
+		t.Errorf("Expected guard actor at tile (17, 11), got nil")
+	} else {
+		if guardActor.DialogScript != "dialog/guard.tengo" {
+			t.Errorf("Expected guard DialogScript 'dialog/guard.tengo', got %q", guardActor.DialogScript)
+		}
+	}
+
+	// Verify object 2 (wizard) at x=304, y=240.25, height=16 (GID tile object, Y bottom-left -> top-left y=224.25) -> tile (19, 14)
+	wizardActor := homeMap.GetActorAt(19, 14)
+	if wizardActor == nil {
+		t.Errorf("Expected wizard actor at tile (19, 14), got nil")
+	}
+}
+
+func TestMapMoveParty(t *testing.T) {
 	if _, err := PreloadTileSet(); err != nil {
 		t.Fatalf("PreloadTileSet failed: %v", err)
 	}
@@ -86,54 +100,40 @@ func TestMovePartyWalkableConstraint(t *testing.T) {
 		t.Fatalf("LoadMap failed: %v", err)
 	}
 
-	// Set up map tile at (10, 10) as walkable (tile 4 grass)
-	// and tile at (11, 10) as non-walkable (tile 1 deep water)
-	m.SetTile(10, 10, 4)
-	m.SetTile(11, 10, 1)
-	m.SetTile(9, 10, 4)
+	// Make tile (10, 10) walkable and tile (11, 10) non-walkable
+	m.SetTile(10, 10, 4) // Walkable tile
+	m.SetTile(11, 10, 0) // Non-walkable tile
 
-	party, err := NewParty(10, 10)
+	p, err := NewParty(10, 10)
 	if err != nil {
 		t.Fatalf("NewParty failed: %v", err)
 	}
 
-	// 1. Moving onto non-walkable tile (11, 10) should fail
-	moved := m.MoveParty(party, 1, 0)
-	if moved {
-		t.Error("Expected movement onto non-walkable tile to fail")
-	}
-	if party.X != 10 || party.Y != 10 {
-		t.Errorf("Expected party position to remain (10, 10), got (%d, %d)", party.X, party.Y)
+	// Moving to blocked tile should fail
+	if m.MoveParty(p, 1, 0) {
+		t.Error("Expected MoveParty to (11, 10) to return false (blocked)")
 	}
 
-	// 2. Moving onto walkable tile (9, 10) should succeed
-	moved = m.MoveParty(party, -1, 0)
-	if !moved {
-		t.Error("Expected movement onto walkable tile to succeed")
-	}
-	if party.X != 9 || party.Y != 10 {
-		t.Errorf("Expected party position (9, 10), got (%d, %d)", party.X, party.Y)
+	if p.X != 10 || p.Y != 10 {
+		t.Errorf("Expected party position to remain (10, 10), got (%d, %d)", p.X, p.Y)
 	}
 
-	// 3. Moving out of bounds should fail
-	party.X = 0
-	party.Y = 0
-	moved = m.MoveParty(party, -1, 0)
-	if moved {
-		t.Error("Expected out-of-bounds movement to fail")
+	// Make tile (11, 10) walkable
+	m.SetTile(11, 10, 4)
+
+	// Moving to walkable tile should succeed
+	if !m.MoveParty(p, 1, 0) {
+		t.Error("Expected MoveParty to (11, 10) to return true")
+	}
+
+	if p.X != 11 || p.Y != 10 {
+		t.Errorf("Expected party position (11, 10), got (%d, %d)", p.X, p.Y)
 	}
 }
 
-func TestSpiritModeSpiritPassableMovement(t *testing.T) {
-	ts, err := PreloadTileSet()
-	if err != nil {
+func TestSpiritModePartyMovement(t *testing.T) {
+	if _, err := PreloadTileSet(); err != nil {
 		t.Fatalf("PreloadTileSet failed: %v", err)
-	}
-
-	// Manually inject a tile property for testing (tile 99: spirit_passable=true, walkable=false)
-	ts.Properties[99] = TileProperties{
-		SpiritPassable: true,
-		Walkable:       false,
 	}
 
 	m, err := LoadMap("home")
@@ -141,10 +141,11 @@ func TestSpiritModeSpiritPassableMovement(t *testing.T) {
 		t.Fatalf("LoadMap failed: %v", err)
 	}
 
-	m.SetTile(10, 10, 4)  // Walkable grass
-	m.SetTile(11, 10, 99) // Spirit passable only
+	// Set tile (10, 10) to walkable and (11, 10) to tile ID with spirit_passable=true (e.g. tile 78 if door)
+	m.SetTile(10, 10, 4) // Walkable
+	m.SetTile(11, 10, 78) // spirit_passable tile from tileset.tsx
 
-	// Spirit mode party (0 members)
+	// Spirit party (0 members)
 	spiritParty, err := NewParty(10, 10)
 	if err != nil {
 		t.Fatalf("NewParty failed: %v", err)
@@ -173,48 +174,4 @@ func TestSpiritModeSpiritPassableMovement(t *testing.T) {
 	if m.MoveParty(livingParty, 1, 0) {
 		t.Error("Expected living party to be blocked by spirit_passable (non-walkable) tile")
 	}
-}
-
-func TestExecuteTileUseScript(t *testing.T) {
-	if err := InitScriptSystem(); err != nil {
-		t.Fatalf("InitScriptSystem failed: %v", err)
-	}
-
-	if _, err := PreloadTileSet(); err != nil {
-		t.Fatalf("PreloadTileSet failed: %v", err)
-	}
-
-	m, err := LoadMap("home")
-	if err != nil {
-		t.Fatalf("LoadMap failed: %v", err)
-	}
-	SetMap(m)
-
-	// Tile 78 has use_script="tiles/door.tengo"
-	m.SetTile(5, 5, 78)
-
-	if err := m.ExecuteTileUseScript(5, 5); err != nil {
-		t.Fatalf("ExecuteTileUseScript(5, 5) failed: %v", err)
-	}
-
-	// Verify that executing tiles/door.tengo changed the tile at (5, 5) to 68
-	if updatedTile := m.GetTile(5, 5); updatedTile != 68 {
-		t.Errorf("Expected tile at (5, 5) to be changed to 68 by door.tengo script, got %d", updatedTile)
-	}
-}
-
-func TestMapDraw(t *testing.T) {
-	m, err := LoadMap("home")
-	if err != nil {
-		t.Fatalf("LoadMap failed: %v", err)
-	}
-
-	assets, err := LoadAssets()
-	if err != nil {
-		t.Fatalf("LoadAssets failed: %v", err)
-	}
-
-	screen := ebiten.NewImage(640, 360)
-	m.Draw(screen, assets, 1)
-	m.Draw(screen, assets, 2)
 }

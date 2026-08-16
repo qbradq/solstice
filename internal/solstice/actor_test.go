@@ -36,6 +36,7 @@ func TestActorDefAndMapActorOperations(t *testing.T) {
 	if err != nil {
 		t.Fatalf("LoadMap failed: %v", err)
 	}
+	homeMap.Actors = nil
 
 	homeMap.AddActor(guard)
 	if len(homeMap.Actors) != 1 {

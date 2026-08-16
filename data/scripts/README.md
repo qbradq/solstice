@@ -8,6 +8,10 @@ everything for the game loop.
 * `game` provides a limited interface to the global game state generally useful
   to all scripts.
   * `log(msg)` adds the string `msg` to the game terminal log.
+  * `load_map(name)` loads the named map file. For instance, if name is "home",
+    the file "data/maps/home.tmx" is loaded.
+  * `teleport_party(x,y)` teleports the party to location x,y on the current
+    map.
   * `set_map_tile(x,y,tile)` sets the tile index at position x,y in the current
     map to tile.
   * `set_state(name)` creates and sets the named state variable to true.

@@ -183,3 +183,33 @@ func TestGameRandomFunction(t *testing.T) {
 		t.Errorf("Expected multiple random choices from 100 iterations, got: %v", foundMap)
 	}
 }
+
+func TestGameLoadMapAndTeleportParty(t *testing.T) {
+	term := NewTerminal()
+	SetTerminal(term)
+
+	if err := InitScriptSystem(); err != nil {
+		t.Fatalf("InitScriptSystem failed: %v", err)
+	}
+
+	p, err := NewParty(0, 0)
+	if err != nil {
+		t.Fatalf("NewParty failed: %v", err)
+	}
+	SetParty(p)
+
+	// Run main.tengo which executes load_map("home") and teleport_party(15, 15)
+	if err := RunMainScript(); err != nil {
+		t.Fatalf("RunMainScript failed: %v", err)
+	}
+
+	m := GetMap()
+	if m == nil || m.Name != "home" {
+		t.Errorf("Expected current map to be 'home' after main.tengo, got %v", m)
+	}
+
+	party := GetParty()
+	if party.X != 15 || party.Y != 15 {
+		t.Errorf("Expected party position (15, 15) after teleport_party in main.tengo, got (%d, %d)", party.X, party.Y)
+	}
+}

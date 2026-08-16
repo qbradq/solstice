@@ -37,10 +37,11 @@ type TerminalLine struct {
 
 // Terminal manages the terminal UI, log message history with per-line colors, input mode, scrolling, and rendering.
 type Terminal struct {
-	lines        []TerminalLine
-	scrollOffset int
-	inputMode    bool
-	inputText    string
+	lines            []TerminalLine
+	scrollOffset     int
+	inputMode        bool
+	inputText        string
+	ignoreFrameInput bool
 }
 
 // NewTerminal creates a new Terminal.
@@ -55,8 +56,9 @@ func NewTerminal() *Terminal {
 // SetInputMode enables or disables terminal input mode.
 func (t *Terminal) SetInputMode(enabled bool) {
 	t.inputMode = enabled
-	if !enabled {
-		t.inputText = ""
+	t.inputText = ""
+	if enabled {
+		t.ignoreFrameInput = true
 	}
 }
 
@@ -133,14 +135,25 @@ func (t *Terminal) HandleInput() {
 	t.HandleInputScrollOnly()
 }
 
-// HandleInputMode processes character entry, backspace, and submit in terminal input mode.
-// Converts all entered characters to upper-case. Returns submitted text and true on Enter.
-func (t *Terminal) HandleInputMode() (string, bool) {
+// HandleInputMode processes character entry, backspace, submit (Enter), and cancel (Escape) in terminal input mode.
+// Converts all entered characters to upper-case. Returns (submittedText, submitted, canceled).
+func (t *Terminal) HandleInputMode() (string, bool, bool) {
 	if !t.inputMode {
-		return "", false
+		return "", false, false
 	}
 
 	t.HandleInputScrollOnly()
+
+	if t.ignoreFrameInput {
+		t.ignoreFrameInput = false
+		return "", false, false
+	}
+
+	// Cancel input mode on Escape key press
+	if inpututil.IsKeyJustPressed(ebiten.KeyEscape) {
+		t.SetInputMode(false)
+		return "", false, true
+	}
 
 	// Backspace support
 	if inpututil.IsKeyJustPressed(ebiten.KeyBackspace) {
@@ -166,10 +179,10 @@ func (t *Terminal) HandleInputMode() (string, bool) {
 	if inpututil.IsKeyJustPressed(ebiten.KeyEnter) || inpututil.IsKeyJustPressed(ebiten.KeyKPEnter) {
 		text := t.inputText
 		t.inputText = ""
-		return text, true
+		return text, true, false
 	}
 
-	return "", false
+	return "", false, false
 }
 
 // Draw renders the terminal log to screen at position (352, 128) with size 288x224 pixels.

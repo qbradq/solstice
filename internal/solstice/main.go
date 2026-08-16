@@ -15,6 +15,18 @@ const (
 	windowHeight = 720
 )
 
+var defaultGame *Game
+
+// GetGame returns the global game instance.
+func GetGame() *Game {
+	return defaultGame
+}
+
+// SetGame sets the global game instance.
+func SetGame(g *Game) {
+	defaultGame = g
+}
+
 type Game struct {
 	assets     *Assets
 	terminal   *Terminal
@@ -87,11 +99,6 @@ func Main() {
 		log.Fatalf("failed to preload tileset: %v", err)
 	}
 
-	homeMap, err := LoadMap("home")
-	if err != nil {
-		log.Fatalf("failed to load home map: %v", err)
-	}
-
 	spriteDefs, err := PreloadSpriteDefs()
 	if err != nil {
 		log.Fatalf("failed to preload sprite defs: %v", err)
@@ -101,15 +108,8 @@ func Main() {
 		log.Fatalf("failed to preload actor defs: %v", err)
 	}
 
-	// Add test actor at coordinates (17, 11) on homeMap
-	testActor, err := NewActorFromDef("test-guard", "guard", 17, 11)
-	if err != nil {
-		testActor = NewActor("test-guard", 17, 11, "guard")
-	}
-	homeMap.AddActor(testActor)
-
-	// Create initial party at starting position (15, 15) with default "party-spirit-mode" sprite
-	party, err := NewParty(15, 15)
+	// Create initial party with default "party-spirit-mode" sprite
+	party, err := NewParty(0, 0)
 	if err != nil {
 		log.Fatalf("failed to create party: %v", err)
 	}
@@ -122,7 +122,8 @@ func Main() {
 		log.Fatalf("failed to initialize script system: %v", err)
 	}
 
-	// Execute data/scripts/main.tengo after all assets and scripts are loaded
+	// Execute data/scripts/main.tengo after all assets and scripts are loaded.
+	// main.tengo takes care of loading the map (game.load_map) and positioning the party (game.teleport_party).
 	if err := RunMainScript(); err != nil {
 		log.Fatalf("failed to execute main.tengo script: %v", err)
 	}
@@ -134,11 +135,12 @@ func Main() {
 	game := &Game{
 		assets:     assets,
 		terminal:   term,
-		currentMap: homeMap,
-		party:      party,
+		currentMap: GetMap(),
+		party:      GetParty(),
 		spriteDefs: spriteDefs,
 		mapScale:   2,
 	}
+	SetGame(game)
 	game.PushMode(NewMainMode())
 
 	if err := ebiten.RunGame(game); err != nil {

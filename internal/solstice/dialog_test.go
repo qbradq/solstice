@@ -110,3 +110,48 @@ func TestDialogModeStack(t *testing.T) {
 		t.Error("Expected bye to end dialog")
 	}
 }
+
+func TestDialogCancelWithEscape(t *testing.T) {
+	term := NewTerminal()
+	SetTerminal(term)
+
+	if err := InitScriptSystem(); err != nil {
+		t.Fatalf("InitScriptSystem failed: %v", err)
+	}
+
+	actor := NewActor("guard-1", 17, 11, "guard")
+	actor.DialogScript = "dialog/guard.tengo"
+
+	game := &Game{
+		assets:   nil,
+		terminal: term,
+	}
+	game.PushMode(NewMainMode())
+
+	dialogMode := NewDialogMode(actor, actor.DialogScript)
+	game.PushMode(dialogMode)
+
+	// First Update initializes DialogMode
+	if err := game.Update(); err != nil {
+		t.Fatalf("game.Update() failed: %v", err)
+	}
+
+	term.AddMessageColored("> BYE", VGAPalette16[9])
+	ended, err := ExecuteDialogScript(actor.DialogScript, "bye")
+	if err != nil || !ended {
+		t.Fatalf("Expected bye script execution to succeed and end dialog")
+	}
+
+	lines := term.GetLines()
+	foundByeLine := false
+	for _, l := range lines {
+		if l.Text == "> BYE" && l.Color == VGAPalette16[9] {
+			foundByeLine = true
+			break
+		}
+	}
+
+	if !foundByeLine {
+		t.Error("Expected blue '> BYE' line in terminal history")
+	}
+}

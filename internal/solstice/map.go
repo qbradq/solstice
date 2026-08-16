@@ -4,6 +4,7 @@ import (
 	"encoding/xml"
 	"fmt"
 	"image"
+	"math"
 	"strconv"
 	"strings"
 
@@ -64,6 +65,9 @@ func GetMap() *Map {
 // SetMap sets the current default map instance.
 func SetMap(m *Map) {
 	defaultMap = m
+	if defaultGame != nil {
+		defaultGame.currentMap = m
+	}
 }
 
 // XML structures for deserializing TSX tilesets
@@ -90,14 +94,15 @@ type tsxProperty struct {
 
 // XML structures for deserializing TMX maps
 type tmxMap struct {
-	XMLName    xml.Name     `xml:"map"`
-	Version    string       `xml:"version,attr"`
-	Width      int          `xml:"width,attr"`
-	Height     int          `xml:"height,attr"`
-	TileWidth  int          `xml:"tilewidth,attr"`
-	TileHeight int          `xml:"tileheight,attr"`
-	Tilesets   []tmxTileset `xml:"tileset"`
-	Layers     []tmxLayer   `xml:"layer"`
+	XMLName      xml.Name         `xml:"map"`
+	Version      string           `xml:"version,attr"`
+	Width        int              `xml:"width,attr"`
+	Height       int              `xml:"height,attr"`
+	TileWidth    int              `xml:"tilewidth,attr"`
+	TileHeight   int              `xml:"tileheight,attr"`
+	Tilesets     []tmxTileset     `xml:"tileset"`
+	Layers       []tmxLayer       `xml:"layer"`
+	ObjectGroups []tmxObjectGroup `xml:"objectgroup"`
 }
 
 type tmxTileset struct {
@@ -116,6 +121,23 @@ type tmxLayer struct {
 type tmxData struct {
 	Encoding string `xml:"encoding,attr"`
 	RawData  string `xml:",chardata"`
+}
+
+type tmxObjectGroup struct {
+	ID      int         `xml:"id,attr"`
+	Name    string      `xml:"name,attr"`
+	Objects []tmxObject `xml:"object"`
+}
+
+type tmxObject struct {
+	ID     int     `xml:"id,attr"`
+	Name   string  `xml:"name,attr"`
+	Type   string  `xml:"type,attr"`
+	GID    int     `xml:"gid,attr"`
+	X      float64 `xml:"x,attr"`
+	Y      float64 `xml:"y,attr"`
+	Width  float64 `xml:"width,attr"`
+	Height float64 `xml:"height,attr"`
 }
 
 // PreloadTileSet pre-loads the default tile set from data/maps/tileset.tsx at program start.
@@ -247,6 +269,34 @@ func LoadMap(name string) (*Map, error) {
 		Tiles:      tiles,
 		Timers:     make([]*MapTimer, 0),
 		Actors:     make([]*Actor, 0),
+	}
+
+	for _, og := range raw.ObjectGroups {
+		for _, obj := range og.Objects {
+			if obj.Name == "" {
+				continue
+			}
+			tileX := int(math.Round(obj.X / float64(raw.TileWidth)))
+
+			objY := obj.Y
+			if obj.GID > 0 {
+				// In Tiled TMX format, tile objects (with GID) specify the bottom-left coordinate of the tile.
+				// Adjust Y by subtracting object height (or TileHeight) to obtain top-left Y coordinate.
+				h := obj.Height
+				if h == 0 {
+					h = float64(raw.TileHeight)
+				}
+				objY -= h
+			}
+			tileY := int(math.Round(objY / float64(raw.TileHeight)))
+
+			actorID := fmt.Sprintf("%s-%d", obj.Name, obj.ID)
+			actor, err := NewActorFromDef(actorID, obj.Name, tileX, tileY)
+			if err != nil {
+				actor = NewActor(actorID, tileX, tileY, obj.Name)
+			}
+			m.AddActor(actor)
+		}
 	}
 
 	defaultMap = m
