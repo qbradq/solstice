@@ -39,6 +39,12 @@ func TestPreloadTileSet(t *testing.T) {
 	if !prop13.BlocksVis {
 		t.Errorf("Expected tile 13 to have BlocksVis=true, got %+v", prop13)
 	}
+
+	// Tile 78 has use_script="tiles/door.tengo"
+	prop78 := ts.GetTileProperties(78)
+	if prop78.UseScript != "tiles/door.tengo" {
+		t.Errorf("Expected tile 78 to have UseScript='tiles/door.tengo', got %q", prop78.UseScript)
+	}
 }
 
 func TestLoadMapHomeAndGetSetTile(t *testing.T) {
@@ -166,6 +172,41 @@ func TestSpiritModeSpiritPassableMovement(t *testing.T) {
 	// Living party SHOULD NOT be able to move onto spirit_passable tile (11, 10)
 	if m.MoveParty(livingParty, 1, 0) {
 		t.Error("Expected living party to be blocked by spirit_passable (non-walkable) tile")
+	}
+}
+
+func TestExecuteTileUseScriptOnMove(t *testing.T) {
+	if err := InitScriptSystem(); err != nil {
+		t.Fatalf("InitScriptSystem failed: %v", err)
+	}
+
+	if _, err := PreloadTileSet(); err != nil {
+		t.Fatalf("PreloadTileSet failed: %v", err)
+	}
+
+	m, err := LoadMap("home")
+	if err != nil {
+		t.Fatalf("LoadMap failed: %v", err)
+	}
+	SetMap(m)
+
+	// Tile 78 has use_script="tiles/door.tengo", spirit_passable=true
+	m.SetTile(4, 5, 4)
+	m.SetTile(5, 5, 78)
+
+	party, err := NewParty(4, 5)
+	if err != nil {
+		t.Fatalf("NewParty failed: %v", err)
+	}
+
+	// Move spirit mode party onto tile (5, 5) which has use_script="tiles/door.tengo"
+	if !m.MoveParty(party, 1, 0) {
+		t.Fatal("Expected party to move onto tile (5, 5)")
+	}
+
+	// Verify that executing tiles/door.tengo changed the tile at (5, 5) to 68
+	if updatedTile := m.GetTile(5, 5); updatedTile != 68 {
+		t.Errorf("Expected tile at (5, 5) to be changed to 68 by door.tengo script, got %d", updatedTile)
 	}
 }
 

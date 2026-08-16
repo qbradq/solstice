@@ -1,0 +1,4 @@
+game := import("game")
+
+// Open the door
+game.set_map_tile(tile.x, tile.y, 68)

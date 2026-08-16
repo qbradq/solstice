@@ -31,3 +31,16 @@ func TestInitScriptSystemAndRunMainScript(t *testing.T) {
 		t.Errorf("Expected 'Solstice Client v0.1.0' in terminal lines, got lines: %v", term.lines)
 	}
 }
+
+func TestExecuteTileScriptContext(t *testing.T) {
+	term := NewTerminal()
+	SetTerminal(term)
+
+	if err := InitScriptSystem(); err != nil {
+		t.Fatalf("InitScriptSystem failed: %v", err)
+	}
+
+	if err := ExecuteTileScript("tiles/door.tengo", 5, 10, 78); err != nil {
+		t.Fatalf("ExecuteTileScript failed: %v", err)
+	}
+}

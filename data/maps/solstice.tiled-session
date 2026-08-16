@@ -1,8 +1,21 @@
 {
-    "activeFile": "",
+    "activeFile": "tileset.tsx",
     "expandedProjectPaths": [
+        "."
     ],
     "fileStates": {
+        "home.tmx": {
+            "scale": 4,
+            "selectedLayer": 0,
+            "viewCenter": {
+                "x": 260.625,
+                "y": 290.75
+            }
+        },
+        "tileset.tsx": {
+            "scaleInDock": 1.5,
+            "scaleInEditor": 3
+        }
     },
     "last.imagePath": "/home/qbradq/projects/solstice/data",
     "map.height": 32,
@@ -11,10 +24,14 @@
     "map.tileWidth": 16,
     "map.width": 32,
     "openFiles": [
+        "tileset.tsx",
+        "home.tmx"
     ],
     "project": "solstice.tiled-project",
     "property.type": "bool",
     "recentFiles": [
+        "home.tmx",
+        "tileset.tsx"
     ],
     "tileset.lastUsedFormat": "tsx",
     "tileset.tileSize": {

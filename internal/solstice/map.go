@@ -11,14 +11,15 @@ import (
 	"github.com/hajimehoshi/ebiten/v2"
 )
 
-// TileProperties holds boolean physical and gameplay properties for a tile.
+// TileProperties holds physical, gameplay, and scripting properties for a tile.
 type TileProperties struct {
-	Walkable       bool `json:"walkable"`
-	BlocksVis      bool `json:"blocks_vis"`
-	DeepWater      bool `json:"deep_water"`
-	Water          bool `json:"water"`
-	Door           bool `json:"door"`
-	SpiritPassable bool `json:"spirit_passable"`
+	Walkable       bool   `json:"walkable"`
+	BlocksVis      bool   `json:"blocks_vis"`
+	DeepWater      bool   `json:"deep_water"`
+	Water          bool   `json:"water"`
+	Door           bool   `json:"door"`
+	SpiritPassable bool   `json:"spirit_passable"`
+	UseScript      string `json:"use_script"`
 }
 
 // TileSet holds tileset information loaded from a Tiled .tsx file.
@@ -43,6 +44,17 @@ type Map struct {
 }
 
 var defaultTileSet *TileSet
+var defaultMap *Map
+
+// GetMap returns the current default map instance.
+func GetMap() *Map {
+	return defaultMap
+}
+
+// SetMap sets the current default map instance.
+func SetMap(m *Map) {
+	defaultMap = m
+}
 
 // XML structures for deserializing TSX tilesets
 type tsxTileset struct {
@@ -144,6 +156,8 @@ func LoadTileSet(path string) (*TileSet, error) {
 				tp.Door = val
 			case "spirit_passable":
 				tp.SpiritPassable = val
+			case "use_script":
+				tp.UseScript = p.Value
 			}
 		}
 		ts.Properties[t.ID] = tp
@@ -223,6 +237,7 @@ func LoadMap(name string) (*Map, error) {
 		Tiles:      tiles,
 	}
 
+	defaultMap = m
 	return m, nil
 }
 
@@ -244,9 +259,26 @@ func (m *Map) SetTile(x, y int, tileIdx int) {
 	m.Tiles[y*m.Width+x] = tileIdx
 }
 
+// ExecuteTileUseScript executes the use_script for the tile at tile coordinates (x, y) if defined.
+func (m *Map) ExecuteTileUseScript(x, y int) error {
+	if m == nil || x < 0 || x >= m.Width || y < 0 || y >= m.Height {
+		return nil
+	}
+
+	tileIdx := m.GetTile(x, y)
+	props := GetTileProperties(tileIdx)
+
+	if props.UseScript == "" {
+		return nil
+	}
+
+	return ExecuteTileScript(props.UseScript, x, y, tileIdx)
+}
+
 // MoveParty handles relative party movement on the map.
 // The party can move onto a tile if the tile is "walkable",
 // or additionally if the party is in "spirit mode" and the tile has the "spirit_passable" property set to true.
+// Executes the tile's use_script upon a successful move onto the target tile.
 // Returns true if movement succeeded, or false if blocked.
 func (m *Map) MoveParty(p *Party, dx, dy int) bool {
 	if m == nil || p == nil || (dx == 0 && dy == 0) {
@@ -270,6 +302,8 @@ func (m *Map) MoveParty(p *Party, dx, dy int) bool {
 
 	p.X = targetX
 	p.Y = targetY
+
+	_ = m.ExecuteTileUseScript(targetX, targetY)
 	return true
 }
 

@@ -45,6 +45,24 @@ func InitScriptSystem() error {
 				return tengo.UndefinedValue, nil
 			},
 		},
+		"set_map_tile": &tengo.UserFunction{
+			Name: "set_map_tile",
+			Value: func(args ...tengo.Object) (tengo.Object, error) {
+				if len(args) < 3 {
+					return tengo.UndefinedValue, fmt.Errorf("set_map_tile requires 3 arguments: x, y, tileIdx")
+				}
+				x, ok1 := tengo.ToInt(args[0])
+				y, ok2 := tengo.ToInt(args[1])
+				tileIdx, ok3 := tengo.ToInt(args[2])
+				if !ok1 || !ok2 || !ok3 {
+					return tengo.UndefinedValue, fmt.Errorf("set_map_tile arguments must be integers")
+				}
+				if defaultMap != nil {
+					defaultMap.SetTile(x, y, tileIdx)
+				}
+				return tengo.UndefinedValue, nil
+			},
+		},
 	}
 	moduleMap.AddBuiltinModule("game", gameModule)
 
@@ -74,6 +92,7 @@ func InitScriptSystem() error {
 			// Pre-compile script
 			script := tengo.NewScript(src)
 			script.SetImports(moduleMap)
+			_ = script.Add("tile", nil)
 			compiled, err := script.Compile()
 			if err != nil {
 				return fmt.Errorf("failed to pre-compile script %s: %w", path, err)
@@ -130,6 +149,43 @@ func ExecuteScript(scriptPath string) error {
 	vm := compiled.Clone()
 	if err := vm.Run(); err != nil {
 		return fmt.Errorf("failed to execute script %s: %w", scriptPath, err)
+	}
+
+	return nil
+}
+
+// ExecuteTileScript executes a tile script with tile coordinates (tileX, tileY) and tile index (tileIdx) passed as the "tile" object.
+func ExecuteTileScript(scriptPath string, tileX, tileY, tileIdx int) error {
+	scriptMu.RLock()
+	cleanKey := filepath.ToSlash(scriptPath)
+	compiled, ok := compiledScripts[cleanKey]
+	if !ok {
+		cleanKey = strings.TrimPrefix(cleanKey, "data/")
+		compiled, ok = compiledScripts[cleanKey]
+		if !ok {
+			cleanKey = strings.TrimPrefix(cleanKey, "scripts/")
+			compiled, ok = compiledScripts[cleanKey]
+		}
+	}
+	scriptMu.RUnlock()
+
+	if !ok || compiled == nil {
+		return fmt.Errorf("tile script %s not found or not pre-compiled", scriptPath)
+	}
+
+	vm := compiled.Clone()
+	tileMap := map[string]interface{}{
+		"x":    tileX,
+		"y":    tileY,
+		"tile": tileIdx,
+	}
+
+	if err := vm.Set("tile", tileMap); err != nil {
+		return fmt.Errorf("failed to set tile context for script %s: %w", scriptPath, err)
+	}
+
+	if err := vm.Run(); err != nil {
+		return fmt.Errorf("failed to execute tile script %s: %w", scriptPath, err)
 	}
 
 	return nil
