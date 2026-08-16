@@ -1,0 +1,18 @@
+{
+    "guard": {
+        "name": "Town Guard",
+        "sprite": "guard"
+    },
+    "wizard": {
+        "name": "Wizard",
+        "sprite": "wizard"
+    },
+    "warrior": {
+        "name": "Warrior",
+        "sprite": "warrior"
+    },
+    "peasant": {
+        "name": "Peasant",
+        "sprite": "peasant"
+    }
+}

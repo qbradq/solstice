@@ -12,9 +12,9 @@ func TestPartySpiritModeAndMembers(t *testing.T) {
 	}
 
 	// 1. Create a party with 0 members (Spirit Mode)
-	party, err := NewParty(10, 20)
+	party, err := NewParty(15, 15)
 	if err != nil {
-		t.Fatalf("NewParty(10, 20) failed: %v", err)
+		t.Fatalf("NewParty(15, 15) failed: %v", err)
 	}
 
 	SetParty(party)
@@ -34,16 +34,10 @@ func TestPartySpiritModeAndMembers(t *testing.T) {
 		t.Errorf("Expected Animated=true and Frames=4, got Animated=%v, Frames=%d", party.Animated, party.Frames)
 	}
 
-	// 2. Add up to 4 members
+	// 2. Add up to 4 members using Actor
 	for i := 1; i <= 4; i++ {
-		member := PartyMember{
-			Entity: Entity{
-				Name: fmt.Sprintf("Hero %d", i),
-				X:    10 + i,
-				Y:    20 + i,
-			},
-		}
-		if err := party.AddMember(member); err != nil {
+		actor := *NewActor(fmt.Sprintf("hero-%d", i), 15+i, 15+i, "warrior")
+		if err := party.AddMember(actor); err != nil {
 			t.Fatalf("AddMember failed on member %d: %v", i, err)
 		}
 	}
@@ -57,15 +51,13 @@ func TestPartySpiritModeAndMembers(t *testing.T) {
 	}
 
 	// 3. Attempting to add 5th member should fail
-	extraMember := PartyMember{
-		Entity: Entity{Name: "Hero 5"},
-	}
-	if err := party.AddMember(extraMember); err == nil {
+	extraActor := *NewActor("hero-5", 0, 0, "warrior")
+	if err := party.AddMember(extraActor); err == nil {
 		t.Error("Expected error adding 5th member, got nil")
 	}
 
 	// 4. Test NewParty with > 4 members initially
-	fiveMembers := make([]PartyMember, 5)
+	fiveMembers := make([]Actor, 5)
 	if _, err := NewParty(0, 0, fiveMembers...); err == nil {
 		t.Error("Expected error creating NewParty with 5 members, got nil")
 	}

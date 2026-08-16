@@ -160,7 +160,7 @@ func TestSpiritModeSpiritPassableMovement(t *testing.T) {
 	}
 
 	// Living party (1 member)
-	livingParty, err := NewParty(10, 10, PartyMember{Entity: Entity{Name: "Hero"}})
+	livingParty, err := NewParty(10, 10, Actor{Entity: Entity{Name: "Hero"}})
 	if err != nil {
 		t.Fatalf("NewParty failed: %v", err)
 	}

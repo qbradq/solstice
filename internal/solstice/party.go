@@ -22,23 +22,17 @@ func SetParty(p *Party) {
 	defaultParty = p
 }
 
-// PartyMember represents an individual member of the party.
-// It embeds Entity for map positioning and individual graphical representation.
-type PartyMember struct {
-	Entity
-}
-
 // Party represents the top-level player entity in the world.
 // It embeds Entity for positioning and graphical representation when controlling
-// the party as a whole. It contains between 0 and 4 party members.
+// the party as a whole. It contains between 0 and 4 party member actors.
 type Party struct {
 	Entity
-	Members []PartyMember
+	Members []Actor
 }
 
-// NewParty creates a new Party with the specified position and initial members.
+// NewParty creates a new Party with the specified position and initial actor members.
 // It copies the "party-spirit-mode" SpriteDef for the party's Entity.
-func NewParty(x, y int, members ...PartyMember) (*Party, error) {
+func NewParty(x, y int, members ...Actor) (*Party, error) {
 	if len(members) > MaxPartyMembers {
 		return nil, fmt.Errorf("cannot create party with %d members (maximum allowed is %d)", len(members), MaxPartyMembers)
 	}
@@ -53,7 +47,7 @@ func NewParty(x, y int, members ...PartyMember) (*Party, error) {
 		}
 	}
 
-	memberSlice := make([]PartyMember, len(members))
+	memberSlice := make([]Actor, len(members))
 	copy(memberSlice, members)
 
 	p := &Party{
@@ -75,9 +69,9 @@ func (p *Party) IsSpiritMode() bool {
 	return p == nil || len(p.Members) == 0
 }
 
-// AddMember adds a PartyMember to the party.
+// AddMember adds an Actor to the party.
 // Returns an error if the party already contains the maximum of 4 members.
-func (p *Party) AddMember(member PartyMember) error {
+func (p *Party) AddMember(member Actor) error {
 	if len(p.Members) >= MaxPartyMembers {
 		return fmt.Errorf("cannot add member: party is full (max %d members)", MaxPartyMembers)
 	}
@@ -85,7 +79,7 @@ func (p *Party) AddMember(member PartyMember) error {
 	return nil
 }
 
-// RemoveMember removes the party member at the specified index.
+// RemoveMember removes the party member actor at the specified index.
 func (p *Party) RemoveMember(index int) error {
 	if index < 0 || index >= len(p.Members) {
 		return fmt.Errorf("member index %d out of bounds (len %d)", index, len(p.Members))

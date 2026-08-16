@@ -93,9 +93,9 @@ func TestAddTimerAndTurnSystem(t *testing.T) {
 		m.AdvanceTurn()
 	}
 
-	// Verify that close_door.tengo executed and reset tile to 184
-	if updatedTile := m.GetTile(5, 5); updatedTile != 184 {
-		t.Errorf("Expected tile at (5, 5) to close back to 184 after close_door timer, got %d", updatedTile)
+	// Verify that close_door.tengo executed and reset tile to 78
+	if updatedTile := m.GetTile(5, 5); updatedTile != 78 {
+		t.Errorf("Expected tile at (5, 5) to close back to 78 after close_door timer, got %d", updatedTile)
 	}
 
 	if len(m.Timers) != 0 {

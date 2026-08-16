@@ -97,8 +97,19 @@ func Main() {
 		log.Fatalf("failed to preload sprite defs: %v", err)
 	}
 
-	// Create initial party at position (16, 16) with default "party-spirit-mode" sprite
-	party, err := NewParty(16, 16)
+	if _, err := PreloadActorDefs(); err != nil {
+		log.Fatalf("failed to preload actor defs: %v", err)
+	}
+
+	// Add test actor at coordinates (17, 11) on homeMap
+	testActor, err := NewActorFromDef("test-guard", "guard", 17, 11)
+	if err != nil {
+		testActor = NewActor("test-guard", 17, 11, "guard")
+	}
+	homeMap.AddActor(testActor)
+
+	// Create initial party at starting position (15, 15) with default "party-spirit-mode" sprite
+	party, err := NewParty(15, 15)
 	if err != nil {
 		log.Fatalf("failed to create party: %v", err)
 	}

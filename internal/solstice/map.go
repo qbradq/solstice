@@ -3,6 +3,7 @@ package solstice
 import (
 	"encoding/xml"
 	"fmt"
+	"image"
 	"strconv"
 	"strings"
 
@@ -49,6 +50,7 @@ type Map struct {
 	FirstGID   int
 	Tiles      []int       // 0-indexed tile indices
 	Timers     []*MapTimer // Scheduled map timers
+	Actors     []*Actor    // Active actors on this map
 }
 
 var defaultTileSet *TileSet
@@ -244,6 +246,7 @@ func LoadMap(name string) (*Map, error) {
 		FirstGID:   firstGID,
 		Tiles:      tiles,
 		Timers:     make([]*MapTimer, 0),
+		Actors:     make([]*Actor, 0),
 	}
 
 	defaultMap = m
@@ -266,6 +269,50 @@ func (m *Map) SetTile(x, y int, tileIdx int) {
 		return
 	}
 	m.Tiles[y*m.Width+x] = tileIdx
+}
+
+// AddActor adds an actor to the map.
+func (m *Map) AddActor(a *Actor) {
+	if m == nil || a == nil {
+		return
+	}
+	m.Actors = append(m.Actors, a)
+}
+
+// RemoveActor removes an actor from the map.
+func (m *Map) RemoveActor(a *Actor) bool {
+	if m == nil || a == nil || len(m.Actors) == 0 {
+		return false
+	}
+	idx := -1
+	for i, actor := range m.Actors {
+		if actor == a || (actor != nil && actor.ID != "" && actor.ID == a.ID) {
+			idx = i
+			break
+		}
+	}
+	if idx >= 0 {
+		m.Actors = append(m.Actors[:idx], m.Actors[idx+1:]...)
+		return true
+	}
+	return false
+}
+
+// GetActorsInArea returns all actors on the map whose tile coordinates lie inside area.
+func (m *Map) GetActorsInArea(area image.Rectangle) []*Actor {
+	if m == nil || len(m.Actors) == 0 {
+		return nil
+	}
+	var res []*Actor
+	for _, a := range m.Actors {
+		if a != nil {
+			pt := image.Pt(a.X, a.Y)
+			if pt.In(area) {
+				res = append(res, a)
+			}
+		}
+	}
+	return res
 }
 
 // AddTimer schedules a new timer on the map with a delay expressed in turns,
@@ -324,9 +371,27 @@ func (m *Map) ExecuteTileUseScript(x, y int) error {
 	return ExecuteTileScript(props.UseScript, x, y, tileIdx)
 }
 
+// GetActorAt returns the actor occupying tile coordinates (x, y) if present, or nil if unoccupied.
+func (m *Map) GetActorAt(x, y int) *Actor {
+	if m == nil || len(m.Actors) == 0 {
+		return nil
+	}
+	for _, a := range m.Actors {
+		if a != nil && a.X == x && a.Y == y {
+			return a
+		}
+	}
+	return nil
+}
+
+// HasActorAt returns true if an actor occupies tile coordinates (x, y).
+func (m *Map) HasActorAt(x, y int) bool {
+	return m.GetActorAt(x, y) != nil
+}
+
 // MoveParty handles relative party movement on the map.
-// The party can move onto a tile if the tile is "walkable",
-// or additionally if the party is in "spirit mode" and the tile has the "spirit_passable" property set to true.
+// The party can move onto a tile if the tile is "walkable" (or "spirit_passable" in spirit mode)
+// AND the tile is not occupied by an Actor.
 // Simulates one game turn within the current map upon a successful move.
 // Returns true if movement succeeded, or false if blocked.
 func (m *Map) MoveParty(p *Party, dx, dy int) bool {
@@ -338,6 +403,11 @@ func (m *Map) MoveParty(p *Party, dx, dy int) bool {
 	targetY := p.Y + dy
 
 	if targetX < 0 || targetX >= m.Width || targetY < 0 || targetY >= m.Height {
+		return false
+	}
+
+	// Prevent party from moving onto a tile occupied by an Actor
+	if m.HasActorAt(targetX, targetY) {
 		return false
 	}
 
@@ -358,7 +428,7 @@ func (m *Map) MoveParty(p *Party, dx, dy int) bool {
 }
 
 // DrawCentered renders the map centered on map coordinates (centerX, centerY) into the map view area using assets at scale 1 or 2.
-// Out-of-bounds map tiles are drawn as a black void.
+// Out-of-bounds map tiles are drawn as a black void, and actors are rendered on top of map tiles.
 func (m *Map) DrawCentered(dst *ebiten.Image, assets *Assets, centerX, centerY int, scale int) {
 	if assets == nil {
 		return
@@ -376,6 +446,7 @@ func (m *Map) DrawCentered(dst *ebiten.Image, assets *Assets, centerX, centerY i
 		centerSty = 11
 	}
 
+	// 1. Render map tiles
 	for sty := 0; sty < rows; sty++ {
 		for stx := 0; stx < cols; stx++ {
 			mx := centerX + (stx - centerStx)
@@ -386,6 +457,21 @@ func (m *Map) DrawCentered(dst *ebiten.Image, assets *Assets, centerX, centerY i
 				assets.DrawMapTile(dst, tileIdx, stx, sty, scale)
 			} else {
 				assets.DrawBlackMapTile(dst, stx, sty, scale)
+			}
+		}
+	}
+
+	// 2. Render actors present on the map
+	if m != nil && len(m.Actors) > 0 {
+		for _, actor := range m.Actors {
+			if actor == nil {
+				continue
+			}
+			stx := centerStx + (actor.X - centerX)
+			sty := centerSty + (actor.Y - centerY)
+
+			if stx >= 0 && stx < cols && sty >= 0 && sty < rows {
+				assets.DrawSpriteDef(dst, actor.SpriteDef, stx, sty, scale)
 			}
 		}
 	}
