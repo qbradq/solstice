@@ -2,6 +2,8 @@ package solstice
 
 import (
 	"testing"
+
+	"github.com/hajimehoshi/ebiten/v2"
 )
 
 func TestPreloadTileSet(t *testing.T) {
@@ -82,6 +84,113 @@ func TestPreloadWorldMap(t *testing.T) {
 
 	if GetWorldMap() != wm {
 		t.Errorf("GetWorldMap() does not match preloaded world map")
+	}
+}
+
+func TestCalculateVisibility(t *testing.T) {
+	if _, err := PreloadTileSet(); err != nil {
+		t.Fatalf("PreloadTileSet failed: %v", err)
+	}
+
+	m, err := LoadMap("home")
+	if err != nil {
+		t.Fatalf("LoadMap failed: %v", err)
+	}
+
+	// 1. Open space test with radius 4: 9x9 grid
+	// Fill a 9x9 area around (15, 15) with open floor (tile 4, blocks_vis=false)
+	for y := 11; y <= 19; y++ {
+		for x := 11; x <= 19; x++ {
+			m.SetTile(x, y, 4)
+		}
+	}
+
+	vis := m.CalculateVisibility(15, 15, 4)
+	if vis == nil {
+		t.Fatal("Expected non-nil visibility bitset")
+	}
+	if vis.Len() != 81 {
+		t.Fatalf("Expected 81 bits for radius 4, got %d", vis.Len())
+	}
+	if vis.Count() != 81 {
+		t.Errorf("Expected all 81 tiles visible in open space, got %d", vis.Count())
+	}
+
+	// 2. Wall blocking test with radius 4:
+	// Place a wall line at x=17 (dx=+2 from center x=15) from y=11 to y=19 (tile 13, blocks_vis=true)
+	for y := 11; y <= 19; y++ {
+		m.SetTile(17, y, 13)
+		// Tiles behind the wall: x=18, 19
+		m.SetTile(18, y, 4)
+		m.SetTile(19, y, 4)
+	}
+
+	visWall := m.CalculateVisibility(15, 15, 4)
+	// Local grid coords for center (15, 15) is (lx=4, ly=4)
+	// Local coord for wall at x=17 is lx = 4 + (17 - 15) = 6
+	// The wall at lx=6 should be visible
+	centerWallIdx := uint(4*9 + 6)
+	if !visWall.Test(centerWallIdx) {
+		t.Errorf("Expected wall tile at lx=6, ly=4 to be visible")
+	}
+
+	// Behind the wall at lx=7 (x=18, ly=4): should NOT be visible
+	behindWallIdx := uint(4*9 + 7)
+	if visWall.Test(behindWallIdx) {
+		t.Errorf("Expected tile behind wall at lx=7, ly=4 to NOT be visible")
+	}
+	behindWallIdx2 := uint(4*9 + 8)
+	if visWall.Test(behindWallIdx2) {
+		t.Errorf("Expected tile behind wall at lx=8, ly=4 to NOT be visible")
+	}
+
+	// 3. Second generation visibility test:
+	// A blocking wall tile not reached in gen 1 requires at least 2 adjacent visible locations in vis1 to be marked visible in vis2.
+	// Place wall at x=18, y=15 (adjacent only to lx=6 in vis1) -> only 1 adjacent visible tile -> NOT marked in vis2.
+	m.SetTile(18, 15, 13)
+	visSingleAdj := m.CalculateVisibility(15, 15, 4)
+	if visSingleAdj.Test(uint(4*9 + 7)) {
+		t.Errorf("Expected wall at lx=7 with only 1 adjacent visible tile to NOT be visible in second generation")
+	}
+
+	// Now create a corner wall at (x=17, y=14) which is not in vis1 (e.g. if we block flood fill to it),
+	// or create a wall tile with 2 adjacent open visible floor tiles.
+	// For example, if center is (15, 15), floor at (15, 14) is visible in vis1, and floor at (16, 15) is visible in vis1.
+	// If (16, 14) is a wall (blocks_vis=true), but (16, 14) was reached in gen 1... wait, in gen 1 all direct neighbors of floor are reached.
+	// But suppose we set up a wall at (17, 16) that is adjacent to (17, 15) [vis1=true] and (16, 16) [vis1=true].
+	// (17, 15) was a wall in gen 1. (16, 16) is open floor in gen 1.
+	// (17, 16) is adjacent to both (17, 15) and (16, 16), which are BOTH in vis1!
+	// Therefore (17, 16) has 2 adjacent locations in vis1, so gen 2 marks it visible!
+	m.SetTile(17, 16, 13) // Wall at (17, 16), local (lx=6, ly=5)
+	// (16, 16) is open floor (local lx=5, ly=5) in vis1
+	// (17, 15) is wall (local lx=6, ly=4) in vis1
+	// (17, 16) has 2 adjacent visible tiles in vis1 -> marked visible in vis2
+	visDoubleAdj := m.CalculateVisibility(15, 15, 4)
+	if !visDoubleAdj.Test(uint(5*9 + 6)) {
+		t.Errorf("Expected wall tile at lx=6, ly=5 with 2 adjacent visible tiles in vis1 to be visible in second generation")
+	}
+
+	// 4. Test standing on a blocking tile (e.g. center tile at (15, 15) has blocks_vis=true):
+	// Even when standing on a blocking tile, the center and all 4 adjacent locations are checked
+	// and propagate into surrounding open floor.
+	m.SetTile(15, 15, 13) // center is blocking
+	visCenterBlocking := m.CalculateVisibility(15, 15, 4)
+	if !visCenterBlocking.Test(uint(4*9 + 4)) {
+		t.Errorf("Expected center tile to be visible even when blocking")
+	}
+	if !visCenterBlocking.Test(uint(3*9 + 4)) || !visCenterBlocking.Test(uint(5*9 + 4)) ||
+		!visCenterBlocking.Test(uint(4*9 + 3)) || !visCenterBlocking.Test(uint(4*9 + 5)) {
+		t.Errorf("Expected all 4 adjacent tiles to be visible when standing on blocking tile")
+	}
+	// And open floor at dx=-2 (lx=2, ly=4) should also be visible because flood fill propagated from adjacent floor (lx=3, ly=4)
+	if !visCenterBlocking.Test(uint(4*9 + 2)) {
+		t.Errorf("Expected flood fill to propagate from adjacent open tiles when standing on blocking center")
+	}
+
+	// 5. Negative radius returns empty bitset
+	visNeg := m.CalculateVisibility(15, 15, -1)
+	if visNeg == nil || visNeg.Len() != 0 {
+		t.Errorf("Expected empty bitset for negative radius")
 	}
 }
 
@@ -199,8 +308,46 @@ func TestSpiritModePartyMovement(t *testing.T) {
 		t.Fatal("Expected livingParty NOT to be in spirit mode")
 	}
 
-	// Living party SHOULD NOT be able to move onto spirit_passable tile (11, 10)
+	// Living party SHOULD NOT be able to move onto spirit_passable (non-walkable) tile (11, 10)
 	if m.MoveParty(livingParty, 1, 0) {
 		t.Error("Expected living party to be blocked by spirit_passable (non-walkable) tile")
 	}
+}
+
+func TestMapDrawCenteredVisibility(t *testing.T) {
+	assets, err := LoadAssets()
+	if err != nil {
+		t.Fatalf("LoadAssets failed: %v", err)
+	}
+	if _, err := PreloadSpriteDefs(); err != nil {
+		t.Fatalf("PreloadSpriteDefs failed: %v", err)
+	}
+
+	m, err := LoadMap("home")
+	if err != nil {
+		t.Fatalf("LoadMap failed: %v", err)
+	}
+
+	party, err := NewParty(15, 15)
+	if err != nil {
+		t.Fatalf("NewParty failed: %v", err)
+	}
+
+	// Add an actor behind a blocking wall
+	for y := 0; y < 32; y++ {
+		m.SetTile(17, y, 13) // Wall line at x=17
+	}
+	hiddenActor := NewActor("hidden", 18, 15, "guard")
+	m.AddActor(hiddenActor)
+
+	visibleActor := NewActor("visible", 14, 15, "guard")
+	m.AddActor(visibleActor)
+
+	screen := ebiten.NewImage(640, 360)
+
+	// Draw at scale 2 (11x11) and scale 1 (23x23)
+	m.DrawCentered(screen, assets, party, 2)
+	m.DrawCentered(screen, assets, party, 1)
+	m.Draw(screen, assets, 2)
+	m.Draw(screen, assets, 1)
 }

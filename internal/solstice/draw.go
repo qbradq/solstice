@@ -9,6 +9,7 @@ import (
 	"strings"
 	"solstice/data"
 
+	"github.com/bits-and-blooms/bitset"
 	"github.com/hajimehoshi/ebiten/v2"
 )
 
@@ -400,6 +401,7 @@ func (a *Assets) DrawTileScaled(dst *ebiten.Image, tileIdx int, px, py float64, 
 
 // DrawMiniMap renders a 9x9 tile minimap of the world map centered on the party's world position
 // into dst, clipped to the 128x128 pixel region with top-left at (512, 0).
+// Visibility is calculated with radius 4. Non-visible tiles are drawn as black void.
 func (a *Assets) DrawMiniMap(dst *ebiten.Image, worldMap *Map, p *Party) {
 	if a == nil || dst == nil {
 		return
@@ -424,17 +426,30 @@ func (a *Assets) DrawMiniMap(dst *ebiten.Image, worldMap *Map, p *Party) {
 	centerStx := 4
 	centerSty := 4
 
+	// Calculate visibility for 9x9 area with radius 4
+	var vis *bitset.BitSet
+	if worldMap != nil {
+		vis = worldMap.CalculateVisibility(worldX, worldY, 4)
+	}
+
 	for sty := 0; sty < 9; sty++ {
 		for stx := 0; stx < 9; stx++ {
-			mx := worldX + (stx - centerStx)
-			my := worldY + (sty - centerSty)
-
 			px := float64(504 + stx*16)
 			py := float64(-8 + sty*16)
 
-			if worldMap != nil && mx >= 0 && mx < worldMap.Width && my >= 0 && my < worldMap.Height {
-				tileIdx := worldMap.GetTile(mx, my)
-				a.DrawTileScaled(miniMapArea, tileIdx, px, py, 1.0)
+			isTileVisible := vis != nil && vis.Test(uint(sty*9+stx))
+			if isTileVisible {
+				mx := worldX + (stx - centerStx)
+				my := worldY + (sty - centerSty)
+
+				if worldMap != nil && mx >= 0 && mx < worldMap.Width && my >= 0 && my < worldMap.Height {
+					tileIdx := worldMap.GetTile(mx, my)
+					a.DrawTileScaled(miniMapArea, tileIdx, px, py, 1.0)
+				} else {
+					op := &ebiten.DrawImageOptions{}
+					op.GeoM.Translate(px, py)
+					miniMapArea.DrawImage(a.blackTile16x16, op)
+				}
 			} else {
 				op := &ebiten.DrawImageOptions{}
 				op.GeoM.Translate(px, py)

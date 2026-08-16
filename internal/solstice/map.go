@@ -10,6 +10,7 @@ import (
 
 	"solstice/data"
 
+	"github.com/bits-and-blooms/bitset"
 	"github.com/hajimehoshi/ebiten/v2"
 )
 
@@ -19,7 +20,7 @@ type TileProperties struct {
 	BlocksVis       bool   `json:"blocks_vis"`
 	DeepWater       bool   `json:"deep_water"`
 	Water           bool   `json:"water"`
-	Door            bool   `json:"door"`
+	Climbable       bool   `json:"climbable"`
 	SpiritPassable  bool   `json:"spirit_passable"`
 	UseScript       string `json:"use_script"`
 	PartySprite     string `json:"party_sprite"`
@@ -210,8 +211,8 @@ func LoadTileSet(path string) (*TileSet, error) {
 				tp.DeepWater = val
 			case "water":
 				tp.Water = val
-			case "door":
-				tp.Door = val
+			case "climbable":
+				tp.Climbable = val
 			case "spirit_passable":
 				tp.SpiritPassable = val
 			case "use_script":
@@ -220,6 +221,8 @@ func LoadTileSet(path string) (*TileSet, error) {
 				tp.PartySprite = p.Value
 			case "actor_half_sprite", "party_half_sprite":
 				tp.ActorHalfSprite = val
+			default:
+				return nil, fmt.Errorf("unknown tile property %q on tile ID %d", p.Name, t.ID)
 			}
 		}
 		ts.Properties[t.ID] = tp
@@ -513,8 +516,117 @@ func (m *Map) MoveParty(p *Party, dx, dy int) bool {
 	return true
 }
 
+// CalculateVisibility computes a 2-generation visibility bitmap for an area of the given radius centered on (centerX, centerY).
+// Returns a BitSet from github.com/bits-and-blooms/bitset representing an area of size S x S where S = 2*radius + 1.
+// Indexing into the bitset is given by row-major order: ly * S + lx, where (lx, ly) are local coordinates in [0, S-1].
+func (m *Map) CalculateVisibility(centerX, centerY, radius int) *bitset.BitSet {
+	if radius < 0 {
+		return bitset.New(0)
+	}
+
+	side := 2*radius + 1
+	totalBits := uint(side * side)
+
+	vis1 := bitset.New(totalBits)
+
+	type gridPoint struct {
+		lx int
+		ly int
+	}
+
+	// 1. Visit tile at center point (radius, radius) and all 4 cardinal adjacent locations
+	cardinalDirs := [4][2]int{{0, -1}, {0, 1}, {-1, 0}, {1, 0}}
+
+	vis1.Set(uint(radius*side + radius))
+	queue := []gridPoint{{lx: radius, ly: radius}}
+
+	for _, d := range cardinalDirs {
+		adjLX := radius + d[0]
+		adjLY := radius + d[1]
+		if adjLX >= 0 && adjLX < side && adjLY >= 0 && adjLY < side {
+			nidx := uint(adjLY*side + adjLX)
+			if !vis1.Test(nidx) {
+				vis1.Set(nidx)
+				queue = append(queue, gridPoint{lx: adjLX, ly: adjLY})
+			}
+		}
+	}
+
+	// 2. Flood-fill along 4 cardinal directions, stopping propagation on tiles with blocks_vis == true
+	for len(queue) > 0 {
+		curr := queue[0]
+		queue = queue[1:]
+
+		mx := centerX + (curr.lx - radius)
+		my := centerY + (curr.ly - radius)
+
+		blocksVis := false
+		if m != nil && mx >= 0 && mx < m.Width && my >= 0 && my < m.Height {
+			tileIdx := m.GetTile(mx, my)
+			props := GetTileProperties(tileIdx)
+			blocksVis = props.BlocksVis
+		}
+
+		if blocksVis {
+			continue
+		}
+
+		for _, d := range cardinalDirs {
+			nlx := curr.lx + d[0]
+			nly := curr.ly + d[1]
+			if nlx >= 0 && nlx < side && nly >= 0 && nly < side {
+				nidx := uint(nly*side + nlx)
+				if !vis1.Test(nidx) {
+					vis1.Set(nidx)
+					queue = append(queue, gridPoint{lx: nlx, ly: nly})
+				}
+			}
+		}
+	}
+
+	// 3. Create second generation visibility bitmap
+	vis2 := bitset.New(totalBits)
+
+	for ly := 0; ly < side; ly++ {
+		for lx := 0; lx < side; lx++ {
+			idx := uint(ly*side + lx)
+			if vis1.Test(idx) {
+				vis2.Set(idx)
+				continue
+			}
+
+			mx := centerX + (lx - radius)
+			my := centerY + (ly - radius)
+			if m != nil && mx >= 0 && mx < m.Width && my >= 0 && my < m.Height {
+				tileIdx := m.GetTile(mx, my)
+				props := GetTileProperties(tileIdx)
+				if props.BlocksVis {
+					// Check if at least 2 of 4 cardinal adjacent locations are visible in vis1
+					adjVisibleCount := 0
+					for _, d := range cardinalDirs {
+						adjX := lx + d[0]
+						adjY := ly + d[1]
+						if adjX >= 0 && adjX < side && adjY >= 0 && adjY < side {
+							adjIdx := uint(adjY*side + adjX)
+							if vis1.Test(adjIdx) {
+								adjVisibleCount++
+							}
+						}
+					}
+					if adjVisibleCount >= 2 {
+						vis2.Set(idx)
+					}
+				}
+			}
+		}
+	}
+
+	return vis2
+}
+
 // DrawCentered renders the map centered on the party's position into the map view area using assets at scale 1 or 2.
-// Out-of-bounds map tiles are drawn as a black void, actors are rendered on top of map tiles, and the party sprite is rendered at the center cell.
+// Visibility is calculated with radius 11. Non-visible tiles are drawn as black void, actors in non-visible tiles are hidden,
+// and the party sprite is always rendered at the center cell.
 func (m *Map) DrawCentered(dst *ebiten.Image, assets *Assets, p *Party, scale int) {
 	if assets == nil {
 		return
@@ -543,22 +655,49 @@ func (m *Map) DrawCentered(dst *ebiten.Image, assets *Assets, p *Party, scale in
 		centerSty = 11
 	}
 
+	// Always calculate visibility using 11 for radius (23x23 area)
+	vis := m.CalculateVisibility(centerX, centerY, 11)
+
+	// Helper to check visibility for a screen tile (stx, sty)
+	isTileVisible := func(stx, sty int) bool {
+		if vis == nil {
+			return false
+		}
+		if scale == 1 {
+			if stx >= 0 && stx < 23 && sty >= 0 && sty < 23 {
+				return vis.Test(uint(sty*23 + stx))
+			}
+			return false
+		}
+		// Scale 2: inner 11x11 portion corresponding to offsets -5..+5 -> lx = 6+stx, ly = 6+sty
+		if stx >= 0 && stx < 11 && sty >= 0 && sty < 11 {
+			lx := 6 + stx
+			ly := 6 + sty
+			return vis.Test(uint(ly*23 + lx))
+		}
+		return false
+	}
+
 	// 1. Render map tiles
 	for sty := 0; sty < rows; sty++ {
 		for stx := 0; stx < cols; stx++ {
-			mx := centerX + (stx - centerStx)
-			my := centerY + (sty - centerSty)
+			if isTileVisible(stx, sty) {
+				mx := centerX + (stx - centerStx)
+				my := centerY + (sty - centerSty)
 
-			if m != nil && mx >= 0 && mx < m.Width && my >= 0 && my < m.Height {
-				tileIdx := m.GetTile(mx, my)
-				assets.DrawMapTile(dst, tileIdx, stx, sty, scale)
+				if m != nil && mx >= 0 && mx < m.Width && my >= 0 && my < m.Height {
+					tileIdx := m.GetTile(mx, my)
+					assets.DrawMapTile(dst, tileIdx, stx, sty, scale)
+				} else {
+					assets.DrawBlackMapTile(dst, stx, sty, scale)
+				}
 			} else {
 				assets.DrawBlackMapTile(dst, stx, sty, scale)
 			}
 		}
 	}
 
-	// 2. Render actors present on the map
+	// 2. Render actors present on the map (only in visible locations)
 	if m != nil && len(m.Actors) > 0 {
 		for _, actor := range m.Actors {
 			if actor == nil {
@@ -567,7 +706,7 @@ func (m *Map) DrawCentered(dst *ebiten.Image, assets *Assets, p *Party, scale in
 			stx := centerStx + (actor.X - centerX)
 			sty := centerSty + (actor.Y - centerY)
 
-			if stx >= 0 && stx < cols && sty >= 0 && sty < rows {
+			if stx >= 0 && stx < cols && sty >= 0 && sty < rows && isTileVisible(stx, sty) {
 				tileIdx := m.GetTile(actor.X, actor.Y)
 				props := GetTileProperties(tileIdx)
 				assets.DrawSpriteDefHalf(dst, actor.SpriteDef, stx, sty, scale, props.ActorHalfSprite)
@@ -575,7 +714,7 @@ func (m *Map) DrawCentered(dst *ebiten.Image, assets *Assets, p *Party, scale in
 		}
 	}
 
-	// 3. Render party sprite at the center cell
+	// 3. Render party sprite at the center cell (always drawn regardless of visibility bitmap)
 	if p != nil {
 		half := false
 		if m != nil {
