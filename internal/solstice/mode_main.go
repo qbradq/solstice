@@ -55,6 +55,27 @@ func (m *MainMode) Update(g *Game) error {
 		}
 	}
 
+	// Enter dialog targeting mode on T key press
+	if inpututil.IsKeyJustPressed(ebiten.KeyT) {
+		if g.party != nil {
+			targetMode := NewTargetMode(
+				g.party.X, g.party.Y, // Centerpoint on party location
+				5,                   // Maximum range of 5
+				DistanceSquare,      // Square distance
+				func(tx, ty int) {   // On selected callback: talk to targeted actor
+					if g.currentMap != nil {
+						actor := g.currentMap.GetActorAt(tx, ty)
+						if actor != nil && actor.DialogScript != "" {
+							g.PushMode(NewDialogMode(actor, actor.DialogScript))
+						}
+					}
+				},
+				nil, // On canceled callback: nil
+			)
+			g.PushMode(targetMode)
+		}
+	}
+
 	return nil
 }
 

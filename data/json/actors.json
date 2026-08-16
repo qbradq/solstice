@@ -1,7 +1,8 @@
 {
     "guard": {
         "name": "Town Guard",
-        "sprite": "guard"
+        "sprite": "guard",
+        "dialog_script": "dialog/guard.tengo"
     },
     "wizard": {
         "name": "Wizard",

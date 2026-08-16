@@ -1,6 +1,10 @@
 package solstice
 
-import "testing"
+import (
+	"testing"
+
+	"github.com/d5/tengo/v2"
+)
 
 func TestInitScriptSystemAndRunMainScript(t *testing.T) {
 	term := NewTerminal()
@@ -15,12 +19,13 @@ func TestInitScriptSystemAndRunMainScript(t *testing.T) {
 	}
 
 	// Verify that main.tengo logged welcome messages to the terminal
-	if len(term.lines) == 0 {
+	lines := term.GetLineTexts()
+	if len(lines) == 0 {
 		t.Error("Expected main.tengo to log messages to terminal, got 0 lines")
 	}
 
 	foundSolstice := false
-	for _, l := range term.lines {
+	for _, l := range lines {
 		if l == "Solstice Client v0.1.0" {
 			foundSolstice = true
 			break
@@ -28,7 +33,7 @@ func TestInitScriptSystemAndRunMainScript(t *testing.T) {
 	}
 
 	if !foundSolstice {
-		t.Errorf("Expected 'Solstice Client v0.1.0' in terminal lines, got lines: %v", term.lines)
+		t.Errorf("Expected 'Solstice Client v0.1.0' in terminal lines, got lines: %v", lines)
 	}
 }
 
@@ -100,5 +105,81 @@ func TestAddTimerAndTurnSystem(t *testing.T) {
 
 	if len(m.Timers) != 0 {
 		t.Errorf("Expected 0 active timers after all timers expired, got %d", len(m.Timers))
+	}
+}
+
+func TestGameStateFunctions(t *testing.T) {
+	ClearAllState()
+
+	if HasState("quest_started") {
+		t.Error("Expected quest_started to initially be false")
+	}
+
+	SetState("quest_started")
+	if !HasState("quest_started") {
+		t.Error("Expected quest_started to be true after SetState")
+	}
+
+	ToggleState("quest_started")
+	if HasState("quest_started") {
+		t.Error("Expected quest_started to be false after ToggleState")
+	}
+
+	ToggleState("quest_started")
+	if !HasState("quest_started") {
+		t.Error("Expected quest_started to be true after second ToggleState")
+	}
+
+	ClearState("quest_started")
+	if HasState("quest_started") {
+		t.Error("Expected quest_started to be false after ClearState")
+	}
+}
+
+func TestGameRandomFunction(t *testing.T) {
+	if err := InitScriptSystem(); err != nil {
+		t.Fatalf("InitScriptSystem failed: %v", err)
+	}
+
+	gameMod := moduleMap.GetBuiltinModule("game")
+	if gameMod == nil {
+		t.Fatal("Expected builtin game module")
+	}
+
+	randomFuncObj, ok := gameMod.Attrs["random"]
+	if !ok || randomFuncObj == nil {
+		t.Fatal("Expected 'random' function in game module")
+	}
+
+	userFunc, ok := randomFuncObj.(*tengo.UserFunction)
+	if !ok {
+		t.Fatal("Expected 'random' to be UserFunction")
+	}
+
+	// 1. Single argument test
+	arg0 := &tengo.String{Value: "hello"}
+	res, err := userFunc.Value(arg0)
+	if err != nil {
+		t.Fatalf("random call failed: %v", err)
+	}
+	if res.String() != `"hello"` {
+		t.Errorf("Expected 'hello', got %s", res.String())
+	}
+
+	// 2. Multiple arguments test
+	arg1 := &tengo.String{Value: "world"}
+	arg2 := &tengo.String{Value: "foo"}
+	foundMap := make(map[string]bool)
+
+	for i := 0; i < 100; i++ {
+		r, err := userFunc.Value(arg0, arg1, arg2)
+		if err != nil {
+			t.Fatalf("random call failed: %v", err)
+		}
+		foundMap[r.String()] = true
+	}
+
+	if len(foundMap) < 2 {
+		t.Errorf("Expected multiple random choices from 100 iterations, got: %v", foundMap)
 	}
 }

@@ -10,15 +10,17 @@ import (
 
 // ActorDef represents an actor definition loaded from JSON.
 type ActorDef struct {
-	Name   string `json:"name"`
-	Sprite string `json:"sprite"` // Key into spritedefs.json
+	Name         string `json:"name"`
+	Sprite       string `json:"sprite"`        // Key into spritedefs.json
+	DialogScript string `json:"dialog_script"` // Path to dialog script
 }
 
 // Actor represents an agent or character in the game world (NPC, monster, party member).
 // It embeds Entity for position and graphical representation.
 type Actor struct {
 	Entity
-	ID string `json:"id"`
+	ID           string `json:"id"`
+	DialogScript string `json:"dialog_script"`
 }
 
 var actorDefs = make(map[string]ActorDef)
@@ -88,5 +90,6 @@ func NewActorFromDef(id string, defKey string, x, y int) (*Actor, error) {
 	if def.Name != "" {
 		actor.Name = def.Name
 	}
+	actor.DialogScript = def.DialogScript
 	return actor, nil
 }

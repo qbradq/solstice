@@ -1,0 +1,21 @@
+game := import("game")
+
+if keyword == "look" {
+    reply = "You see a tall figure clad in chain armor and holding a pole arm."
+} else if keyword == "name" {
+    reply = "I'm a guard. I'm not allowed to give you my name."
+} else if keyword == "job" {
+    reply = "I act on behalf of the magistrate of this land keeping the " +
+            "peace amongst the populace."
+} else if keyword == "bye" {
+    reply = "Go in peace."
+    game.end_dialog()
+} else {
+    reply = game.random(
+        "Pardon me?",
+        "Excuse me?",
+        "I'm not sure what you're talking about.",
+        "I can't help you with that.",
+        "Try asking someone else."
+    )
+}

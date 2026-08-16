@@ -2,7 +2,9 @@ package solstice
 
 import (
 	"image"
+	"image/color"
 	"strings"
+	"unicode"
 
 	"github.com/hajimehoshi/ebiten/v2"
 	"github.com/hajimehoshi/ebiten/v2/inpututil"
@@ -27,35 +29,80 @@ func SetTerminal(t *Terminal) {
 	defaultTerminal = t
 }
 
-// Terminal manages the terminal UI, log message history, input scrolling, and rendering.
+// TerminalLine represents a single line of text in the terminal log with an optional color.
+type TerminalLine struct {
+	Text  string
+	Color color.Color
+}
+
+// Terminal manages the terminal UI, log message history with per-line colors, input mode, scrolling, and rendering.
 type Terminal struct {
-	lines        []string
+	lines        []TerminalLine
 	scrollOffset int
+	inputMode    bool
+	inputText    string
 }
 
 // NewTerminal creates a new Terminal.
 func NewTerminal() *Terminal {
 	t := &Terminal{
-		lines: make([]string, 0, terminalMaxHistory),
+		lines: make([]TerminalLine, 0, terminalMaxHistory),
 	}
 	defaultTerminal = t
 	return t
 }
 
-// AddMessage adds a message to the terminal log.
-// Messages are word-wrapped to 36 characters and up to 300 lines of history are retained.
+// SetInputMode enables or disables terminal input mode.
+func (t *Terminal) SetInputMode(enabled bool) {
+	t.inputMode = enabled
+	if !enabled {
+		t.inputText = ""
+	}
+}
+
+// IsInputMode returns true if terminal input mode is active.
+func (t *Terminal) IsInputMode() bool {
+	return t.inputMode
+}
+
+// AddMessage adds a message to the terminal log with default white color.
 func (t *Terminal) AddMessage(msg string) {
+	t.AddMessageColored(msg, nil)
+}
+
+// AddMessageColored adds a message to the terminal log with a specific text color.
+// Messages are word-wrapped to 36 characters and up to 300 lines of history are retained.
+func (t *Terminal) AddMessageColored(msg string, c color.Color) {
 	wrapped := wordwrap.WrapString(msg, terminalWrapWidth)
 	newLines := strings.Split(wrapped, "\n")
-	t.lines = append(t.lines, newLines...)
+	for _, line := range newLines {
+		t.lines = append(t.lines, TerminalLine{
+			Text:  line,
+			Color: c,
+		})
+	}
 
 	if len(t.lines) > terminalMaxHistory {
 		t.lines = t.lines[len(t.lines)-terminalMaxHistory:]
 	}
 }
 
-// HandleInput handles keyboard input for terminal UI (Page Up and Page Down scrolling).
-func (t *Terminal) HandleInput() {
+// GetLines returns all terminal lines with their text and color metadata.
+func (t *Terminal) GetLines() []TerminalLine {
+	return t.lines
+}
+
+// GetLineTexts returns a slice of strings containing the raw text of all terminal lines.
+func (t *Terminal) GetLineTexts() []string {
+	res := make([]string, len(t.lines))
+	for i, l := range t.lines {
+		res[i] = l.Text
+	}
+	return res
+}
+
+// HandleInputScrollOnly handles Page Up and Page Down scrolling.
+func (t *Terminal) HandleInputScrollOnly() {
 	if inpututil.IsKeyJustPressed(ebiten.KeyPageUp) {
 		t.scrollOffset += 20
 	}
@@ -63,7 +110,12 @@ func (t *Terminal) HandleInput() {
 		t.scrollOffset -= 20
 	}
 
-	maxScroll := len(t.lines) - terminalVisibleRows
+	visibleRows := terminalVisibleRows
+	if t.inputMode {
+		visibleRows = terminalVisibleRows - 1
+	}
+
+	maxScroll := len(t.lines) - visibleRows
 	if maxScroll < 0 {
 		maxScroll = 0
 	}
@@ -76,7 +128,52 @@ func (t *Terminal) HandleInput() {
 	}
 }
 
+// HandleInput handles standard terminal keyboard input (scrolling when not in input mode).
+func (t *Terminal) HandleInput() {
+	t.HandleInputScrollOnly()
+}
+
+// HandleInputMode processes character entry, backspace, and submit in terminal input mode.
+// Converts all entered characters to upper-case. Returns submitted text and true on Enter.
+func (t *Terminal) HandleInputMode() (string, bool) {
+	if !t.inputMode {
+		return "", false
+	}
+
+	t.HandleInputScrollOnly()
+
+	// Backspace support
+	if inpututil.IsKeyJustPressed(ebiten.KeyBackspace) {
+		if len(t.inputText) > 0 {
+			runes := []rune(t.inputText)
+			t.inputText = string(runes[:len(runes)-1])
+		}
+	}
+
+	// Read typed characters
+	var typedRunes []rune
+	typedRunes = ebiten.AppendInputChars(typedRunes)
+	for _, r := range typedRunes {
+		if r >= 32 && r != 127 {
+			upperR := unicode.ToUpper(r)
+			if len([]rune(t.inputText)) < terminalWrapWidth-3 { // Leave room for prompt "> " and cursor
+				t.inputText += string(upperR)
+			}
+		}
+	}
+
+	// Confirm on Enter
+	if inpututil.IsKeyJustPressed(ebiten.KeyEnter) || inpututil.IsKeyJustPressed(ebiten.KeyKPEnter) {
+		text := t.inputText
+		t.inputText = ""
+		return text, true
+	}
+
+	return "", false
+}
+
 // Draw renders the terminal log to screen at position (352, 128) with size 288x224 pixels.
+// In input mode, the bottom line displays prompt "> ", typed input text, and animated cursor all in bright blue.
 func (t *Terminal) Draw(dst *ebiten.Image, assets *Assets) {
 	if assets == nil || dst == nil {
 		return
@@ -84,17 +181,39 @@ func (t *Terminal) Draw(dst *ebiten.Image, assets *Assets) {
 
 	termArea := dst.SubImage(image.Rect(352, 128, 352+288, 128+224)).(*ebiten.Image)
 
-	N := len(t.lines)
-	if N == 0 {
-		return
+	logRows := terminalVisibleRows
+	if t.inputMode {
+		logRows = terminalVisibleRows - 1
 	}
 
-	bottomLineIdx := (N - 1) - t.scrollOffset
-	for r := 0; r < terminalVisibleRows; r++ {
-		lineIdx := bottomLineIdx - ((terminalVisibleRows - 1) - r)
-		if lineIdx >= 0 && lineIdx < N {
-			// cellX = 352 / 8 = 44, cellY = 128 / 8 + r = 16 + r
-			assets.DrawString8x8(termArea, t.lines[lineIdx], 44, 16+r)
+	N := len(t.lines)
+	if N > 0 {
+		bottomLineIdx := (N - 1) - t.scrollOffset
+		for r := 0; r < logRows; r++ {
+			lineIdx := bottomLineIdx - ((logRows - 1) - r)
+			if lineIdx >= 0 && lineIdx < N {
+				lineObj := t.lines[lineIdx]
+				// cellX = 352 / 8 = 44, cellY = 128 / 8 + r = 16 + r
+				if lineObj.Color != nil {
+					assets.DrawString8x8Colored(termArea, lineObj.Text, 44, 16+r, lineObj.Color)
+				} else {
+					assets.DrawString8x8(termArea, lineObj.Text, 44, 16+r)
+				}
+			}
 		}
+	}
+
+	if t.inputMode {
+		promptRow := 16 + (terminalVisibleRows - 1) // Row 27
+		promptStr := "> " + t.inputText
+		brightBlue := VGAPalette16[9] // Bright blue from 16 VGA palette
+
+		// Draw prompt and input line text in bright blue
+		assets.DrawString8x8Colored(termArea, promptStr, 44, promptRow, brightBlue)
+
+		// Draw animated cursor as glyphs 5-8 in bright blue
+		cursorCol := 44 + len([]rune(promptStr))
+		cursorGlyph := 5 + (GetAnimFrame() % 4)
+		assets.DrawGlyph8x8Colored(termArea, cursorGlyph, cursorCol, promptRow, brightBlue)
 	}
 }

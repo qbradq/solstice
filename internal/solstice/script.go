@@ -3,6 +3,7 @@ package solstice
 import (
 	"fmt"
 	"io/fs"
+	"math/rand"
 	"path/filepath"
 	"strings"
 	"sync"
@@ -14,10 +15,62 @@ import (
 
 var (
 	scriptMu         sync.RWMutex
+	stateMu          sync.RWMutex
 	moduleMap        *tengo.ModuleMap
 	compiledScripts  = make(map[string]*tengo.Compiled)
 	rawScriptSources = make(map[string][]byte)
+	gameState        = make(map[string]bool)
+	dialogEnded      bool
 )
+
+// EndDialog flags the active dialog to terminate.
+func EndDialog() {
+	dialogEnded = true
+}
+
+// IsDialogEnded returns true if end_dialog has been called.
+func IsDialogEnded() bool {
+	return dialogEnded
+}
+
+// SetState creates and sets the named state variable to true.
+func SetState(name string) {
+	stateMu.Lock()
+	defer stateMu.Unlock()
+	gameState[name] = true
+}
+
+// ClearState removes the named state variable.
+func ClearState(name string) {
+	stateMu.Lock()
+	defer stateMu.Unlock()
+	delete(gameState, name)
+}
+
+// ToggleState removes the named state variable if it exists; otherwise creates it and sets it to true.
+func ToggleState(name string) {
+	stateMu.Lock()
+	defer stateMu.Unlock()
+	if gameState[name] {
+		delete(gameState, name)
+	} else {
+		gameState[name] = true
+	}
+}
+
+// HasState returns true if the named state variable exists and is true.
+func HasState(name string) bool {
+	stateMu.RLock()
+	defer stateMu.RUnlock()
+	return gameState[name]
+}
+
+// ClearAllState resets all state variables.
+func ClearAllState() {
+	stateMu.Lock()
+	defer stateMu.Unlock()
+	gameState = make(map[string]bool)
+}
 
 // InitScriptSystem initializes the Tengo scripting system by recursively loading and pre-compiling
 // all .tengo files in the data/scripts directory from data.FS.
@@ -91,6 +144,84 @@ func InitScriptSystem() error {
 				return tengo.UndefinedValue, nil
 			},
 		},
+		"set_state": &tengo.UserFunction{
+			Name: "set_state",
+			Value: func(args ...tengo.Object) (tengo.Object, error) {
+				if len(args) < 1 {
+					return tengo.UndefinedValue, fmt.Errorf("set_state requires 1 argument: name")
+				}
+				name, ok := tengo.ToString(args[0])
+				if !ok {
+					return tengo.UndefinedValue, fmt.Errorf("set_state argument must be a string")
+				}
+				SetState(name)
+				return tengo.UndefinedValue, nil
+			},
+		},
+		"clear_state": &tengo.UserFunction{
+			Name: "clear_state",
+			Value: func(args ...tengo.Object) (tengo.Object, error) {
+				if len(args) < 1 {
+					return tengo.UndefinedValue, fmt.Errorf("clear_state requires 1 argument: name")
+				}
+				name, ok := tengo.ToString(args[0])
+				if !ok {
+					return tengo.UndefinedValue, fmt.Errorf("clear_state argument must be a string")
+				}
+				ClearState(name)
+				return tengo.UndefinedValue, nil
+			},
+		},
+		"toggle_state": &tengo.UserFunction{
+			Name: "toggle_state",
+			Value: func(args ...tengo.Object) (tengo.Object, error) {
+				if len(args) < 1 {
+					return tengo.UndefinedValue, fmt.Errorf("toggle_state requires 1 argument: name")
+				}
+				name, ok := tengo.ToString(args[0])
+				if !ok {
+					return tengo.UndefinedValue, fmt.Errorf("toggle_state argument must be a string")
+				}
+				ToggleState(name)
+				return tengo.UndefinedValue, nil
+			},
+		},
+		"has_state": &tengo.UserFunction{
+			Name: "has_state",
+			Value: func(args ...tengo.Object) (tengo.Object, error) {
+				if len(args) < 1 {
+					return tengo.FalseValue, nil
+				}
+				name, ok := tengo.ToString(args[0])
+				if !ok {
+					return tengo.FalseValue, nil
+				}
+				if HasState(name) {
+					return tengo.TrueValue, nil
+				}
+				return tengo.FalseValue, nil
+			},
+		},
+		"end_dialog": &tengo.UserFunction{
+			Name: "end_dialog",
+			Value: func(args ...tengo.Object) (tengo.Object, error) {
+				EndDialog()
+				return tengo.UndefinedValue, nil
+			},
+		},
+		"random": &tengo.UserFunction{
+			Name: "random",
+			Value: func(args ...tengo.Object) (tengo.Object, error) {
+				if len(args) == 0 {
+					return tengo.UndefinedValue, nil
+				}
+				if len(args) == 1 {
+					return args[0], nil
+				}
+				idx := rand.Intn(len(args))
+				return args[idx], nil
+			},
+		},
 	}
 	moduleMap.AddBuiltinModule("game", gameModule)
 
@@ -123,6 +254,8 @@ func InitScriptSystem() error {
 			_ = script.Add("tile_x", nil)
 			_ = script.Add("tile_y", nil)
 			_ = script.Add("tile_idx", nil)
+			_ = script.Add("keyword", "")
+			_ = script.Add("reply", "")
 			compiled, err := script.Compile()
 			if err != nil {
 				return fmt.Errorf("failed to pre-compile script %s: %w", path, err)
@@ -203,4 +336,52 @@ func ExecuteTileScript(scriptPath string, tileX, tileY, tileIdx int) error {
 		"tile_y":   tileY,
 		"tile_idx": tileIdx,
 	})
+}
+
+// ExecuteDialogScript executes a dialog script with the specified keyword ("look", "name", "job", "bye", etc.).
+// Pre-populates 'keyword' and 'reply' globals, logs any reply string returned by the script to the terminal,
+// and returns true if game.end_dialog() was called during execution.
+func ExecuteDialogScript(scriptPath string, keyword string) (bool, error) {
+	dialogEnded = false
+
+	normKeyword := strings.ToLower(strings.TrimSpace(keyword))
+	if len(normKeyword) > 4 {
+		normKeyword = normKeyword[:4]
+	}
+
+	scriptMu.RLock()
+	cleanKey := filepath.ToSlash(scriptPath)
+	compiled, ok := compiledScripts[cleanKey]
+	if !ok {
+		cleanKey = strings.TrimPrefix(cleanKey, "data/")
+		compiled, ok = compiledScripts[cleanKey]
+		if !ok {
+			cleanKey = strings.TrimPrefix(cleanKey, "scripts/")
+			compiled, ok = compiledScripts[cleanKey]
+		}
+	}
+	scriptMu.RUnlock()
+
+	if !ok || compiled == nil {
+		return false, fmt.Errorf("dialog script %s not found or not pre-compiled", scriptPath)
+	}
+
+	vm := compiled.Clone()
+	_ = vm.Set("keyword", normKeyword)
+	_ = vm.Set("reply", "")
+
+	if err := vm.Run(); err != nil {
+		return dialogEnded, fmt.Errorf("failed to execute dialog script %s: %w", scriptPath, err)
+	}
+
+	if replyObj := vm.Get("reply"); replyObj != nil {
+		replyVal := replyObj.Value()
+		if replyStr, ok := replyVal.(string); ok && replyStr != "" {
+			if defaultTerminal != nil {
+				defaultTerminal.AddMessage(replyStr)
+			}
+		}
+	}
+
+	return dialogEnded, nil
 }

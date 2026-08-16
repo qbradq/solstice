@@ -152,6 +152,44 @@ func DrawGlyph8x8(dst *ebiten.Image, glyph int, cellX, cellY int) {
 	}
 }
 
+// DrawGlyph8x8Colored draws a single 8x8 font glyph onto dst at cell coordinates (cellX, cellY) tinted with color c.
+func (a *Assets) DrawGlyph8x8Colored(dst *ebiten.Image, glyph int, cellX, cellY int, c color.Color) {
+	px := float64(cellX * 8)
+	py := float64(cellY * 8)
+
+	op := &ebiten.DrawImageOptions{}
+	op.GeoM.Translate(px, py)
+
+	if c != nil {
+		r, g, b, aCol := c.RGBA()
+		if aCol > 0 {
+			op.ColorScale.Scale(float32(r)/65535.0, float32(g)/65535.0, float32(b)/65535.0, float32(aCol)/65535.0)
+		}
+	}
+
+	if glyph >= 0 && glyph <= 127 {
+		gx := (glyph % 16) * 8
+		gy := (glyph / 16) * 8
+		sub := a.FontIBM8x8.SubImage(image.Rect(gx, gy, gx+8, gy+8)).(*ebiten.Image)
+		dst.DrawImage(sub, op)
+	} else if glyph >= 128 && glyph <= 255 {
+		idx := glyph - 128
+		gx := (idx % 16) * 8
+		gy := (idx / 16) * 8
+		sub := a.FontRune8x8.SubImage(image.Rect(gx, gy, gx+8, gy+8)).(*ebiten.Image)
+		dst.DrawImage(sub, op)
+	} else {
+		dst.DrawImage(a.blackTile8x8, op)
+	}
+}
+
+// DrawGlyph8x8Colored draws a single 8x8 font glyph tinted with color c using defaultAssets.
+func DrawGlyph8x8Colored(dst *ebiten.Image, glyph int, cellX, cellY int, c color.Color) {
+	if defaultAssets != nil {
+		defaultAssets.DrawGlyph8x8Colored(dst, glyph, cellX, cellY, c)
+	}
+}
+
 // DrawString8x8 draws a string using the 8x8 font glyph function.
 // Starting output coordinates (cellX, cellY) are given in 8x8 pixel cells.
 func (a *Assets) DrawString8x8(dst *ebiten.Image, str string, cellX, cellY int) {
@@ -164,6 +202,20 @@ func (a *Assets) DrawString8x8(dst *ebiten.Image, str string, cellX, cellY int) 
 func DrawString8x8(dst *ebiten.Image, str string, cellX, cellY int) {
 	if defaultAssets != nil {
 		defaultAssets.DrawString8x8(dst, str, cellX, cellY)
+	}
+}
+
+// DrawString8x8Colored draws a string using the 8x8 font glyph function tinted with color c.
+func (a *Assets) DrawString8x8Colored(dst *ebiten.Image, str string, cellX, cellY int, c color.Color) {
+	for i, r := range []rune(str) {
+		a.DrawGlyph8x8Colored(dst, int(r), cellX+i, cellY, c)
+	}
+}
+
+// DrawString8x8Colored draws a string tinted with color c using defaultAssets.
+func DrawString8x8Colored(dst *ebiten.Image, str string, cellX, cellY int, c color.Color) {
+	if defaultAssets != nil {
+		defaultAssets.DrawString8x8Colored(dst, str, cellX, cellY, c)
 	}
 }
 

@@ -8,15 +8,15 @@ import (
 )
 
 func TestTerminalWordWrapAndLimit(t *testing.T) {
-	term := &Terminal{}
+	term := NewTerminal()
 
 	// Add a long message > 36 chars
 	longMsg := "This is a very long line of text that exceeds thirty six characters and should be automatically word wrapped."
 	term.AddMessage(longMsg)
 
-	for _, line := range term.lines {
-		if len(line) > 36 {
-			t.Errorf("Line exceeds 36 characters: %q (len %d)", line, len(line))
+	for _, line := range term.GetLines() {
+		if len(line.Text) > 36 {
+			t.Errorf("Line exceeds 36 characters: %q (len %d)", line.Text, len(line.Text))
 		}
 	}
 
@@ -25,14 +25,15 @@ func TestTerminalWordWrapAndLimit(t *testing.T) {
 		term.AddMessage(fmt.Sprintf("Line number %d", i))
 	}
 
-	if len(term.lines) > 300 {
-		t.Errorf("Terminal line history exceeds 300 lines: got %d", len(term.lines))
+	if len(term.GetLines()) > 300 {
+		t.Errorf("Terminal line history exceeds 300 lines: got %d", len(term.GetLines()))
 	}
 }
 
 func TestNewTerminalAndDraw(t *testing.T) {
 	term := NewTerminal()
 	term.AddMessage("Test message")
+	term.AddMessageColored("> TEST INPUT", VGAPalette16[9])
 
 	assets, err := LoadAssets()
 	if err != nil {
@@ -40,6 +41,10 @@ func TestNewTerminalAndDraw(t *testing.T) {
 	}
 
 	screen := ebiten.NewImage(640, 360)
+	term.Draw(screen, assets)
+
+	// Draw input mode as well
+	term.SetInputMode(true)
 	term.Draw(screen, assets)
 }
 
@@ -53,7 +58,7 @@ func TestTerminalScrollBounds(t *testing.T) {
 
 	// Manual scroll test
 	term.scrollOffset = 50
-	maxScroll := len(term.lines) - 28
+	maxScroll := len(term.GetLines()) - 28
 	if maxScroll < 0 {
 		maxScroll = 0
 	}
