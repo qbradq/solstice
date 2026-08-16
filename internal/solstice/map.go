@@ -278,7 +278,6 @@ func (m *Map) ExecuteTileUseScript(x, y int) error {
 // MoveParty handles relative party movement on the map.
 // The party can move onto a tile if the tile is "walkable",
 // or additionally if the party is in "spirit mode" and the tile has the "spirit_passable" property set to true.
-// Executes the tile's use_script upon a successful move onto the target tile.
 // Returns true if movement succeeded, or false if blocked.
 func (m *Map) MoveParty(p *Party, dx, dy int) bool {
 	if m == nil || p == nil || (dx == 0 && dy == 0) {
@@ -302,8 +301,6 @@ func (m *Map) MoveParty(p *Party, dx, dy int) bool {
 
 	p.X = targetX
 	p.Y = targetY
-
-	_ = m.ExecuteTileUseScript(targetX, targetY)
 	return true
 }
 

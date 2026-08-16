@@ -5,12 +5,14 @@ import (
 	"log"
 
 	"github.com/hajimehoshi/ebiten/v2"
-	"github.com/hajimehoshi/ebiten/v2/inpututil"
 )
 
 const (
 	screenWidth  = 640
 	screenHeight = 360
+
+	windowWidth  = 1280
+	windowHeight = 720
 )
 
 type Game struct {
@@ -20,66 +22,53 @@ type Game struct {
 	party      *Party
 	spriteDefs map[string]SpriteDef
 	mapScale   int
+	modeStack  []Mode
+}
+
+// PushMode pushes a new mode onto the stack, making it the active mode.
+func (g *Game) PushMode(m Mode) {
+	if m != nil {
+		g.modeStack = append(g.modeStack, m)
+	}
+}
+
+// PopMode pops and returns the current top mode from the stack.
+func (g *Game) PopMode() Mode {
+	if len(g.modeStack) == 0 {
+		return nil
+	}
+	topIdx := len(g.modeStack) - 1
+	top := g.modeStack[topIdx]
+	g.modeStack = g.modeStack[:topIdx]
+	return top
+}
+
+// GetMode returns the current active mode (top of the mode stack).
+func (g *Game) GetMode() Mode {
+	if len(g.modeStack) == 0 {
+		return nil
+	}
+	return g.modeStack[len(g.modeStack)-1]
+}
+
+// SetMode clears the mode stack and pushes m as the active mode.
+func (g *Game) SetMode(m Mode) {
+	g.modeStack = nil
+	if m != nil {
+		g.PushMode(m)
+	}
 }
 
 func (g *Game) Update() error {
-	// Advance animation frame ticker
-	UpdateAnimTicker()
-
-	// Handle party movement input (WASD, Arrow keys, VI-style HJKL)
-	if g.party != nil {
-		g.party.HandleInput(g.currentMap)
+	if m := g.GetMode(); m != nil {
+		return m.Update(g)
 	}
-
-	// Handle terminal input (Page Up, Page Down)
-	if g.terminal != nil {
-		g.terminal.HandleInput()
-	}
-
-	// Toggle map scale on Z key press
-	if inpututil.IsKeyJustPressed(ebiten.KeyZ) {
-		if g.mapScale == 2 {
-			g.mapScale = 1
-		} else {
-			g.mapScale = 2
-		}
-	}
-
 	return nil
 }
 
 func (g *Game) Draw(screen *ebiten.Image) {
-	scale := g.mapScale
-	if scale == 0 {
-		scale = 2
-	}
-
-	partyX := 16
-	partyY := 16
-	if g.party != nil {
-		partyX = g.party.X
-		partyY = g.party.Y
-	}
-
-	// Draw the currently loaded map centered on the party's position
-	if g.currentMap != nil {
-		g.currentMap.DrawCentered(screen, g.assets, partyX, partyY, scale)
-	}
-
-	// Draw party sprite at center of map view area using global animation ticker
-	if g.party != nil && g.assets != nil {
-		centerStx := 5
-		centerSty := 5
-		if scale == 1 {
-			centerStx = 11
-			centerSty = 11
-		}
-		g.assets.DrawSpriteDef(screen, g.party.SpriteDef, centerStx, centerSty, scale)
-	}
-
-	// Draw terminal UI
-	if g.terminal != nil {
-		g.terminal.Draw(screen, g.assets)
+	if m := g.GetMode(); m != nil {
+		m.Draw(g, screen)
 	}
 }
 
@@ -127,7 +116,7 @@ func Main() {
 		log.Fatalf("failed to execute main.tengo script: %v", err)
 	}
 
-	ebiten.SetWindowSize(screenWidth, screenHeight)
+	ebiten.SetWindowSize(windowWidth, windowHeight)
 	ebiten.SetWindowTitle("Solstice")
 	ebiten.SetWindowResizingMode(ebiten.WindowResizingModeEnabled)
 
@@ -139,6 +128,7 @@ func Main() {
 		spriteDefs: spriteDefs,
 		mapScale:   2,
 	}
+	game.PushMode(NewMainMode())
 
 	if err := ebiten.RunGame(game); err != nil {
 		fmt.Printf("Error running game: %v\n", err)

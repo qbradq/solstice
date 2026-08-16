@@ -175,7 +175,7 @@ func TestSpiritModeSpiritPassableMovement(t *testing.T) {
 	}
 }
 
-func TestExecuteTileUseScriptOnMove(t *testing.T) {
+func TestExecuteTileUseScript(t *testing.T) {
 	if err := InitScriptSystem(); err != nil {
 		t.Fatalf("InitScriptSystem failed: %v", err)
 	}
@@ -190,18 +190,11 @@ func TestExecuteTileUseScriptOnMove(t *testing.T) {
 	}
 	SetMap(m)
 
-	// Tile 78 has use_script="tiles/door.tengo", spirit_passable=true
-	m.SetTile(4, 5, 4)
+	// Tile 78 has use_script="tiles/door.tengo"
 	m.SetTile(5, 5, 78)
 
-	party, err := NewParty(4, 5)
-	if err != nil {
-		t.Fatalf("NewParty failed: %v", err)
-	}
-
-	// Move spirit mode party onto tile (5, 5) which has use_script="tiles/door.tengo"
-	if !m.MoveParty(party, 1, 0) {
-		t.Fatal("Expected party to move onto tile (5, 5)")
+	if err := m.ExecuteTileUseScript(5, 5); err != nil {
+		t.Fatalf("ExecuteTileUseScript(5, 5) failed: %v", err)
 	}
 
 	// Verify that executing tiles/door.tengo changed the tile at (5, 5) to 68
