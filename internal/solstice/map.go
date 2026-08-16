@@ -58,6 +58,7 @@ type Map struct {
 
 var defaultTileSet *TileSet
 var defaultMap *Map
+var defaultWorldMap *Map
 
 // GetMap returns the current default map instance.
 func GetMap() *Map {
@@ -69,6 +70,19 @@ func SetMap(m *Map) {
 	defaultMap = m
 	if defaultGame != nil {
 		defaultGame.currentMap = m
+	}
+}
+
+// GetWorldMap returns the current default world map instance.
+func GetWorldMap() *Map {
+	return defaultWorldMap
+}
+
+// SetWorldMap sets the current default world map instance.
+func SetWorldMap(m *Map) {
+	defaultWorldMap = m
+	if defaultGame != nil {
+		defaultGame.worldMap = m
 	}
 }
 
@@ -145,6 +159,16 @@ type tmxObject struct {
 // PreloadTileSet pre-loads the default tile set from data/maps/tileset.tsx at program start.
 func PreloadTileSet() (*TileSet, error) {
 	return LoadTileSet("maps/tileset.tsx")
+}
+
+// PreloadWorldMap pre-loads the default world map from data/maps/world.tmx at program start.
+func PreloadWorldMap() (*Map, error) {
+	m, err := LoadMap("world")
+	if err != nil {
+		return nil, err
+	}
+	SetWorldMap(m)
+	return m, nil
 }
 
 // LoadTileSet loads a .tsx tileset file from data.FS into a TileSet struct.
@@ -306,6 +330,12 @@ func LoadMap(name string) (*Map, error) {
 	}
 
 	defaultMap = m
+	cleanName := strings.TrimSuffix(name, ".tmx")
+	cleanName = strings.TrimPrefix(cleanName, "data/")
+	cleanName = strings.TrimPrefix(cleanName, "maps/")
+	if cleanName == "world" {
+		SetWorldMap(m)
+	}
 	return m, nil
 }
 

@@ -128,3 +128,40 @@ func TestFormatCommasAndDrawPartyRoster(t *testing.T) {
 	term := NewTerminal()
 	DrawCommonUI(screen, assets, party, term)
 }
+
+func TestDrawMiniMap(t *testing.T) {
+	assets, err := LoadAssets()
+	if err != nil {
+		t.Fatalf("LoadAssets failed: %v", err)
+	}
+
+	worldMap, err := PreloadWorldMap()
+	if err != nil {
+		t.Fatalf("PreloadWorldMap failed: %v", err)
+	}
+
+	party, err := NewParty(15, 15)
+	if err != nil {
+		t.Fatalf("NewParty failed: %v", err)
+	}
+
+	screen := ebiten.NewImage(640, 360)
+
+	// Test Assets method and package-level function
+	assets.DrawMiniMap(screen, worldMap, party)
+	DrawMiniMap(screen, worldMap, party)
+
+	// Test DrawCommonUI includes minimap rendering
+	term := NewTerminal()
+	DrawCommonUI(screen, assets, party, term)
+
+	// Test boundary world positions (e.g. edge of world map)
+	party.WorldX = 0
+	party.WorldY = 0
+	assets.DrawMiniMap(screen, worldMap, party)
+
+	party.WorldX = 127
+	party.WorldY = 127
+	assets.DrawMiniMap(screen, worldMap, party)
+}
+

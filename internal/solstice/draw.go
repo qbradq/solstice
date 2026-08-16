@@ -398,10 +398,66 @@ func (a *Assets) DrawTileScaled(dst *ebiten.Image, tileIdx int, px, py float64, 
 	dst.DrawImage(sub, op)
 }
 
-// DrawCommonUI renders common UI elements visible in all game modes (Party Roster and Terminal UI).
+// DrawMiniMap renders a 9x9 tile minimap of the world map centered on the party's world position
+// into dst, clipped to the 128x128 pixel region with top-left at (512, 0).
+func (a *Assets) DrawMiniMap(dst *ebiten.Image, worldMap *Map, p *Party) {
+	if a == nil || dst == nil {
+		return
+	}
+
+	if worldMap == nil {
+		worldMap = GetWorldMap()
+	}
+	if p == nil {
+		p = GetParty()
+	}
+
+	worldX := 38
+	worldY := 103
+	if p != nil {
+		worldX = p.WorldX
+		worldY = p.WorldY
+	}
+
+	miniMapArea := dst.SubImage(image.Rect(512, 0, 640, 128)).(*ebiten.Image)
+
+	centerStx := 4
+	centerSty := 4
+
+	for sty := 0; sty < 9; sty++ {
+		for stx := 0; stx < 9; stx++ {
+			mx := worldX + (stx - centerStx)
+			my := worldY + (sty - centerSty)
+
+			px := float64(504 + stx*16)
+			py := float64(-8 + sty*16)
+
+			if worldMap != nil && mx >= 0 && mx < worldMap.Width && my >= 0 && my < worldMap.Height {
+				tileIdx := worldMap.GetTile(mx, my)
+				a.DrawTileScaled(miniMapArea, tileIdx, px, py, 1.0)
+			} else {
+				op := &ebiten.DrawImageOptions{}
+				op.GeoM.Translate(px, py)
+				miniMapArea.DrawImage(a.blackTile16x16, op)
+			}
+		}
+	}
+}
+
+// DrawMiniMap renders a mini-map of the world using defaultAssets.
+func DrawMiniMap(dst *ebiten.Image, worldMap *Map, party *Party) {
+	if defaultAssets != nil {
+		defaultAssets.DrawMiniMap(dst, worldMap, party)
+	}
+}
+
+// DrawCommonUI renders common UI elements visible in all game modes (Party Roster, Mini-Map, and Terminal UI).
 func DrawCommonUI(dst *ebiten.Image, assets *Assets, party *Party, terminal *Terminal) {
 	if assets != nil && party != nil {
 		assets.DrawPartyRoster(dst, party)
+	}
+	if assets != nil {
+		assets.DrawMiniMap(dst, GetWorldMap(), party)
 	}
 	if terminal != nil && assets != nil {
 		terminal.Draw(dst, assets)

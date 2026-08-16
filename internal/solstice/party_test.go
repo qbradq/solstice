@@ -28,6 +28,10 @@ func TestPartySpiritModeAndMembers(t *testing.T) {
 		t.Fatalf("NewParty(15, 15) failed: %v", err)
 	}
 
+	if party.WorldX != 38 || party.WorldY != 103 {
+		t.Errorf("Expected party starting world position (38, 103), got (%d, %d)", party.WorldX, party.WorldY)
+	}
+
 	SetParty(party)
 	if GetParty() != party {
 		t.Error("GetParty() did not return the set global party")

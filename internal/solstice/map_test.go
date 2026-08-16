@@ -62,6 +62,29 @@ func TestLoadMap(t *testing.T) {
 	}
 }
 
+func TestPreloadWorldMap(t *testing.T) {
+	wm, err := PreloadWorldMap()
+	if err != nil {
+		t.Fatalf("PreloadWorldMap failed: %v", err)
+	}
+
+	if wm == nil {
+		t.Fatal("Expected non-nil world map")
+	}
+
+	if wm.Name != "world" {
+		t.Errorf("Expected world map name 'world', got %q", wm.Name)
+	}
+
+	if wm.Width != 128 || wm.Height != 128 {
+		t.Errorf("Expected world map size 128x128, got %dx%d", wm.Width, wm.Height)
+	}
+
+	if GetWorldMap() != wm {
+		t.Errorf("GetWorldMap() does not match preloaded world map")
+	}
+}
+
 func TestLoadMapObjectLayerActors(t *testing.T) {
 	if _, err := PreloadSpriteDefs(); err != nil {
 		t.Fatalf("PreloadSpriteDefs failed: %v", err)

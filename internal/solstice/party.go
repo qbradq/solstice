@@ -30,11 +30,14 @@ func SetParty(p *Party) {
 // the party as a whole. It contains between 0 and 4 party member actors.
 type Party struct {
 	Entity
+	WorldX  int
+	WorldY  int
 	Members []Actor
 }
 
 // NewParty creates a new Party with the specified position and initial actor members.
 // Sets party sprite to "party-standing" when not in spirit mode, and "party-spirit-mode" when in spirit mode.
+// Hard codes the party's starting world map position to (38, 103).
 func NewParty(x, y int, members ...Actor) (*Party, error) {
 	if len(members) > MaxPartyMembers {
 		return nil, fmt.Errorf("cannot create party with %d members (maximum allowed is %d)", len(members), MaxPartyMembers)
@@ -49,6 +52,8 @@ func NewParty(x, y int, members ...Actor) (*Party, error) {
 			X:    x,
 			Y:    y,
 		},
+		WorldX:  38,
+		WorldY:  103,
 		Members: memberSlice,
 	}
 

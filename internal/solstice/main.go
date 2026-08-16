@@ -31,6 +31,7 @@ type Game struct {
 	assets     *Assets
 	terminal   *Terminal
 	currentMap *Map
+	worldMap   *Map
 	party      *Party
 	spriteDefs map[string]SpriteDef
 	mapScale   int
@@ -99,6 +100,10 @@ func Main() {
 		log.Fatalf("failed to preload tileset: %v", err)
 	}
 
+	if _, err := PreloadWorldMap(); err != nil {
+		log.Fatalf("failed to preload world map: %v", err)
+	}
+
 	spriteDefs, err := PreloadSpriteDefs()
 	if err != nil {
 		log.Fatalf("failed to preload sprite defs: %v", err)
@@ -141,6 +146,7 @@ func Main() {
 		assets:     assets,
 		terminal:   term,
 		currentMap: GetMap(),
+		worldMap:   GetWorldMap(),
 		party:      GetParty(),
 		spriteDefs: spriteDefs,
 		mapScale:   2,
