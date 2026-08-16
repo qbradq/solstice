@@ -15,14 +15,15 @@ import (
 
 // TileProperties holds physical, gameplay, and scripting properties for a tile.
 type TileProperties struct {
-	Walkable       bool   `json:"walkable"`
-	BlocksVis      bool   `json:"blocks_vis"`
-	DeepWater      bool   `json:"deep_water"`
-	Water          bool   `json:"water"`
-	Door           bool   `json:"door"`
-	SpiritPassable bool   `json:"spirit_passable"`
-	UseScript      string `json:"use_script"`
-	PartySprite    string `json:"party_sprite"`
+	Walkable        bool   `json:"walkable"`
+	BlocksVis       bool   `json:"blocks_vis"`
+	DeepWater       bool   `json:"deep_water"`
+	Water           bool   `json:"water"`
+	Door            bool   `json:"door"`
+	SpiritPassable  bool   `json:"spirit_passable"`
+	UseScript       string `json:"use_script"`
+	PartySprite     string `json:"party_sprite"`
+	ActorHalfSprite bool   `json:"actor_half_sprite"`
 }
 
 // TileSet holds tileset information loaded from a Tiled .tsx file.
@@ -193,6 +194,8 @@ func LoadTileSet(path string) (*TileSet, error) {
 				tp.UseScript = p.Value
 			case "party_sprite":
 				tp.PartySprite = p.Value
+			case "actor_half_sprite", "party_half_sprite":
+				tp.ActorHalfSprite = val
 			}
 		}
 		ts.Properties[t.ID] = tp
@@ -535,14 +538,22 @@ func (m *Map) DrawCentered(dst *ebiten.Image, assets *Assets, p *Party, scale in
 			sty := centerSty + (actor.Y - centerY)
 
 			if stx >= 0 && stx < cols && sty >= 0 && sty < rows {
-				assets.DrawSpriteDef(dst, actor.SpriteDef, stx, sty, scale)
+				tileIdx := m.GetTile(actor.X, actor.Y)
+				props := GetTileProperties(tileIdx)
+				assets.DrawSpriteDefHalf(dst, actor.SpriteDef, stx, sty, scale, props.ActorHalfSprite)
 			}
 		}
 	}
 
 	// 3. Render party sprite at the center cell
 	if p != nil {
-		assets.DrawSpriteDef(dst, p.GetSpriteDef(), centerStx, centerSty, scale)
+		half := false
+		if m != nil {
+			tileIdx := m.GetTile(p.X, p.Y)
+			props := GetTileProperties(tileIdx)
+			half = props.ActorHalfSprite
+		}
+		assets.DrawSpriteDefHalf(dst, p.GetSpriteDef(), centerStx, centerSty, scale, half)
 	}
 }
 

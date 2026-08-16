@@ -292,17 +292,70 @@ func DrawBlackMapTile(dst *ebiten.Image, tileX, tileY int, scale int) {
 // using scale and the current state of the global animation frame ticker.
 // It calls DrawMapTile to draw graphics onto the map view area, overwriting what was there previously.
 func (a *Assets) DrawSpriteDef(dst *ebiten.Image, sd SpriteDef, screenTileX, screenTileY int, scale int) {
-	tileIdx := sd.Tile
-	if sd.Animated && sd.Frames > 1 {
-		tileIdx += (GetAnimFrame() % sd.Frames)
-	}
-	a.DrawMapTile(dst, tileIdx, screenTileX, screenTileY, scale)
+	a.DrawSpriteDefHalf(dst, sd, screenTileX, screenTileY, scale, false)
 }
 
 // DrawSpriteDef draws a SpriteDef onto dst using defaultAssets.
 func DrawSpriteDef(dst *ebiten.Image, sd SpriteDef, screenTileX, screenTileY int, scale int) {
 	if defaultAssets != nil {
 		defaultAssets.DrawSpriteDef(dst, sd, screenTileX, screenTileY, scale)
+	}
+}
+
+// DrawMapTileHalf draws a tile (or top 8 source pixels if half is true) into the map view area of dst.
+func (a *Assets) DrawMapTileHalf(dst *ebiten.Image, tileIdx int, tileX, tileY int, scale int, half bool) {
+	if a == nil || a.Tiles16 == nil {
+		return
+	}
+
+	mapArea := dst.SubImage(image.Rect(0, 0, 352, 352)).(*ebiten.Image)
+
+	gx := (tileIdx % 16) * 16
+	gy := (tileIdx / 16) * 16
+
+	h := 16
+	if half {
+		h = 8
+	}
+
+	sub := a.Tiles16.SubImage(image.Rect(gx, gy, gx+16, gy+h)).(*ebiten.Image)
+
+	op := &ebiten.DrawImageOptions{}
+
+	if scale == 2 {
+		op.GeoM.Scale(2, 2)
+		px := float64(tileX * 32)
+		py := float64(tileY * 32)
+		op.GeoM.Translate(px, py)
+	} else {
+		px := float64(-8 + tileX*16)
+		py := float64(-8 + tileY*16)
+		op.GeoM.Translate(px, py)
+	}
+
+	mapArea.DrawImage(sub, op)
+}
+
+// DrawMapTileHalf draws a tile (or top 8 source pixels if half is true) using defaultAssets.
+func DrawMapTileHalf(dst *ebiten.Image, tileIdx int, tileX, tileY int, scale int, half bool) {
+	if defaultAssets != nil {
+		defaultAssets.DrawMapTileHalf(dst, tileIdx, tileX, tileY, scale, half)
+	}
+}
+
+// DrawSpriteDefHalf draws a SpriteDef (or top 8 source pixels if half is true) onto dst at screen tile coordinates.
+func (a *Assets) DrawSpriteDefHalf(dst *ebiten.Image, sd SpriteDef, screenTileX, screenTileY int, scale int, half bool) {
+	tileIdx := sd.Tile
+	if sd.Animated && sd.Frames > 1 {
+		tileIdx += (GetAnimFrame() % sd.Frames)
+	}
+	a.DrawMapTileHalf(dst, tileIdx, screenTileX, screenTileY, scale, half)
+}
+
+// DrawSpriteDefHalf draws a SpriteDef (or top 8 source pixels if half is true) onto dst using defaultAssets.
+func DrawSpriteDefHalf(dst *ebiten.Image, sd SpriteDef, screenTileX, screenTileY int, scale int, half bool) {
+	if defaultAssets != nil {
+		defaultAssets.DrawSpriteDefHalf(dst, sd, screenTileX, screenTileY, scale, half)
 	}
 }
 
@@ -327,5 +380,30 @@ func (a *Assets) FillMapScreen(dst *ebiten.Image, tileIdx int, scale int) {
 func FillMapScreen(dst *ebiten.Image, tileIdx int, scale int) {
 	if defaultAssets != nil {
 		defaultAssets.FillMapScreen(dst, tileIdx, scale)
+	}
+}
+
+// DrawTileScaled draws a single 16x16 tile from Tiles16 scaled by scale at exact pixel position (px, py) onto dst.
+func (a *Assets) DrawTileScaled(dst *ebiten.Image, tileIdx int, px, py float64, scale float64) {
+	if a == nil || a.Tiles16 == nil {
+		return
+	}
+	gx := (tileIdx % 16) * 16
+	gy := (tileIdx / 16) * 16
+	sub := a.Tiles16.SubImage(image.Rect(gx, gy, gx+16, gy+16)).(*ebiten.Image)
+
+	op := &ebiten.DrawImageOptions{}
+	op.GeoM.Scale(scale, scale)
+	op.GeoM.Translate(px, py)
+	dst.DrawImage(sub, op)
+}
+
+// DrawCommonUI renders common UI elements visible in all game modes (Party Roster and Terminal UI).
+func DrawCommonUI(dst *ebiten.Image, assets *Assets, party *Party, terminal *Terminal) {
+	if assets != nil && party != nil {
+		assets.DrawPartyRoster(dst, party)
+	}
+	if terminal != nil && assets != nil {
+		terminal.Draw(dst, assets)
 	}
 }

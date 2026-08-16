@@ -37,6 +37,12 @@ func TestPreloadTileSet(t *testing.T) {
 	if !prop13.BlocksVis {
 		t.Errorf("Expected tile 13 to have BlocksVis=true, got %+v", prop13)
 	}
+
+	// Tile 45 has actor_half_sprite=true / party_half_sprite=true
+	prop45 := ts.GetTileProperties(45)
+	if !prop45.ActorHalfSprite {
+		t.Errorf("Expected tile 45 to have ActorHalfSprite=true, got %+v", prop45)
+	}
 }
 
 func TestLoadMap(t *testing.T) {

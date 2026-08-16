@@ -207,8 +207,6 @@ func (tm *TargetMode) Draw(g *Game, screen *ebiten.Image) {
 	vector.DrawFilledRect(mapView, px, py, bw, sz, cursorColor, false)      // Left
 	vector.DrawFilledRect(mapView, px+sz-bw, py, bw, sz, cursorColor, false) // Right
 
-	// 4. Draw terminal UI
-	if g.terminal != nil {
-		g.terminal.Draw(screen, g.assets)
-	}
+	// 3. Draw common UI (party roster area and terminal UI)
+	DrawCommonUI(screen, g.assets, g.party, g.terminal)
 }

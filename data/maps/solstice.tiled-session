@@ -18,6 +18,14 @@
         "tileset.tsx": {
             "scaleInDock": 1.5,
             "scaleInEditor": 3
+        },
+        "world.tmx": {
+            "scale": 1,
+            "selectedLayer": 0,
+            "viewCenter": {
+                "x": 286,
+                "y": 1563
+            }
         }
     },
     "last.imagePath": "/home/qbradq/projects/solstice/data",
@@ -31,7 +39,7 @@
         "home.tmx"
     ],
     "project": "solstice.tiled-project",
-    "property.type": "string",
+    "property.type": "bool",
     "recentFiles": [
         "home.tmx",
         "tileset.tsx"

@@ -90,8 +90,6 @@ func (m *MainMode) Draw(g *Game, screen *ebiten.Image) {
 		g.currentMap.DrawCentered(screen, g.assets, g.party, scale)
 	}
 
-	// 2. Draw terminal UI
-	if g.terminal != nil {
-		g.terminal.Draw(screen, g.assets)
-	}
+	// 2. Draw common UI (party roster area and terminal UI)
+	DrawCommonUI(screen, g.assets, g.party, g.terminal)
 }

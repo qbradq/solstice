@@ -202,6 +202,7 @@
  </tile>
  <tile id="45">
   <properties>
+   <property name="actor_half_sprite" type="bool" value="true"/>
    <property name="walkable" type="bool" value="true"/>
   </properties>
  </tile>
@@ -382,6 +383,11 @@
    <property name="water" type="bool" value="true"/>
   </properties>
  </tile>
+ <tile id="133">
+  <properties>
+   <property name="walkable" type="bool" value="true"/>
+  </properties>
+ </tile>
  <tile id="144">
   <properties>
    <property name="party_sprite" value="party-sitting-north"/>
@@ -417,6 +423,23 @@
   <properties>
    <property name="door" type="bool" value="true"/>
    <property name="spirit_passable" type="bool" value="true"/>
+  </properties>
+ </tile>
+ <tile id="170">
+  <properties>
+   <property name="walkable" type="bool" value="true"/>
+  </properties>
+ </tile>
+ <tile id="171">
+  <properties>
+   <property name="actor_half_sprite" type="bool" value="true"/>
+   <property name="walkable" type="bool" value="true"/>
+  </properties>
+ </tile>
+ <tile id="172">
+  <properties>
+   <property name="actor_half_sprite" type="bool" value="true"/>
+   <property name="walkable" type="bool" value="true"/>
   </properties>
  </tile>
  <tile id="184">

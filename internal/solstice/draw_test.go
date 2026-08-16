@@ -82,3 +82,49 @@ func TestAnimTicker(t *testing.T) {
 		t.Errorf("Expected anim frame to advance to 1 after 15 ticks, got %d", f)
 	}
 }
+
+func TestFormatCommasAndDrawPartyRoster(t *testing.T) {
+	if got := formatCommas(0); got != "0" {
+		t.Errorf("formatCommas(0) = %q, want %q", got, "0")
+	}
+	if got := formatCommas(100); got != "100" {
+		t.Errorf("formatCommas(100) = %q, want %q", got, "100")
+	}
+	if got := formatCommas(2000); got != "2,000" {
+		t.Errorf("formatCommas(2000) = %q, want %q", got, "2,000")
+	}
+	if got := formatCommas(65000); got != "65,000" {
+		t.Errorf("formatCommas(65000) = %q, want %q", got, "65,000")
+	}
+
+	assets, err := LoadAssets()
+	if err != nil {
+		t.Fatalf("LoadAssets failed: %v", err)
+	}
+
+	_, err = PreloadSpriteDefs()
+	if err != nil {
+		t.Fatalf("PreloadSpriteDefs failed: %v", err)
+	}
+
+	_, err = PreloadActorDefs()
+	if err != nil {
+		t.Fatalf("PreloadActorDefs failed: %v", err)
+	}
+
+	kevin, err := NewActorFromDef("kevin-1", "kevin", 0, 0)
+	if err != nil {
+		t.Fatalf("NewActorFromDef failed: %v", err)
+	}
+
+	party, err := NewParty(0, 0, *kevin)
+	if err != nil {
+		t.Fatalf("NewParty failed: %v", err)
+	}
+
+	screen := ebiten.NewImage(640, 360)
+	assets.DrawPartyRoster(screen, party)
+
+	term := NewTerminal()
+	DrawCommonUI(screen, assets, party, term)
+}
