@@ -10,17 +10,35 @@ import (
 
 // ActorDef represents an actor definition loaded from JSON.
 type ActorDef struct {
-	Name         string `json:"name"`
-	Sprite       string `json:"sprite"`        // Key into spritedefs.json
-	DialogScript string `json:"dialog_script"` // Path to dialog script
+	Name           string `json:"name"`
+	Sprite         string `json:"sprite"`        // Key into spritedefs.json
+	DialogScript   string `json:"dialog_script"` // Path to dialog script
+	Experience     int    `json:"experience"`
+	Level          int    `json:"level"`
+	Strength       int    `json:"strength"`
+	Dexterity      int    `json:"dexterity"`
+	Intelligence   int    `json:"intelligence"`
+	MaxHitPoints   int    `json:"max_hit_points"`
+	HitPoints      int    `json:"hit_points"`
+	MaxMagicPoints int    `json:"max_magic_points"`
+	MagicPoints    int    `json:"magic_points"`
 }
 
 // Actor represents an agent or character in the game world (NPC, monster, party member).
 // It embeds Entity for position and graphical representation.
 type Actor struct {
 	Entity
-	ID           string `json:"id"`
-	DialogScript string `json:"dialog_script"`
+	ID             string `json:"id"`
+	DialogScript   string `json:"dialog_script"`
+	Experience     int    `json:"experience"`
+	Level          int    `json:"level"`
+	Strength       int    `json:"strength"`
+	Dexterity      int    `json:"dexterity"`
+	Intelligence   int    `json:"intelligence"`
+	MaxHitPoints   int    `json:"max_hit_points"`
+	HitPoints      int    `json:"hit_points"`
+	MaxMagicPoints int    `json:"max_magic_points"`
+	MagicPoints    int    `json:"magic_points"`
 }
 
 var actorDefs = make(map[string]ActorDef)
@@ -75,7 +93,8 @@ func NewActor(id string, x, y int, spriteName string) *Actor {
 			X:         x,
 			Y:         y,
 		},
-		ID: id,
+		ID:    id,
+		Level: 1,
 	}
 }
 
@@ -91,5 +110,23 @@ func NewActorFromDef(id string, defKey string, x, y int) (*Actor, error) {
 		actor.Name = def.Name
 	}
 	actor.DialogScript = def.DialogScript
+	actor.Experience = def.Experience
+	actor.Level = def.Level
+	if actor.Level == 0 {
+		actor.Level = 1
+	}
+	actor.Strength = def.Strength
+	actor.Dexterity = def.Dexterity
+	actor.Intelligence = def.Intelligence
+	actor.MaxHitPoints = def.MaxHitPoints
+	actor.HitPoints = def.HitPoints
+	if actor.HitPoints == 0 && actor.MaxHitPoints > 0 {
+		actor.HitPoints = actor.MaxHitPoints
+	}
+	actor.MaxMagicPoints = def.MaxMagicPoints
+	actor.MagicPoints = def.MagicPoints
+	if actor.MagicPoints == 0 && actor.MaxMagicPoints > 0 {
+		actor.MagicPoints = actor.MaxMagicPoints
+	}
 	return actor, nil
 }

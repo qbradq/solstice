@@ -34,20 +34,10 @@ type Party struct {
 }
 
 // NewParty creates a new Party with the specified position and initial actor members.
-// It copies the "party-spirit-mode" SpriteDef for the party's Entity.
+// Sets party sprite to "party-standing" when not in spirit mode, and "party-spirit-mode" when in spirit mode.
 func NewParty(x, y int, members ...Actor) (*Party, error) {
 	if len(members) > MaxPartyMembers {
 		return nil, fmt.Errorf("cannot create party with %d members (maximum allowed is %d)", len(members), MaxPartyMembers)
-	}
-
-	spriteDef, ok := GetSpriteDef("party-spirit-mode")
-	if !ok {
-		// Fallback if "party-spirit-mode" is not found in loaded sprite defs
-		spriteDef = SpriteDef{
-			Tile:     372,
-			Animated: true,
-			Frames:   4,
-		}
 	}
 
 	memberSlice := make([]Actor, len(members))
@@ -55,14 +45,14 @@ func NewParty(x, y int, members ...Actor) (*Party, error) {
 
 	p := &Party{
 		Entity: Entity{
-			SpriteDef: spriteDef, // Always copied by value
-			Name:      "Party",
-			X:         x,
-			Y:         y,
+			Name: "Party",
+			X:    x,
+			Y:    y,
 		},
 		Members: memberSlice,
 	}
 
+	p.UpdateSpriteDef()
 	return p, nil
 }
 
@@ -72,6 +62,47 @@ func (p *Party) IsSpiritMode() bool {
 	return p == nil || len(p.Members) == 0
 }
 
+// GetSpriteDef returns the active SpriteDef for the party:
+// - "party-spirit-mode" when in spirit mode (0 members).
+// - When not in spirit mode, if the tile the party is standing on defines a non-empty "party_sprite" property, use that sprite.
+// - Otherwise, default to "party-standing".
+func (p *Party) GetSpriteDef() SpriteDef {
+	if p == nil {
+		sd, _ := GetSpriteDef("party-spirit-mode")
+		return sd
+	}
+
+	if p.IsSpiritMode() {
+		if sd, ok := GetSpriteDef("party-spirit-mode"); ok {
+			return sd
+		}
+		return p.SpriteDef
+	}
+
+	// When not in spirit mode, check if the tile the party is standing on has a party_sprite property
+	if m := GetMap(); m != nil {
+		tileIdx := m.GetTile(p.X, p.Y)
+		props := GetTileProperties(tileIdx)
+		if props.PartySprite != "" {
+			if sd, ok := GetSpriteDef(props.PartySprite); ok {
+				return sd
+			}
+		}
+	}
+
+	if sd, ok := GetSpriteDef("party-standing"); ok {
+		return sd
+	}
+	return p.SpriteDef
+}
+
+// UpdateSpriteDef syncs p.SpriteDef with the active spirit mode state.
+func (p *Party) UpdateSpriteDef() {
+	if p != nil {
+		p.SpriteDef = p.GetSpriteDef()
+	}
+}
+
 // AddMember adds an Actor to the party.
 // Returns an error if the party already contains the maximum of 4 members.
 func (p *Party) AddMember(member Actor) error {
@@ -79,6 +110,7 @@ func (p *Party) AddMember(member Actor) error {
 		return fmt.Errorf("cannot add member: party is full (max %d members)", MaxPartyMembers)
 	}
 	p.Members = append(p.Members, member)
+	p.UpdateSpriteDef()
 	return nil
 }
 
@@ -88,6 +120,7 @@ func (p *Party) RemoveMember(index int) error {
 		return fmt.Errorf("member index %d out of bounds (len %d)", index, len(p.Members))
 	}
 	p.Members = append(p.Members[:index], p.Members[index+1:]...)
+	p.UpdateSpriteDef()
 	return nil
 }
 

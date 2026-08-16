@@ -85,30 +85,12 @@ func (m *MainMode) Draw(g *Game, screen *ebiten.Image) {
 		scale = 2
 	}
 
-	partyX := 16
-	partyY := 16
-	if g.party != nil {
-		partyX = g.party.X
-		partyY = g.party.Y
-	}
-
-	// Draw the currently loaded map centered on the party's position
+	// 1. Draw the map view area (map tiles, actors, and party sprite)
 	if g.currentMap != nil {
-		g.currentMap.DrawCentered(screen, g.assets, partyX, partyY, scale)
+		g.currentMap.DrawCentered(screen, g.assets, g.party, scale)
 	}
 
-	// Draw party sprite at center of map view area using global animation ticker
-	if g.party != nil && g.assets != nil {
-		centerStx := 5
-		centerSty := 5
-		if scale == 1 {
-			centerStx = 11
-			centerSty = 11
-		}
-		g.assets.DrawSpriteDef(screen, g.party.SpriteDef, centerStx, centerSty, scale)
-	}
-
-	// Draw terminal UI
+	// 2. Draw terminal UI
 	if g.terminal != nil {
 		g.terminal.Draw(screen, g.assets)
 	}

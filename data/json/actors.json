@@ -2,18 +2,67 @@
     "guard": {
         "name": "Town Guard",
         "sprite": "guard",
-        "dialog_script": "dialog/guard.tengo"
+        "dialog_script": "dialog/guard.tengo",
+        "level": 2,
+        "experience": 2000,
+        "strength": 14,
+        "dexterity": 12,
+        "intelligence": 10,
+        "max_hit_points": 40,
+        "hit_points": 40,
+        "max_magic_points": 0,
+        "magic_points": 0
     },
     "wizard": {
         "name": "Wizard",
-        "sprite": "wizard"
+        "sprite": "wizard",
+        "level": 3,
+        "experience": 5000,
+        "strength": 8,
+        "dexterity": 10,
+        "intelligence": 16,
+        "max_hit_points": 30,
+        "hit_points": 30,
+        "max_magic_points": 30,
+        "magic_points": 30
     },
     "warrior": {
         "name": "Warrior",
-        "sprite": "warrior"
+        "sprite": "warrior",
+        "level": 3,
+        "experience": 5000,
+        "strength": 16,
+        "dexterity": 14,
+        "intelligence": 8,
+        "max_hit_points": 60,
+        "hit_points": 60,
+        "max_magic_points": 0,
+        "magic_points": 0
     },
     "peasant": {
         "name": "Peasant",
-        "sprite": "peasant"
+        "sprite": "peasant",
+        "level": 1,
+        "experience": 0,
+        "strength": 8,
+        "dexterity": 8,
+        "intelligence": 8,
+        "max_hit_points": 15,
+        "hit_points": 15,
+        "max_magic_points": 0,
+        "magic_points": 0
+    },
+    "kevin": {
+        "name": "Kevin",
+        "sprite": "warrior",
+        "level": 1,
+        "experience": 0,
+        "strength": 18,
+        "dexterity": 11,
+        "intelligence": 7,
+        "max_hit_points": 30,
+        "hit_points": 30,
+        "max_magic_points": 0,
+        "magic_points": 0
     }
 }

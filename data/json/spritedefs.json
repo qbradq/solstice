@@ -1,13 +1,25 @@
 {
+    "party-spirit-mode": {
+        "tile": 372,
+        "animated": true,
+        "frames": 4
+    },
     "party-standing": {
         "tile": 332,
         "animated": true,
         "frames": 4
     },
-    "party-spirit-mode": {
-        "tile": 372,
-        "animated": true,
-        "frames": 4
+    "party-sitting-north": {
+        "tile": 304
+    },
+    "party-sitting-east": {
+        "tile": 305
+    },
+    "party-sitting-south": {
+        "tile": 306
+    },
+    "party-sitting-west": {
+        "tile": 307
     },
     "wizard": {
         "tile": 320,

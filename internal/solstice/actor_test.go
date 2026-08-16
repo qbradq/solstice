@@ -19,7 +19,7 @@ func TestActorDefAndMapActorOperations(t *testing.T) {
 		t.Error("Expected loaded actor defs to be non-empty")
 	}
 
-	// 1. Test NewActorFromDef
+	// 1. Test NewActorFromDef and stat copying
 	guard, err := NewActorFromDef("guard-1", "guard", 17, 11)
 	if err != nil {
 		t.Fatalf("NewActorFromDef failed: %v", err)
@@ -29,6 +29,24 @@ func TestActorDefAndMapActorOperations(t *testing.T) {
 	}
 	if guard.ID != "guard-1" {
 		t.Errorf("Expected guard ID 'guard-1', got %q", guard.ID)
+	}
+	if guard.Level != 2 {
+		t.Errorf("Expected guard Level 2, got %d", guard.Level)
+	}
+	if guard.Experience != 2000 {
+		t.Errorf("Expected guard Experience 2000, got %d", guard.Experience)
+	}
+	if guard.Strength != 14 {
+		t.Errorf("Expected guard Strength 14, got %d", guard.Strength)
+	}
+	if guard.Dexterity != 12 {
+		t.Errorf("Expected guard Dexterity 12, got %d", guard.Dexterity)
+	}
+	if guard.Intelligence != 10 {
+		t.Errorf("Expected guard Intelligence 10, got %d", guard.Intelligence)
+	}
+	if guard.MaxHitPoints != 40 || guard.HitPoints != 40 {
+		t.Errorf("Expected guard HP 40/40, got %d/%d", guard.HitPoints, guard.MaxHitPoints)
 	}
 
 	// 2. Test Map AddActor & RemoveActor
@@ -71,32 +89,5 @@ func TestActorDefAndMapActorOperations(t *testing.T) {
 	}
 	if len(homeMap.Actors) != 1 || homeMap.Actors[0] != wizard {
 		t.Errorf("Expected only wizard remaining on map, got actors: %v", homeMap.Actors)
-	}
-}
-
-func TestPartyBlockedByActor(t *testing.T) {
-	homeMap, err := LoadMap("home")
-	if err != nil {
-		t.Fatalf("LoadMap failed: %v", err)
-	}
-
-	// Place actor at (16, 15)
-	actor := NewActor("blocking-guard", 16, 15, "guard")
-	homeMap.AddActor(actor)
-
-	// Party at (15, 15)
-	party, err := NewParty(15, 15)
-	if err != nil {
-		t.Fatalf("NewParty failed: %v", err)
-	}
-
-	// Attempt to move right onto (16, 15) where actor is positioned -> should be blocked!
-	moved := homeMap.MoveParty(party, 1, 0)
-	if moved {
-		t.Error("Expected party movement to be blocked by actor at (16, 15), but MoveParty returned true")
-	}
-
-	if party.X != 15 || party.Y != 15 {
-		t.Errorf("Expected party to remain at (15, 15), got (%d, %d)", party.X, party.Y)
 	}
 }

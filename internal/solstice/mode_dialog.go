@@ -82,30 +82,12 @@ func (dm *DialogMode) Draw(g *Game, screen *ebiten.Image) {
 		scale = 2
 	}
 
-	partyX := 16
-	partyY := 16
-	if g.party != nil {
-		partyX = g.party.X
-		partyY = g.party.Y
-	}
-
-	// 1. Draw the map centered on party
+	// 1. Draw the map view area (map tiles, actors, and party sprite)
 	if g.currentMap != nil {
-		g.currentMap.DrawCentered(screen, g.assets, partyX, partyY, scale)
+		g.currentMap.DrawCentered(screen, g.assets, g.party, scale)
 	}
 
-	// 2. Draw party sprite
-	if g.party != nil && g.assets != nil {
-		centerStx := 5
-		centerSty := 5
-		if scale == 1 {
-			centerStx = 11
-			centerSty = 11
-		}
-		g.assets.DrawSpriteDef(screen, g.party.SpriteDef, centerStx, centerSty, scale)
-	}
-
-	// 3. Draw terminal UI (renders log history and bottom input line)
+	// 2. Draw terminal UI (renders log history and bottom input line)
 	if g.terminal != nil {
 		g.terminal.Draw(screen, g.assets)
 	}

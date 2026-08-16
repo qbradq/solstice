@@ -382,6 +382,30 @@
    <property name="water" type="bool" value="true"/>
   </properties>
  </tile>
+ <tile id="144">
+  <properties>
+   <property name="party_sprite" value="party-sitting-north"/>
+   <property name="walkable" type="bool" value="true"/>
+  </properties>
+ </tile>
+ <tile id="145">
+  <properties>
+   <property name="party_sprite" value="party-sitting-east"/>
+   <property name="walkable" type="bool" value="true"/>
+  </properties>
+ </tile>
+ <tile id="146">
+  <properties>
+   <property name="party_sprite" value="party-sitting-south"/>
+   <property name="walkable" type="bool" value="true"/>
+  </properties>
+ </tile>
+ <tile id="147">
+  <properties>
+   <property name="party_sprite" value="party-sitting-west"/>
+   <property name="walkable" type="bool" value="true"/>
+  </properties>
+ </tile>
  <tile id="151">
   <properties>
    <property name="blocks_vis" type="bool" value="true"/>

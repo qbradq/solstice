@@ -108,8 +108,13 @@ func Main() {
 		log.Fatalf("failed to preload actor defs: %v", err)
 	}
 
-	// Create initial party with default "party-spirit-mode" sprite
-	party, err := NewParty(0, 0)
+	kevinActor, err := NewActorFromDef("kevin-1", "kevin", 0, 0)
+	if err != nil {
+		log.Fatalf("failed to create kevin actor: %v", err)
+	}
+
+	// Create initial party with Kevin member and default "party-spirit-mode" sprite
+	party, err := NewParty(0, 0, *kevinActor)
 	if err != nil {
 		log.Fatalf("failed to create party: %v", err)
 	}

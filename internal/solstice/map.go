@@ -22,6 +22,7 @@ type TileProperties struct {
 	Door           bool   `json:"door"`
 	SpiritPassable bool   `json:"spirit_passable"`
 	UseScript      string `json:"use_script"`
+	PartySprite    string `json:"party_sprite"`
 }
 
 // TileSet holds tileset information loaded from a Tiled .tsx file.
@@ -190,6 +191,8 @@ func LoadTileSet(path string) (*TileSet, error) {
 				tp.SpiritPassable = val
 			case "use_script":
 				tp.UseScript = p.Value
+			case "party_sprite":
+				tp.PartySprite = p.Value
 			}
 		}
 		ts.Properties[t.ID] = tp
@@ -477,11 +480,22 @@ func (m *Map) MoveParty(p *Party, dx, dy int) bool {
 	return true
 }
 
-// DrawCentered renders the map centered on map coordinates (centerX, centerY) into the map view area using assets at scale 1 or 2.
-// Out-of-bounds map tiles are drawn as a black void, and actors are rendered on top of map tiles.
-func (m *Map) DrawCentered(dst *ebiten.Image, assets *Assets, centerX, centerY int, scale int) {
+// DrawCentered renders the map centered on the party's position into the map view area using assets at scale 1 or 2.
+// Out-of-bounds map tiles are drawn as a black void, actors are rendered on top of map tiles, and the party sprite is rendered at the center cell.
+func (m *Map) DrawCentered(dst *ebiten.Image, assets *Assets, p *Party, scale int) {
 	if assets == nil {
 		return
+	}
+
+	if p == nil {
+		p = GetParty()
+	}
+
+	centerX := 16
+	centerY := 16
+	if p != nil {
+		centerX = p.X
+		centerY = p.Y
 	}
 
 	cols := 11
@@ -525,17 +539,16 @@ func (m *Map) DrawCentered(dst *ebiten.Image, assets *Assets, centerX, centerY i
 			}
 		}
 	}
+
+	// 3. Render party sprite at the center cell
+	if p != nil {
+		assets.DrawSpriteDef(dst, p.GetSpriteDef(), centerStx, centerSty, scale)
+	}
 }
 
-// Draw renders the map centered on (5, 5) or (11, 11) into the map view display area.
+// Draw renders the map centered on the current party into the map view display area.
 func (m *Map) Draw(dst *ebiten.Image, assets *Assets, scale int) {
-	centerX := 5
-	centerY := 5
-	if scale == 1 {
-		centerX = 11
-		centerY = 11
-	}
-	m.DrawCentered(dst, assets, centerX, centerY, scale)
+	m.DrawCentered(dst, assets, nil, scale)
 }
 
 func parseCSV(raw string) ([]int, error) {

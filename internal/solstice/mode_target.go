@@ -168,20 +168,9 @@ func (tm *TargetMode) Draw(g *Game, screen *ebiten.Image) {
 		partyY = g.party.Y
 	}
 
-	// 1. Draw the map centered on party
+	// 1. Draw the map view area (map tiles, actors, and party sprite)
 	if g.currentMap != nil {
-		g.currentMap.DrawCentered(screen, g.assets, partyX, partyY, scale)
-	}
-
-	// 2. Draw party sprite
-	if g.party != nil && g.assets != nil {
-		centerStx := 5
-		centerSty := 5
-		if scale == 1 {
-			centerStx = 11
-			centerSty = 11
-		}
-		g.assets.DrawSpriteDef(screen, g.party.SpriteDef, centerStx, centerSty, scale)
+		g.currentMap.DrawCentered(screen, g.assets, g.party, scale)
 	}
 
 	// 3. Render targeting cursor border on top of map view area (352x352)
