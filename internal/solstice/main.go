@@ -115,13 +115,25 @@ func Main() {
 	}
 	SetParty(party)
 
+	term := NewTerminal()
+
+	// Initialize Tengo script system and pre-compile all scripts from data/scripts
+	if err := InitScriptSystem(); err != nil {
+		log.Fatalf("failed to initialize script system: %v", err)
+	}
+
+	// Execute data/scripts/main.tengo after all assets and scripts are loaded
+	if err := RunMainScript(); err != nil {
+		log.Fatalf("failed to execute main.tengo script: %v", err)
+	}
+
 	ebiten.SetWindowSize(screenWidth, screenHeight)
 	ebiten.SetWindowTitle("Solstice")
 	ebiten.SetWindowResizingMode(ebiten.WindowResizingModeEnabled)
 
 	game := &Game{
 		assets:     assets,
-		terminal:   NewTerminal(),
+		terminal:   term,
 		currentMap: homeMap,
 		party:      party,
 		spriteDefs: spriteDefs,

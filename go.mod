@@ -3,6 +3,7 @@ module solstice
 go 1.26.5
 
 require (
+	github.com/d5/tengo/v2 v2.17.0
 	github.com/hajimehoshi/ebiten/v2 v2.9.9
 	github.com/mitchellh/go-wordwrap v1.0.1
 )

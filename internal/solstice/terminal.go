@@ -15,26 +15,30 @@ const (
 	terminalVisibleRows = 28 // 224 / 8 = 28 lines
 )
 
+var defaultTerminal *Terminal
+
+// GetTerminal returns the global terminal instance.
+func GetTerminal() *Terminal {
+	return defaultTerminal
+}
+
+// SetTerminal sets the global terminal instance.
+func SetTerminal(t *Terminal) {
+	defaultTerminal = t
+}
+
 // Terminal manages the terminal UI, log message history, input scrolling, and rendering.
 type Terminal struct {
 	lines        []string
 	scrollOffset int
 }
 
-// NewTerminal creates a new Terminal initialized with a copyright/license welcome notice and 150+ lines of Lipsum text.
+// NewTerminal creates a new Terminal.
 func NewTerminal() *Terminal {
 	t := &Terminal{
 		lines: make([]string, 0, terminalMaxHistory),
 	}
-
-	// Welcome message including copyright and license notice
-	t.AddMessage("------------------------------------")
-	t.AddMessage("Solstice Client v0.1.0")
-	t.AddMessage("Copyright (c) 2026")
-	t.AddMessage("Norman B. Lancaster")
-	t.AddMessage("Licensed under the MIT License.")
-	t.AddMessage("------------------------------------")
-
+	defaultTerminal = t
 	return t
 }
 

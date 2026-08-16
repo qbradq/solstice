@@ -2,5 +2,5 @@ package data
 
 import "embed"
 
-//go:embed *.png maps json
+//go:embed gfx maps json scripts
 var FS embed.FS

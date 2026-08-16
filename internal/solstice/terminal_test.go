@@ -32,10 +32,7 @@ func TestTerminalWordWrapAndLimit(t *testing.T) {
 
 func TestNewTerminalAndDraw(t *testing.T) {
 	term := NewTerminal()
-
-	if len(term.lines) == 0 {
-		t.Errorf("Expected non-empty terminal lines, got %d", len(term.lines))
-	}
+	term.AddMessage("Test message")
 
 	assets, err := LoadAssets()
 	if err != nil {

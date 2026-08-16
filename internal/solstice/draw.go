@@ -6,6 +6,7 @@ import (
 	"image"
 	"image/color"
 	_ "image/png"
+	"strings"
 	"solstice/data"
 
 	"github.com/hajimehoshi/ebiten/v2"
@@ -54,27 +55,27 @@ var defaultAssets *Assets
 
 // LoadAssets loads all required images from the data.FS embedded filesystem.
 func LoadAssets() (*Assets, error) {
-	ibm8x8, err := loadImage("IBM.CH.png")
+	ibm8x8, err := loadImage("gfx/IBM.CH.png")
 	if err != nil {
 		return nil, err
 	}
 
-	ibm16x12, err := loadImage("IBM.HCS.png")
+	ibm16x12, err := loadImage("gfx/IBM.HCS.png")
 	if err != nil {
 		return nil, err
 	}
 
-	rune8x8, err := loadImage("RUNES.CH.png")
+	rune8x8, err := loadImage("gfx/RUNES.CH.png")
 	if err != nil {
 		return nil, err
 	}
 
-	rune16x12, err := loadImage("RUNES.HCS.png")
+	rune16x12, err := loadImage("gfx/RUNES.HCS.png")
 	if err != nil {
 		return nil, err
 	}
 
-	tiles16, err := loadImage("TILES.16.png")
+	tiles16, err := loadImage("gfx/TILES.16.png")
 	if err != nil {
 		return nil, err
 	}
@@ -100,7 +101,12 @@ func LoadAssets() (*Assets, error) {
 }
 
 func loadImage(name string) (*ebiten.Image, error) {
-	b, err := data.FS.ReadFile(name)
+	cleanPath := strings.TrimPrefix(name, "data/")
+	if !strings.HasPrefix(cleanPath, "gfx/") {
+		cleanPath = "gfx/" + cleanPath
+	}
+
+	b, err := data.FS.ReadFile(cleanPath)
 	if err != nil {
 		return nil, fmt.Errorf("failed to read embedded asset %s: %w", name, err)
 	}
