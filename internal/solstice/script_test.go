@@ -213,3 +213,33 @@ func TestGameLoadMapAndTeleportParty(t *testing.T) {
 		t.Errorf("Expected party position (15, 15) after teleport_party in main.tengo, got (%d, %d)", party.X, party.Y)
 	}
 }
+
+func TestExecuteTriggerScript(t *testing.T) {
+	term := NewTerminal()
+	SetTerminal(term)
+
+	if err := InitScriptSystem(); err != nil {
+		t.Fatalf("InitScriptSystem failed: %v", err)
+	}
+
+	// 1. Triggered by party
+	if err := ExecuteTriggerScript("triggers/test.tengo", "home", 10, 15, "party"); err != nil {
+		t.Fatalf("ExecuteTriggerScript for party failed: %v", err)
+	}
+
+	lines := term.GetLineTexts()
+	if len(lines) == 0 || lines[len(lines)-1] != "party trigger" {
+		t.Errorf("Expected 'party trigger' in terminal log, got lines: %v", lines)
+	}
+
+	// 2. Triggered by actor
+	if err := ExecuteTriggerScript("triggers/test.tengo", "home", 10, 15, "guard-1"); err != nil {
+		t.Fatalf("ExecuteTriggerScript for actor failed: %v", err)
+	}
+
+	lines = term.GetLineTexts()
+	if len(lines) == 0 || lines[len(lines)-1] != "actor trigger: guard-1" {
+		t.Errorf("Expected 'actor trigger: guard-1' in terminal log, got lines: %v", lines)
+	}
+}
+

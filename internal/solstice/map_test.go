@@ -1,6 +1,7 @@
 package solstice
 
 import (
+	"image"
 	"testing"
 
 	"github.com/hajimehoshi/ebiten/v2"
@@ -84,6 +85,21 @@ func TestPreloadWorldMap(t *testing.T) {
 
 	if GetWorldMap() != wm {
 		t.Errorf("GetWorldMap() does not match preloaded world map")
+	}
+
+	// Verify trigger on world map: (38, 103)
+	if len(wm.Triggers) == 0 {
+		t.Fatalf("Expected triggers on world map, got 0")
+	}
+	trig := wm.Triggers[0]
+	if trig.Area != image.Rect(38, 103, 39, 104) {
+		t.Errorf("Expected world trigger area (38, 103, 39, 104), got %v", trig.Area)
+	}
+	if !trig.OnEnter {
+		t.Errorf("Expected world trigger OnEnter=true, got %v", trig.OnEnter)
+	}
+	if trig.ScriptPath != "triggers/enter_home.tengo" {
+		t.Errorf("Expected world trigger script 'triggers/enter_home.tengo', got %q", trig.ScriptPath)
 	}
 }
 
@@ -422,4 +438,107 @@ func TestMapPropertiesAndExitToWorld(t *testing.T) {
 		t.Errorf("Expected MoveParty outside bounds with ExitToWorld=false to be blocked")
 	}
 }
+
+func TestTriggersAndWizardMode(t *testing.T) {
+	term := NewTerminal()
+	SetTerminal(term)
+
+	if err := InitScriptSystem(); err != nil {
+		t.Fatalf("InitScriptSystem failed: %v", err)
+	}
+	if _, err := PreloadSpriteDefs(); err != nil {
+		t.Fatalf("PreloadSpriteDefs failed: %v", err)
+	}
+
+	homeMap, err := LoadMap("home")
+	if err != nil {
+		t.Fatalf("LoadMap failed: %v", err)
+	}
+
+	// 1. Add trigger to homeMap: (12, 12) to (17, 14), on enter, triggers/test.tengo
+	debugTrig := &Trigger{
+		ID:         9999,
+		Name:       "debug_home_trigger",
+		Area:       image.Rect(12, 12, 17, 14),
+		ScriptPath: "triggers/test.tengo",
+		OnEnter:    true,
+	}
+	homeMap.AddTrigger(debugTrig)
+
+	if debugTrig.Area != image.Rect(12, 12, 17, 14) {
+		t.Errorf("Expected debug trigger area (12, 12, 17, 14), got %v", debugTrig.Area)
+	}
+	if !debugTrig.OnEnter || debugTrig.OnStep {
+		t.Errorf("Expected debug trigger OnEnter=true, OnStep=false, got OnEnter=%v, OnStep=%v", debugTrig.OnEnter, debugTrig.OnStep)
+	}
+	if debugTrig.ScriptPath != "triggers/test.tengo" {
+		t.Errorf("Expected debug trigger script 'triggers/test.tengo', got %q", debugTrig.ScriptPath)
+	}
+
+	// 2. Test OnEnter trigger activation
+	term.Clear()
+	// Inside trigger area (13, 12)
+	homeMap.ActivateTriggersOnEnter(13, 12, "party")
+	lines := term.GetLineTexts()
+	if len(lines) == 0 || lines[len(lines)-1] != "party trigger" {
+		t.Errorf("Expected 'party trigger' when activating OnEnter inside trigger area, got lines: %v", lines)
+	}
+
+	// Outside trigger area (11, 12)
+	term.Clear()
+	homeMap.ActivateTriggersOnEnter(11, 12, "party")
+	if len(term.GetLineTexts()) != 0 {
+		t.Errorf("Expected no trigger activation outside trigger area, got: %v", term.GetLineTexts())
+	}
+
+	// 3. Test OnStep trigger activation on party move
+	stepTrig := &Trigger{
+		ID:         1001,
+		Name:       "step_trigger",
+		Area:       image.Rect(14, 15, 15, 16), // (14, 15)
+		ScriptPath: "triggers/test.tengo",
+		OnStep:     true,
+	}
+	homeMap.AddTrigger(stepTrig)
+	homeMap.SetTile(14, 15, 4) // Walkable tile
+
+	party, err := NewParty(13, 15)
+	if err != nil {
+		t.Fatalf("NewParty failed: %v", err)
+	}
+	SetParty(party)
+
+	term.Clear()
+	moved := homeMap.MoveParty(party, 1, 0) // Moves onto (14, 15)
+	if !moved {
+		t.Fatalf("Expected party to move to (14, 15)")
+	}
+	lines = term.GetLineTexts()
+	if len(lines) == 0 || lines[len(lines)-1] != "party trigger" {
+		t.Errorf("Expected 'party trigger' on step into trigger area, got: %v", lines)
+	}
+
+	// 4. Test Wizard Mode rendering
+	assets, err := LoadAssets()
+	if err != nil {
+		t.Fatalf("LoadAssets failed: %v", err)
+	}
+	screen := ebiten.NewImage(640, 360)
+
+	SetWizardMode(false)
+	if IsWizardMode() {
+		t.Errorf("Expected WizardMode to be false")
+	}
+	homeMap.DrawCentered(screen, assets, party, 2)
+	homeMap.DrawCentered(screen, assets, party, 1)
+
+	SetWizardMode(true)
+	if !IsWizardMode() {
+		t.Errorf("Expected WizardMode to be true")
+	}
+	homeMap.DrawCentered(screen, assets, party, 2)
+	homeMap.DrawCentered(screen, assets, party, 1)
+	SetWizardMode(false)
+}
+
 

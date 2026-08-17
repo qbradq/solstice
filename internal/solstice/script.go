@@ -293,6 +293,8 @@ func InitScriptSystem() error {
 			_ = script.Add("tile_idx", nil)
 			_ = script.Add("keyword", "")
 			_ = script.Add("reply", "")
+			_ = script.Add("map_name", "")
+			_ = script.Add("actor_id", "")
 			compiled, err := script.Compile()
 			if err != nil {
 				return fmt.Errorf("failed to pre-compile script %s: %w", path, err)
@@ -372,6 +374,16 @@ func ExecuteTileScript(scriptPath string, tileX, tileY, tileIdx int) error {
 		"tile_x":   tileX,
 		"tile_y":   tileY,
 		"tile_idx": tileIdx,
+	})
+}
+
+// ExecuteTriggerScript executes a trigger script with map_name, tile_x, tile_y, and actor_id globals.
+func ExecuteTriggerScript(scriptPath string, mapName string, tileX, tileY int, actorID string) error {
+	return ExecuteScriptWithGlobals(scriptPath, map[string]interface{}{
+		"map_name": mapName,
+		"tile_x":   tileX,
+		"tile_y":   tileY,
+		"actor_id": actorID,
 	})
 }
 

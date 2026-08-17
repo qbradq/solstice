@@ -4,6 +4,7 @@ import (
 	"encoding/xml"
 	"fmt"
 	"image"
+	"image/color"
 	"math"
 	"strconv"
 	"strings"
@@ -12,6 +13,7 @@ import (
 
 	"github.com/bits-and-blooms/bitset"
 	"github.com/hajimehoshi/ebiten/v2"
+	"github.com/hajimehoshi/ebiten/v2/vector"
 )
 
 // TileProperties holds physical, gameplay, and scripting properties for a tile.
@@ -44,6 +46,16 @@ type MapTimer struct {
 	Globals        map[string]interface{}
 }
 
+// Trigger represents an interactive or proximity trigger area on a map.
+type Trigger struct {
+	ID         int             `json:"id"`
+	Name       string          `json:"name"`
+	Area       image.Rectangle `json:"area"`        // Tile-coordinate bounding box: [Min.X, Min.Y, Max.X, Max.Y)
+	ScriptPath string          `json:"script_path"` // Path to Tengo script to execute
+	OnStep     bool            `json:"on_step"`     // Activates when actor or party steps on any tile in Area
+	OnEnter    bool            `json:"on_enter"`    // Activates when party presses 'E' while standing on any tile in Area
+}
+
 // MapProperties holds gameplay and navigation properties for a map.
 type MapProperties struct {
 	ExitToWorld bool `json:"exit_to_world"`
@@ -61,11 +73,23 @@ type Map struct {
 	Properties MapProperties // Map-level properties
 	Timers     []*MapTimer   // Scheduled map timers
 	Actors     []*Actor      // Active actors on this map
+	Triggers   []*Trigger    // Trigger areas on this map
 }
 
 var defaultTileSet *TileSet
 var defaultMap *Map
 var defaultWorldMap *Map
+var wizardMode bool
+
+// IsWizardMode returns true if wizard debugging mode is enabled.
+func IsWizardMode() bool {
+	return wizardMode
+}
+
+// SetWizardMode enables or disables wizard debugging mode.
+func SetWizardMode(v bool) {
+	wizardMode = v
+}
 
 // GetMap returns the current default map instance.
 func GetMap() *Map {
@@ -160,14 +184,15 @@ type tmxObjectGroup struct {
 }
 
 type tmxObject struct {
-	ID     int     `xml:"id,attr"`
-	Name   string  `xml:"name,attr"`
-	Type   string  `xml:"type,attr"`
-	GID    int     `xml:"gid,attr"`
-	X      float64 `xml:"x,attr"`
-	Y      float64 `xml:"y,attr"`
-	Width  float64 `xml:"width,attr"`
-	Height float64 `xml:"height,attr"`
+	ID         int           `xml:"id,attr"`
+	Name       string        `xml:"name,attr"`
+	Type       string        `xml:"type,attr"`
+	GID        int           `xml:"gid,attr"`
+	X          float64       `xml:"x,attr"`
+	Y          float64       `xml:"y,attr"`
+	Width      float64       `xml:"width,attr"`
+	Height     float64       `xml:"height,attr"`
+	Properties []tmxProperty `xml:"properties>property"`
 }
 
 // PreloadTileSet pre-loads the default tile set from data/maps/tileset.tsx at program start.
@@ -327,6 +352,7 @@ func LoadMap(name string) (*Map, error) {
 		Properties: mapProps,
 		Timers:     make([]*MapTimer, 0),
 		Actors:     make([]*Actor, 0),
+		Triggers:   make([]*Trigger, 0),
 	}
 
 	for _, og := range raw.ObjectGroups {
@@ -367,6 +393,52 @@ func LoadMap(name string) (*Map, error) {
 					actor = NewActor(actorID, tileX, tileY, templateName)
 				}
 				m.AddActor(actor)
+			case "trigger":
+				var tileX, tileY, tileW, tileH int
+				if obj.Width == 0 && obj.Height == 0 {
+					// Point trigger object placed inside a tile cell
+					tileX = int(math.Floor(obj.X / float64(raw.TileWidth)))
+					tileY = int(math.Floor(obj.Y / float64(raw.TileHeight)))
+					tileW = 1
+					tileH = 1
+				} else {
+					tileX = int(math.Round(obj.X / float64(raw.TileWidth)))
+					tileY = int(math.Round(obj.Y / float64(raw.TileHeight)))
+					tileW = int(math.Round(obj.Width / float64(raw.TileWidth)))
+					tileH = int(math.Round(obj.Height / float64(raw.TileHeight)))
+					if tileW <= 0 {
+						tileW = 1
+					}
+					if tileH <= 0 {
+						tileH = 1
+					}
+				}
+
+				scriptPath := templateName
+				onStep := false
+				onEnter := false
+
+				for _, p := range obj.Properties {
+					val, _ := strconv.ParseBool(p.Value)
+					switch p.Name {
+					case "on_step":
+						onStep = val
+					case "on_enter":
+						onEnter = val
+					case "script", "script_path":
+						scriptPath = p.Value
+					}
+				}
+
+				trig := &Trigger{
+					ID:         obj.ID,
+					Name:       obj.Name,
+					Area:       image.Rect(tileX, tileY, tileX+tileW, tileY+tileH),
+					ScriptPath: scriptPath,
+					OnStep:     onStep,
+					OnEnter:    onEnter,
+				}
+				m.AddTrigger(trig)
 			}
 		}
 	}
@@ -566,9 +638,46 @@ func (m *Map) MoveParty(p *Party, dx, dy int) bool {
 	}
 	p.UpdateSpriteDef()
 
+	// Check and activate on_step triggers for party
+	m.ActivateTriggersOnStep(p.X, p.Y, "party")
+
 	// Advance map turn after successful party movement
 	m.AdvanceTurn()
 	return true
+}
+
+// AddTrigger adds a trigger area to the map.
+func (m *Map) AddTrigger(t *Trigger) {
+	if m == nil || t == nil {
+		return
+	}
+	m.Triggers = append(m.Triggers, t)
+}
+
+// ActivateTriggersOnStep checks for any triggers at (tileX, tileY) that have OnStep == true and executes them.
+func (m *Map) ActivateTriggersOnStep(tileX, tileY int, actorID string) {
+	if m == nil {
+		return
+	}
+	pt := image.Pt(tileX, tileY)
+	for _, trig := range m.Triggers {
+		if trig != nil && trig.OnStep && pt.In(trig.Area) {
+			_ = ExecuteTriggerScript(trig.ScriptPath, m.Name, tileX, tileY, actorID)
+		}
+	}
+}
+
+// ActivateTriggersOnEnter checks for any triggers at (tileX, tileY) that have OnEnter == true (and not OnStep) and executes them.
+func (m *Map) ActivateTriggersOnEnter(tileX, tileY int, actorID string) {
+	if m == nil {
+		return
+	}
+	pt := image.Pt(tileX, tileY)
+	for _, trig := range m.Triggers {
+		if trig != nil && trig.OnEnter && !trig.OnStep && pt.In(trig.Area) {
+			_ = ExecuteTriggerScript(trig.ScriptPath, m.Name, tileX, tileY, actorID)
+		}
+	}
 }
 
 // CalculateVisibility computes a 2-generation visibility bitmap for an area of the given radius centered on (centerX, centerY).
@@ -780,6 +889,38 @@ func (m *Map) DrawCentered(dst *ebiten.Image, assets *Assets, p *Party, scale in
 			half = props.ActorHalfSprite
 		}
 		assets.DrawSpriteDefHalf(dst, p.GetSpriteDef(), centerStx, centerSty, scale, half)
+	}
+
+	// 4. In Wizard Mode, render 35% transparent blue rectangle over every covered tile in triggers
+	if IsWizardMode() && m != nil && len(m.Triggers) > 0 {
+		mapArea := dst.SubImage(image.Rect(0, 0, 352, 352)).(*ebiten.Image)
+		blueOverlay := color.RGBA{R: 0, G: 0, B: 255, A: 89} // 35% transparent blue
+
+		for _, trig := range m.Triggers {
+			if trig == nil {
+				continue
+			}
+			for ty := trig.Area.Min.Y; ty < trig.Area.Max.Y; ty++ {
+				for tx := trig.Area.Min.X; tx < trig.Area.Max.X; tx++ {
+					stx := centerStx + (tx - centerX)
+					sty := centerSty + (ty - centerY)
+
+					if stx >= 0 && stx < cols && sty >= 0 && sty < rows && isTileVisible(stx, sty) {
+						var px, py, sz float32
+						if scale == 2 {
+							px = float32(stx * 32)
+							py = float32(sty * 32)
+							sz = 32
+						} else {
+							px = float32(-8 + stx*16)
+							py = float32(-8 + sty*16)
+							sz = 16
+						}
+						vector.FillRect(mapArea, px, py, sz, sz, blueOverlay, false)
+					}
+				}
+			}
+		}
 	}
 }
 

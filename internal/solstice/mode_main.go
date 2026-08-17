@@ -36,6 +36,13 @@ func (m *MainMode) Update(g *Game) error {
 		}
 	}
 
+	// Activate on_enter trigger on E key press
+	if inpututil.IsKeyJustPressed(ebiten.KeyE) {
+		if g.party != nil && g.currentMap != nil {
+			g.currentMap.ActivateTriggersOnEnter(g.party.X, g.party.Y, "party")
+		}
+	}
+
 	// Enter targeting mode on U key press
 	if inpututil.IsKeyJustPressed(ebiten.KeyU) {
 		if g.party != nil {

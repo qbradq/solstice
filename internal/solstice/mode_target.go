@@ -202,10 +202,10 @@ func (tm *TargetMode) Draw(g *Game, screen *ebiten.Image) {
 	cursorColor := VGAPalette16[tm.colorIdx]
 
 	// Border rectangle around the target tile with thickness bw
-	vector.DrawFilledRect(mapView, px, py, sz, bw, cursorColor, false)      // Top
-	vector.DrawFilledRect(mapView, px, py+sz-bw, sz, bw, cursorColor, false) // Bottom
-	vector.DrawFilledRect(mapView, px, py, bw, sz, cursorColor, false)      // Left
-	vector.DrawFilledRect(mapView, px+sz-bw, py, bw, sz, cursorColor, false) // Right
+	vector.FillRect(mapView, px, py, sz, bw, cursorColor, false)      // Top
+	vector.FillRect(mapView, px, py+sz-bw, sz, bw, cursorColor, false) // Bottom
+	vector.FillRect(mapView, px, py, bw, sz, cursorColor, false)      // Left
+	vector.FillRect(mapView, px+sz-bw, py, bw, sz, cursorColor, false) // Right
 
 	// 3. Draw common UI (party roster area and terminal UI)
 	DrawCommonUI(screen, g.assets, g.party, g.terminal)

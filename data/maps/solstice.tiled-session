@@ -9,10 +9,10 @@
                 2
             ],
             "scale": 3,
-            "selectedLayer": 1,
+            "selectedLayer": 0,
             "viewCenter": {
-                "x": 256,
-                "y": 256
+                "x": 528,
+                "y": 266.3333333333333
             }
         },
         "tileset.tsx": {
@@ -26,8 +26,8 @@
             "scale": 4,
             "selectedLayer": 1,
             "viewCenter": {
-                "x": 617,
-                "y": 1672.75
+                "x": 615.75,
+                "y": 1656.5
             }
         }
     },
@@ -43,7 +43,7 @@
         "world.tmx"
     ],
     "project": "solstice.tiled-project",
-    "property.type": "bool",
+    "property.type": "string",
     "recentFiles": [
         "world.tmx",
         "home.tmx",

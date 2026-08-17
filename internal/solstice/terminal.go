@@ -89,6 +89,12 @@ func (t *Terminal) AddMessageColored(msg string, c color.Color) {
 	}
 }
 
+// Clear removes all lines from the terminal history and resets scroll offset.
+func (t *Terminal) Clear() {
+	t.lines = t.lines[:0]
+	t.scrollOffset = 0
+}
+
 // GetLines returns all terminal lines with their text and color metadata.
 func (t *Terminal) GetLines() []TerminalLine {
 	return t.lines

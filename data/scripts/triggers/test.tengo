@@ -1,0 +1,7 @@
+game := import("game")
+
+if actor_id == "party" {
+  game.log("party trigger")
+} else {
+  game.log("actor trigger: " + actor_id)
+}
