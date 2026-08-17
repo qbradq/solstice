@@ -1,0 +1,120 @@
+game := import("game")
+cs := import("cut_scene")
+
+// Open the portcullis.
+cs.set_tile(15, 17, 68)
+cs.next()
+
+// Walk everyone out of the temple.
+cs.move("wizard-1", "w")
+cs.move("wizard-2", "s")
+cs.move("wizard-3", "s")
+cs.move("duke-lafey", "s")
+cs.next()
+
+cs.move("wizard-1", "s")
+cs.move("wizard-2", "e")
+cs.move("duke-lafey", "s")
+cs.next()
+
+cs.move("wizard-1", "s")
+cs.move("wizard-2", "s")
+cs.move("wizard-3", "w")
+cs.move("duke-lafey", "s")
+cs.next()
+
+cs.move("wizard-1", "e")
+cs.move("wizard-2", "s")
+cs.move("wizard-3", "s")
+cs.move("duke-lafey", "s")
+cs.next()
+
+cs.move("wizard-1", "s")
+cs.move("wizard-2", "s")
+cs.move("wizard-3", "s")
+cs.move("duke-lafey", "s")
+cs.next()
+
+cs.move("wizard-1", "s")
+cs.move("wizard-2", "s")
+cs.move("wizard-3", "s")
+cs.move("duke-lafey", "s")
+cs.set_tile(15, 17, 153) // Close the portcullis back
+cs.next()
+
+cs.move("wizard-1", "s")
+cs.move("wizard-2", "s")
+cs.move("wizard-3", "s")
+cs.move("duke-lafey", "s")
+cs.next()
+
+cs.move("wizard-1", "s")
+cs.move("wizard-2", "s")
+cs.move("wizard-3", "s")
+cs.move("duke-lafey", "s")
+cs.next()
+
+cs.move("wizard-1", "s")
+cs.move("wizard-2", "s")
+cs.move("wizard-3", "s")
+cs.move("duke-lafey", "s")
+cs.next()
+
+cs.move("wizard-1", "s")
+cs.move("wizard-2", "s")
+cs.move("wizard-3", "s")
+cs.move("duke-lafey", "s")
+cs.next()
+
+cs.move("wizard-1", "s")
+cs.move("wizard-2", "s")
+cs.move("wizard-3", "s")
+cs.move("duke-lafey", "s")
+cs.next()
+
+cs.move("wizard-1", "s")
+cs.move("wizard-2", "s")
+cs.move("wizard-3", "s")
+cs.move("duke-lafey", "s")
+cs.next()
+
+cs.move("wizard-1", "s")
+cs.move("wizard-2", "s")
+cs.move("wizard-3", "s")
+cs.move("duke-lafey", "s")
+cs.next()
+
+cs.move("wizard-1", "s")
+cs.move("wizard-2", "s")
+cs.move("wizard-3", "s")
+cs.move("duke-lafey", "s")
+cs.next()
+
+cs.move("wizard-1", "s")
+cs.move("wizard-2", "s")
+cs.move("wizard-3", "s")
+cs.move("duke-lafey", "s")
+cs.next()
+
+cs.move("wizard-1", "s")
+cs.move("wizard-2", "s")
+cs.move("wizard-3", "s")
+cs.remove_actor("duke-lafey")
+cs.next()
+
+cs.move("wizard-1", "s")
+cs.move("wizard-2", "s")
+cs.move("wizard-3", "s")
+cs.next()
+
+cs.move("wizard-1", "s")
+cs.remove_actor("wizard-2")
+cs.move("wizard-3", "s")
+cs.next()
+
+cs.move("wizard-1", "s")
+cs.remove_actor("wizard-3")
+cs.next()
+
+cs.remove_actor("wizard-1")
+cs.next()

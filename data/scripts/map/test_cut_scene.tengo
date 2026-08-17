@@ -1,0 +1,15 @@
+game := import("game")
+cs := import("cut_scene")
+
+// Set tile and wait 1 frame
+cs.set_tile(10, 10, 4)
+cs.next()
+
+// Move test actor
+cs.move("test-actor", "e")
+cs.move("test-actor", "s")
+cs.delay(2)
+
+// Remove test actor
+cs.remove_actor("test-actor")
+cs.next()

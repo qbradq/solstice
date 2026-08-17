@@ -17,6 +17,24 @@ func (m *MainMode) Update(g *Game) error {
 	// Advance global animation frame ticker
 	UpdateAnimTicker()
 
+	// Update cut scene runner
+	if UpdateCutScene(g) {
+		// Allow toggling map scale on Z key press during cut scenes
+		if inpututil.IsKeyJustPressed(ebiten.KeyZ) {
+			if g.mapScale == 2 {
+				g.mapScale = 1
+			} else {
+				g.mapScale = 2
+			}
+		}
+
+		// Allow opening main menu on Escape key press
+		if inpututil.IsKeyJustPressed(ebiten.KeyEscape) {
+			g.PushMode(NewMainMenuMode())
+		}
+		return nil
+	}
+
 	// Handle party movement input (WASD, Arrow keys, VI-style HJKL)
 	if g.party != nil {
 		g.party.HandleInput(g.currentMap)

@@ -16,6 +16,7 @@ if keyword == "look" {
     if game.has_flag("will_help_duke_lafey") {
         reply = "May the Kings of Old go with you."
         game.end_dialog()
+        game.exec_map_script("map/intro_cut_scene.tengo")
     } else {
         reply = "Will you lend us AID?"
     }

@@ -564,6 +564,95 @@ func InitScriptSystem() error {
 	}
 	moduleMap.AddBuiltinModule("game", gameModule)
 
+	// Register builtin "cut_scene" module
+	cutSceneModule := map[string]tengo.Object{
+		"delay": &tengo.UserFunction{
+			Name: "delay",
+			Value: func(args ...tengo.Object) (tengo.Object, error) {
+				if len(args) < 1 {
+					return tengo.UndefinedValue, fmt.Errorf("delay requires 1 argument: frames")
+				}
+				frames, ok := tengo.ToInt(args[0])
+				if !ok {
+					return tengo.UndefinedValue, fmt.Errorf("delay argument must be an integer")
+				}
+				EnqueueCutSceneCommand(CutSceneCommand{
+					Type:   CmdDelay,
+					Frames: frames,
+				})
+				return tengo.UndefinedValue, nil
+			},
+		},
+		"next": &tengo.UserFunction{
+			Name: "next",
+			Value: func(args ...tengo.Object) (tengo.Object, error) {
+				EnqueueCutSceneCommand(CutSceneCommand{
+					Type:   CmdDelay,
+					Frames: 1,
+				})
+				return tengo.UndefinedValue, nil
+			},
+		},
+		"move": &tengo.UserFunction{
+			Name: "move",
+			Value: func(args ...tengo.Object) (tengo.Object, error) {
+				if len(args) < 2 {
+					return tengo.UndefinedValue, fmt.Errorf("move requires 2 arguments: actor_id, direction")
+				}
+				actorID, ok1 := tengo.ToString(args[0])
+				dir, ok2 := tengo.ToString(args[1])
+				if !ok1 || !ok2 {
+					return tengo.UndefinedValue, fmt.Errorf("move arguments must be (string, string)")
+				}
+				EnqueueCutSceneCommand(CutSceneCommand{
+					Type:    CmdMove,
+					ActorID: actorID,
+					Dir:     dir,
+				})
+				return tengo.UndefinedValue, nil
+			},
+		},
+		"set_tile": &tengo.UserFunction{
+			Name: "set_tile",
+			Value: func(args ...tengo.Object) (tengo.Object, error) {
+				if len(args) < 3 {
+					return tengo.UndefinedValue, fmt.Errorf("set_tile requires 3 arguments: x, y, tile_id")
+				}
+				x, ok1 := tengo.ToInt(args[0])
+				y, ok2 := tengo.ToInt(args[1])
+				tileID, ok3 := tengo.ToInt(args[2])
+				if !ok1 || !ok2 || !ok3 {
+					return tengo.UndefinedValue, fmt.Errorf("set_tile arguments must be integers (x, y, tile_id)")
+				}
+				EnqueueCutSceneCommand(CutSceneCommand{
+					Type:   CmdSetTile,
+					X:      x,
+					Y:      y,
+					TileID: tileID,
+				})
+				return tengo.UndefinedValue, nil
+			},
+		},
+		"remove_actor": &tengo.UserFunction{
+			Name: "remove_actor",
+			Value: func(args ...tengo.Object) (tengo.Object, error) {
+				if len(args) < 1 {
+					return tengo.UndefinedValue, fmt.Errorf("remove_actor requires 1 argument: actor_id")
+				}
+				actorID, ok := tengo.ToString(args[0])
+				if !ok {
+					return tengo.UndefinedValue, fmt.Errorf("remove_actor argument must be a string")
+				}
+				EnqueueCutSceneCommand(CutSceneCommand{
+					Type:    CmdRemoveActor,
+					ActorID: actorID,
+				})
+				return tengo.UndefinedValue, nil
+			},
+		},
+	}
+	moduleMap.AddBuiltinModule("cut_scene", cutSceneModule)
+
 	// Walk data/scripts directory in embedded data.FS
 	root := "scripts"
 	entries, err := fs.ReadDir(data.FS, root)
