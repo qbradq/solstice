@@ -37,6 +37,41 @@ func TestInitScriptSystemAndRunMainScript(t *testing.T) {
 	}
 }
 
+func TestInitScriptSystemAndRunNewGameScript(t *testing.T) {
+	term := NewTerminal()
+	SetTerminal(term)
+
+	if err := InitScriptSystem(); err != nil {
+		t.Fatalf("InitScriptSystem failed: %v", err)
+	}
+
+	if err := RunNewGameScript(); err != nil {
+		t.Fatalf("RunNewGameScript failed: %v", err)
+	}
+
+	// Verify that new_game.tengo logged welcome messages to the terminal and loaded home map
+	lines := term.GetLineTexts()
+	if len(lines) == 0 {
+		t.Error("Expected new_game.tengo to log messages to terminal, got 0 lines")
+	}
+
+	foundSolstice := false
+	for _, l := range lines {
+		if l == "Solstice Client v0.1.0" {
+			foundSolstice = true
+			break
+		}
+	}
+
+	if !foundSolstice {
+		t.Errorf("Expected 'Solstice Client v0.1.0' in terminal lines, got lines: %v", lines)
+	}
+
+	if m := GetMap(); m == nil || m.Name != "home" {
+		t.Errorf("Expected current map to be 'home', got %v", m)
+	}
+}
+
 func TestExecuteTileScriptContext(t *testing.T) {
 	term := NewTerminal()
 	SetTerminal(term)

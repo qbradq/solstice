@@ -1,0 +1,4 @@
+game := import("game")
+
+game.load_map("kings_shrine")
+game.teleport_party(15, 31)

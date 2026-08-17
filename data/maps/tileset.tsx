@@ -359,11 +359,13 @@
  </tile>
  <tile id="106">
   <properties>
+   <property name="walkable" type="bool" value="true"/>
    <property name="water" type="bool" value="true"/>
   </properties>
  </tile>
  <tile id="107">
   <properties>
+   <property name="walkable" type="bool" value="true"/>
    <property name="water" type="bool" value="true"/>
   </properties>
  </tile>
@@ -423,6 +425,11 @@
   </properties>
  </tile>
  <tile id="152">
+  <properties>
+   <property name="spirit_passable" type="bool" value="true"/>
+  </properties>
+ </tile>
+ <tile id="153">
   <properties>
    <property name="spirit_passable" type="bool" value="true"/>
   </properties>

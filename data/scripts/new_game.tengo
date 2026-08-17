@@ -1,0 +1,12 @@
+game := import("game")
+
+// Welcome message including copyright and license notice
+game.log("------------------------------------")
+game.log("Solstice Client v0.1.0")
+game.log("Copyright (c) 2026")
+game.log("Norman B. Lancaster")
+game.log("Licensed under the MIT License.")
+game.log("------------------------------------")
+
+game.load_map("home")
+game.teleport_party(15,15)

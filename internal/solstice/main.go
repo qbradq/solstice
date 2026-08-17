@@ -100,10 +100,6 @@ func Main() {
 		log.Fatalf("failed to preload tileset: %v", err)
 	}
 
-	if _, err := PreloadWorldMap(); err != nil {
-		log.Fatalf("failed to preload world map: %v", err)
-	}
-
 	spriteDefs, err := PreloadSpriteDefs()
 	if err != nil {
 		log.Fatalf("failed to preload sprite defs: %v", err)
@@ -113,18 +109,6 @@ func Main() {
 		log.Fatalf("failed to preload actor defs: %v", err)
 	}
 
-	kevinActor, err := NewActorFromDef("kevin-1", "kevin", 0, 0)
-	if err != nil {
-		log.Fatalf("failed to create kevin actor: %v", err)
-	}
-
-	// Create initial party with Kevin member and default "party-spirit-mode" sprite
-	party, err := NewParty(0, 0, *kevinActor)
-	if err != nil {
-		log.Fatalf("failed to create party: %v", err)
-	}
-	SetParty(party)
-
 	term := NewTerminal()
 
 	// Initialize Tengo script system and pre-compile all scripts from data/scripts
@@ -132,11 +116,9 @@ func Main() {
 		log.Fatalf("failed to initialize script system: %v", err)
 	}
 
-	// Execute data/scripts/main.tengo after all assets and scripts are loaded.
-	// main.tengo takes care of loading the map (game.load_map) and positioning the party (game.teleport_party).
-	if err := RunMainScript(); err != nil {
-		log.Fatalf("failed to execute main.tengo script: %v", err)
-	}
+	// Terminal and script system initialization
+	// Note: We no longer execute main.tengo at startup. The game starts in MainMenuMode,
+	// and starting a new game executes data/scripts/new_game.tengo.
 
 	ebiten.SetWindowSize(windowWidth, windowHeight)
 	ebiten.SetWindowTitle("Solstice")
@@ -153,6 +135,7 @@ func Main() {
 	}
 	SetGame(game)
 	game.PushMode(NewMainMode())
+	game.PushMode(NewMainMenuMode())
 
 	if err := ebiten.RunGame(game); err != nil {
 		fmt.Printf("Error running game: %v\n", err)

@@ -332,6 +332,11 @@ func RunMainScript() error {
 	return ExecuteScript("data/scripts/main.tengo")
 }
 
+// RunNewGameScript executes the script data/scripts/new_game.tengo.
+func RunNewGameScript() error {
+	return ExecuteScript("data/scripts/new_game.tengo")
+}
+
 // ExecuteScript executes a script by path or name (e.g. "data/scripts/main.tengo").
 func ExecuteScript(scriptPath string) error {
 	return ExecuteScriptWithGlobals(scriptPath, nil)

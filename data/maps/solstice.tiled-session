@@ -15,6 +15,14 @@
                 "y": 266.3333333333333
             }
         },
+        "kings_shrine.tmx": {
+            "scale": 1.6476562499999998,
+            "selectedLayer": 0,
+            "viewCenter": {
+                "x": 243.98293029871977,
+                "y": 266.439070649597
+            }
+        },
         "tileset.tsx": {
             "scaleInDock": 1.5,
             "scaleInEditor": 4
@@ -23,11 +31,11 @@
             "expandedObjectLayers": [
                 3
             ],
-            "scale": 4,
+            "scale": 2,
             "selectedLayer": 1,
             "viewCenter": {
-                "x": 615.75,
-                "y": 1656.5
+                "x": 87,
+                "y": 1353
             }
         }
     },
@@ -45,9 +53,9 @@
     "project": "solstice.tiled-project",
     "property.type": "string",
     "recentFiles": [
+        "tileset.tsx",
         "world.tmx",
-        "home.tmx",
-        "tileset.tsx"
+        "home.tmx"
     ],
     "tileset.lastUsedFormat": "tsx",
     "tileset.tileSize": {

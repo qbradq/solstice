@@ -83,6 +83,11 @@ func (m *MainMode) Update(g *Game) error {
 		}
 	}
 
+	// Open main menu on Escape key press
+	if inpututil.IsKeyJustPressed(ebiten.KeyEscape) {
+		g.PushMode(NewMainMenuMode())
+	}
+
 	return nil
 }
 
