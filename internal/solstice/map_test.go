@@ -187,7 +187,21 @@ func TestCalculateVisibility(t *testing.T) {
 		t.Errorf("Expected flood fill to propagate from adjacent open tiles when standing on blocking center")
 	}
 
-	// 5. Negative radius returns empty bitset
+	// 5. Test wall at edge of map:
+	// Place wall at x=1 extending from y=0 to y=10. Player is at (2, 2).
+	// Tile (0, 2) is behind the wall and should NOT be visible (must not leak around y < 0 edge).
+	for y := 0; y <= 10; y++ {
+		m.SetTile(1, y, 13)
+		m.SetTile(0, y, 4)
+		m.SetTile(2, y, 4)
+	}
+	visEdge := m.CalculateVisibility(2, 2, 4)
+	// (0, 2) is dx=-2, dy=0 -> lx = 4 + (-2) = 2, ly = 4
+	if visEdge.Test(uint(4*9 + 2)) {
+		t.Errorf("Expected tile (0, 2) behind edge wall to NOT be visible")
+	}
+
+	// 6. Negative radius returns empty bitset
 	visNeg := m.CalculateVisibility(15, 15, -1)
 	if visNeg == nil || visNeg.Len() != 0 {
 		t.Errorf("Expected empty bitset for negative radius")
@@ -351,3 +365,61 @@ func TestMapDrawCenteredVisibility(t *testing.T) {
 	m.Draw(screen, assets, 2)
 	m.Draw(screen, assets, 1)
 }
+
+func TestMapPropertiesAndExitToWorld(t *testing.T) {
+	if _, err := PreloadTileSet(); err != nil {
+		t.Fatalf("PreloadTileSet failed: %v", err)
+	}
+
+	worldMap, err := PreloadWorldMap()
+	if err != nil {
+		t.Fatalf("PreloadWorldMap failed: %v", err)
+	}
+
+	homeMap, err := LoadMap("home")
+	if err != nil {
+		t.Fatalf("LoadMap failed: %v", err)
+	}
+
+	// Verify home map has ExitToWorld = true
+	if !homeMap.Properties.ExitToWorld {
+		t.Errorf("Expected homeMap.Properties.ExitToWorld to be true")
+	}
+
+	// Place party at boundary of home map: (0, 15)
+	party, err := NewParty(0, 15)
+	if err != nil {
+		t.Fatalf("NewParty failed: %v", err)
+	}
+	party.WorldX = 38
+	party.WorldY = 103
+
+	SetMap(homeMap)
+	SetParty(party)
+
+	// Move left (dx=-1) stepping outside the bounds of home map (targetX = -1 < 0)
+	moved := homeMap.MoveParty(party, -1, 0)
+	if !moved {
+		t.Fatalf("Expected MoveParty outside bounds of map with ExitToWorld=true to return true")
+	}
+
+	// Verify active map is now worldMap
+	if GetMap() != worldMap {
+		t.Errorf("Expected current map to be worldMap after exit_to_world, got %v", GetMap().Name)
+	}
+
+	// Verify party position is restored to world position (38, 103)
+	if party.X != 38 || party.Y != 103 {
+		t.Errorf("Expected party position on world map to be (38, 103), got (%d, %d)", party.X, party.Y)
+	}
+
+	// Test moving outside bounds on a map with ExitToWorld = false
+	worldMap.Properties.ExitToWorld = false
+	party.X = 0
+	party.Y = 0
+	blocked := worldMap.MoveParty(party, -1, 0)
+	if blocked {
+		t.Errorf("Expected MoveParty outside bounds with ExitToWorld=false to be blocked")
+	}
+}
+

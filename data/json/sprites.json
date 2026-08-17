@@ -70,5 +70,41 @@
         "tile": 368,
         "animated": true,
         "frames": 4
+    },
+    "map_entrance_house": {
+        "tile": 16
+    },
+    "map_entrance_temple": {
+        "tile": 17
+    },
+    "map_entrance_tower": {
+        "tile": 18
+    },
+    "map_entrance_village": {
+        "tile": 19
+    },
+    "map_entrance_fort": {
+        "tile": 20
+    },
+    "map_entrance_castle": {
+        "tile": 21
+    },
+    "map_entrance_cave": {
+        "tile": 22
+    },
+    "map_entrance_mine": {
+        "tile": 23
+    },
+    "map_entrance_dungeon": {
+        "tile": 24
+    },
+    "map_entrance_shrine": {
+        "tile": 25
+    },
+    "map_entrance_shrine_ruined": {
+        "tile": 26
+    },
+    "map_entrance_lighthouse": {
+        "tile": 27
     }
 }

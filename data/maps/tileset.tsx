@@ -250,6 +250,11 @@
    <property name="water" type="bool" value="true"/>
   </properties>
  </tile>
+ <tile id="62">
+  <properties>
+   <property name="walkable" type="bool" value="true"/>
+  </properties>
+ </tile>
  <tile id="64">
   <properties>
    <property name="walkable" type="bool" value="true"/>

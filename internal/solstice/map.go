@@ -44,6 +44,11 @@ type MapTimer struct {
 	Globals        map[string]interface{}
 }
 
+// MapProperties holds gameplay and navigation properties for a map.
+type MapProperties struct {
+	ExitToWorld bool `json:"exit_to_world"`
+}
+
 // Map represents a 2D tile map loaded from a Tiled .tmx file.
 type Map struct {
 	Name       string
@@ -52,9 +57,10 @@ type Map struct {
 	TileWidth  int
 	TileHeight int
 	FirstGID   int
-	Tiles      []int       // 0-indexed tile indices
-	Timers     []*MapTimer // Scheduled map timers
-	Actors     []*Actor    // Active actors on this map
+	Tiles      []int         // 0-indexed tile indices
+	Properties MapProperties // Map-level properties
+	Timers     []*MapTimer   // Scheduled map timers
+	Actors     []*Actor      // Active actors on this map
 }
 
 var defaultTileSet *TileSet
@@ -117,9 +123,16 @@ type tmxMap struct {
 	Height       int              `xml:"height,attr"`
 	TileWidth    int              `xml:"tilewidth,attr"`
 	TileHeight   int              `xml:"tileheight,attr"`
+	Properties   []tmxProperty    `xml:"properties>property"`
 	Tilesets     []tmxTileset     `xml:"tileset"`
 	Layers       []tmxLayer       `xml:"layer"`
 	ObjectGroups []tmxObjectGroup `xml:"objectgroup"`
+}
+
+type tmxProperty struct {
+	Name  string `xml:"name,attr"`
+	Type  string `xml:"type,attr"`
+	Value string `xml:"value,attr"`
 }
 
 type tmxTileset struct {
@@ -292,6 +305,17 @@ func LoadMap(name string) (*Map, error) {
 		tiles = make([]int, raw.Width*raw.Height)
 	}
 
+	var mapProps MapProperties
+	for _, p := range raw.Properties {
+		val, _ := strconv.ParseBool(p.Value)
+		switch p.Name {
+		case "exit_to_world":
+			mapProps.ExitToWorld = val
+		default:
+			return nil, fmt.Errorf("unknown map property %q for map %s", p.Name, name)
+		}
+	}
+
 	m := &Map{
 		Name:       name,
 		Width:      raw.Width,
@@ -300,6 +324,7 @@ func LoadMap(name string) (*Map, error) {
 		TileHeight: raw.TileHeight,
 		FirstGID:   firstGID,
 		Tiles:      tiles,
+		Properties: mapProps,
 		Timers:     make([]*MapTimer, 0),
 		Actors:     make([]*Actor, 0),
 	}
@@ -323,12 +348,26 @@ func LoadMap(name string) (*Map, error) {
 			}
 			tileY := int(math.Round(objY / float64(raw.TileHeight)))
 
-			actorID := fmt.Sprintf("%s-%d", obj.Name, obj.ID)
-			actor, err := NewActorFromDef(actorID, obj.Name, tileX, tileY)
-			if err != nil {
-				actor = NewActor(actorID, tileX, tileY, obj.Name)
+			objType := ""
+			templateName := ""
+			if strings.Contains(obj.Name, ":") {
+				parts := strings.SplitN(obj.Name, ":", 2)
+				objType = parts[0]
+				templateName = parts[1]
+			} else {
+				objType = "actor"
+				templateName = obj.Name
 			}
-			m.AddActor(actor)
+
+			switch objType {
+			case "actor":
+				actorID := fmt.Sprintf("%s-%d", templateName, obj.ID)
+				actor, err := NewActorFromDef(actorID, templateName, tileX, tileY)
+				if err != nil {
+					actor = NewActor(actorID, tileX, tileY, templateName)
+				}
+				m.AddActor(actor)
+			}
 		}
 	}
 
@@ -492,6 +531,17 @@ func (m *Map) MoveParty(p *Party, dx, dy int) bool {
 	targetY := p.Y + dy
 
 	if targetX < 0 || targetX >= m.Width || targetY < 0 || targetY >= m.Height {
+		if m.Properties.ExitToWorld {
+			worldMap := GetWorldMap()
+			if worldMap != nil {
+				SetMap(worldMap)
+				p.X = p.WorldX
+				p.Y = p.WorldY
+				p.UpdateSpriteDef()
+				worldMap.AdvanceTurn()
+				return true
+			}
+		}
 		return false
 	}
 
@@ -510,6 +560,11 @@ func (m *Map) MoveParty(p *Party, dx, dy int) bool {
 
 	p.X = targetX
 	p.Y = targetY
+	if m == defaultWorldMap || m.Name == "world" {
+		p.WorldX = targetX
+		p.WorldY = targetY
+	}
+	p.UpdateSpriteDef()
 
 	// Advance map turn after successful party movement
 	m.AdvanceTurn()
@@ -561,7 +616,9 @@ func (m *Map) CalculateVisibility(centerX, centerY, radius int) *bitset.BitSet {
 		my := centerY + (curr.ly - radius)
 
 		blocksVis := false
-		if m != nil && mx >= 0 && mx < m.Width && my >= 0 && my < m.Height {
+		if m == nil || mx < 0 || mx >= m.Width || my < 0 || my >= m.Height {
+			blocksVis = true
+		} else {
 			tileIdx := m.GetTile(mx, my)
 			props := GetTileProperties(tileIdx)
 			blocksVis = props.BlocksVis

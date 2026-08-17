@@ -27,9 +27,9 @@ type Entity struct {
 
 var defaultSpriteDefs map[string]SpriteDef
 
-// PreloadSpriteDefs pre-loads data/json/spritedefs.json from data.FS at program start.
+// PreloadSpriteDefs pre-loads data/json/sprites.json from data.FS at program start.
 func PreloadSpriteDefs() (map[string]SpriteDef, error) {
-	return LoadSpriteDefs("json/spritedefs.json")
+	return LoadSpriteDefs("json/sprites.json")
 }
 
 // LoadSpriteDefs loads a sprite definitions JSON file from data.FS into a map of string -> SpriteDef.

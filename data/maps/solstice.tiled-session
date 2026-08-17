@@ -9,38 +9,43 @@
                 2
             ],
             "scale": 3,
-            "selectedLayer": 0,
+            "selectedLayer": 1,
             "viewCenter": {
-                "x": 98.33333333333333,
-                "y": 247.33333333333331
+                "x": 256,
+                "y": 256
             }
         },
         "tileset.tsx": {
             "scaleInDock": 1.5,
-            "scaleInEditor": 3
+            "scaleInEditor": 4
         },
         "world.tmx": {
-            "scale": 1.5,
-            "selectedLayer": 0,
+            "expandedObjectLayers": [
+                3
+            ],
+            "scale": 4,
+            "selectedLayer": 1,
             "viewCenter": {
-                "x": 572,
-                "y": 1587.3333333333333
+                "x": 617,
+                "y": 1672.75
             }
         }
     },
     "last.imagePath": "/home/qbradq/projects/solstice/data",
-    "map.height": 128,
+    "map.height": 32,
     "map.lastUsedFormat": "tmx",
     "map.tileHeight": 16,
     "map.tileWidth": 16,
-    "map.width": 128,
+    "map.width": 32,
     "openFiles": [
         "tileset.tsx",
-        "home.tmx"
+        "home.tmx",
+        "world.tmx"
     ],
     "project": "solstice.tiled-project",
     "property.type": "bool",
     "recentFiles": [
+        "world.tmx",
         "home.tmx",
         "tileset.tsx"
     ],

@@ -11,7 +11,7 @@ import (
 // ActorDef represents an actor definition loaded from JSON.
 type ActorDef struct {
 	Name           string `json:"name"`
-	Sprite         string `json:"sprite"`        // Key into spritedefs.json
+	Sprite         string `json:"sprite"`        // Key into sprites.json
 	DialogScript   string `json:"dialog_script"` // Path to dialog script
 	Experience     int    `json:"experience"`
 	Level          int    `json:"level"`

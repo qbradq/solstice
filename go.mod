@@ -3,13 +3,13 @@ module solstice
 go 1.26.5
 
 require (
+	github.com/bits-and-blooms/bitset v1.25.0
 	github.com/d5/tengo/v2 v2.17.0
 	github.com/hajimehoshi/ebiten/v2 v2.9.9
 	github.com/mitchellh/go-wordwrap v1.0.1
 )
 
 require (
-	github.com/bits-and-blooms/bitset v1.25.0 // indirect
 	github.com/ebitengine/gomobile v0.0.0-20250923094054-ea854a63cce1 // indirect
 	github.com/ebitengine/hideconsole v1.0.0 // indirect
 	github.com/ebitengine/purego v0.9.0 // indirect
