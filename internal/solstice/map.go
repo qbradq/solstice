@@ -8,6 +8,7 @@ import (
 	"math"
 	"strconv"
 	"strings"
+	"sync"
 
 	"solstice/data"
 
@@ -74,6 +75,7 @@ type Map struct {
 	Timers     []*MapTimer   // Scheduled map timers
 	Actors     []*Actor      // Active actors on this map
 	Triggers   []*Trigger    // Trigger areas on this map
+	Turn       int           // Turn counter
 }
 
 var defaultTileSet *TileSet
@@ -89,6 +91,11 @@ func IsWizardMode() bool {
 // SetWizardMode enables or disables wizard debugging mode.
 func SetWizardMode(v bool) {
 	wizardMode = v
+}
+
+// ToggleWizardMode toggles wizard debugging mode.
+func ToggleWizardMode() {
+	wizardMode = !wizardMode
 }
 
 // GetMap returns the current default map instance.
@@ -286,8 +293,79 @@ func GetTileProperties(tileID int) TileProperties {
 	return TileProperties{}
 }
 
-// LoadMap loads a TMX map by name from data.FS (e.g. "home" loads "data/maps/home.tmx").
+var (
+	loadedMapsMu sync.RWMutex
+	loadedMaps   = make(map[string]*Map)
+)
+
+// NormalizeMapName strips path prefixes and extensions (e.g. "maps/home.tmx" -> "home").
+func NormalizeMapName(name string) string {
+	clean := name
+	clean = strings.TrimPrefix(clean, "data/")
+	clean = strings.TrimPrefix(clean, "maps/")
+	clean = strings.TrimSuffix(clean, ".tmx")
+	return clean
+}
+
+// ClearLoadedMaps resets the in-memory map cache.
+func ClearLoadedMaps() {
+	loadedMapsMu.Lock()
+	defer loadedMapsMu.Unlock()
+	loadedMaps = make(map[string]*Map)
+}
+
+// GetAllLoadedMaps returns a copy of all loaded map instances in memory.
+func GetAllLoadedMaps() map[string]*Map {
+	loadedMapsMu.RLock()
+	defer loadedMapsMu.RUnlock()
+	res := make(map[string]*Map, len(loadedMaps))
+	for k, v := range loadedMaps {
+		res[k] = v
+	}
+	return res
+}
+
+// SetLoadedMap caches or replaces a map instance in memory.
+func SetLoadedMap(name string, m *Map) {
+	loadedMapsMu.Lock()
+	defer loadedMapsMu.Unlock()
+	cleanName := NormalizeMapName(name)
+	loadedMaps[cleanName] = m
+}
+
+// LoadMap loads a TMX map by name from data.FS (e.g. "home" loads "data/maps/home.tmx"),
+// or returns the in-memory cached instance if already loaded.
 func LoadMap(name string) (*Map, error) {
+	cleanName := NormalizeMapName(name)
+
+	loadedMapsMu.RLock()
+	if cached, ok := loadedMaps[cleanName]; ok && cached != nil {
+		loadedMapsMu.RUnlock()
+		return cached, nil
+	}
+	loadedMapsMu.RUnlock()
+
+	m, err := loadMapFromTMX(cleanName)
+	if err != nil {
+		return nil, err
+	}
+
+	loadedMapsMu.Lock()
+	loadedMaps[cleanName] = m
+	loadedMapsMu.Unlock()
+
+	return m, nil
+}
+
+// loadMapFromTMX parses a TMX map and instantiates initial actors, triggers, and tiles.
+func loadMapFromTMX(name string) (*Map, error) {
+	if len(actorDefs) == 0 {
+		_, _ = PreloadActorDefs()
+	}
+	if defaultSpriteDefs == nil {
+		_, _ = PreloadSpriteDefs()
+	}
+
 	filename := name
 	if !strings.HasSuffix(filename, ".tmx") {
 		filename += ".tmx"

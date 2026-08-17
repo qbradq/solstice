@@ -72,6 +72,27 @@ func ClearAllFlags() {
 	gameState = make(map[string]bool)
 }
 
+// GetAllFlags returns a copy of all current game flags.
+func GetAllFlags() map[string]bool {
+	stateMu.RLock()
+	defer stateMu.RUnlock()
+	res := make(map[string]bool, len(gameState))
+	for k, v := range gameState {
+		res[k] = v
+	}
+	return res
+}
+
+// RestoreFlags restores game flags from saved state.
+func RestoreFlags(flags map[string]bool) {
+	stateMu.Lock()
+	defer stateMu.Unlock()
+	gameState = make(map[string]bool, len(flags))
+	for k, v := range flags {
+		gameState[k] = v
+	}
+}
+
 // Backward-compatible aliases for state functions
 func SetState(name string)       { SetFlag(name) }
 func ClearState(name string)     { ClearFlag(name) }

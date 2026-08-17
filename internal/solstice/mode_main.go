@@ -54,6 +54,11 @@ func (m *MainMode) Update(g *Game) error {
 		}
 	}
 
+	// Toggle wizard mode on F12 key press
+	if inpututil.IsKeyJustPressed(ebiten.KeyF12) {
+		ToggleWizardMode()
+	}
+
 	// Activate on_enter trigger on E key press
 	if inpututil.IsKeyJustPressed(ebiten.KeyE) {
 		if g.party != nil && g.currentMap != nil {

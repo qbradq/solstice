@@ -8,6 +8,9 @@ import (
 )
 
 func TestMainMenuModeInitialization(t *testing.T) {
+	SetSaveDirOverride(t.TempDir()) // Ensure empty saves directory
+	SetParty(nil)
+	SetMap(nil)
 	menu := NewMainMenuMode()
 	if menu == nil {
 		t.Fatal("NewMainMenuMode returned nil")
@@ -21,8 +24,8 @@ func TestMainMenuModeInitialization(t *testing.T) {
 		t.Fatalf("Expected 3 options, got %d", len(menu.options))
 	}
 
-	if menu.options[0].Label != "Continue" || menu.options[0].Enabled != false {
-		t.Errorf("Expected option 0 to be disabled 'Continue', got %+v", menu.options[0])
+	if menu.options[0].Label != "Load Game" || menu.options[0].Enabled != false {
+		t.Errorf("Expected option 0 to be disabled 'Load Game', got %+v", menu.options[0])
 	}
 	if menu.options[1].Label != "New Game" || menu.options[1].Enabled != true {
 		t.Errorf("Expected option 1 to be enabled 'New Game', got %+v", menu.options[1])
@@ -33,6 +36,9 @@ func TestMainMenuModeInitialization(t *testing.T) {
 }
 
 func TestMainMenuModeNavigation(t *testing.T) {
+	SetSaveDirOverride(t.TempDir())
+	SetParty(nil)
+	SetMap(nil)
 	menu := NewMainMenuMode()
 
 	// Initial: New Game (index 1)
@@ -46,13 +52,13 @@ func TestMainMenuModeNavigation(t *testing.T) {
 		t.Errorf("Expected selectedIndex 2 after moving down, got %d", menu.selectedIndex)
 	}
 
-	// Move down -> wraps to New Game (index 1), skipping disabled Continue (index 0)
+	// Move down -> wraps to New Game (index 1), skipping disabled Load Game (index 0)
 	menu.moveSelection(1)
 	if menu.selectedIndex != 1 {
 		t.Errorf("Expected selectedIndex 1 after moving down from Quit, got %d", menu.selectedIndex)
 	}
 
-	// Move up -> wraps to Quit (index 2), skipping disabled Continue (index 0)
+	// Move up -> wraps to Quit (index 2), skipping disabled Load Game (index 0)
 	menu.moveSelection(-1)
 	if menu.selectedIndex != 2 {
 		t.Errorf("Expected selectedIndex 2 after moving up from New Game, got %d", menu.selectedIndex)

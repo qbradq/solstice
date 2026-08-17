@@ -225,6 +225,7 @@ func TestCalculateVisibility(t *testing.T) {
 }
 
 func TestLoadMapObjectLayerActors(t *testing.T) {
+	ClearLoadedMaps()
 	if _, err := PreloadSpriteDefs(); err != nil {
 		t.Fatalf("PreloadSpriteDefs failed: %v", err)
 	}
