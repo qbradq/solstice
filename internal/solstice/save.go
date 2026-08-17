@@ -10,33 +10,25 @@ import (
 	"io"
 	"os"
 	"path/filepath"
-	"sync"
 	"time"
 )
 
 var (
-	saveDirMu       sync.RWMutex
 	saveDirOverride string
 )
 
 // SetSaveDirOverride allows overriding the save directory for unit tests.
 func SetSaveDirOverride(dir string) {
-	saveDirMu.Lock()
-	defer saveDirMu.Unlock()
 	saveDirOverride = dir
 }
 
 // GetSaveDir returns the path to the solstice save directory in os.UserConfigDir().
 func GetSaveDir() (string, error) {
-	saveDirMu.RLock()
-	override := saveDirOverride
-	saveDirMu.RUnlock()
-
-	if override != "" {
-		if err := os.MkdirAll(override, 0o755); err != nil {
+	if saveDirOverride != "" {
+		if err := os.MkdirAll(saveDirOverride, 0o755); err != nil {
 			return "", err
 		}
-		return override, nil
+		return saveDirOverride, nil
 	}
 
 	configDir, err := os.UserConfigDir()
@@ -387,6 +379,9 @@ func LoadGame(slot int) error {
 
 	// 6. Reset cutscene state
 	ClearCutScene()
+
+	// 7. Reset Tengo REPL globals and output history
+	ResetTengoREPL()
 
 	return nil
 }

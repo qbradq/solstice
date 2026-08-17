@@ -1,5 +1,5 @@
 game := import("game")
-cs := import("cut_scene")
+cs := import("cut-scene")
 
 // Open the portcullis.
 cs.set_tile(15, 17, 68)

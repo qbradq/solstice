@@ -1,9 +1,5 @@
 package solstice
 
-import (
-	"sync"
-)
-
 // CutSceneCmdType represents the type of a cut scene command.
 type CutSceneCmdType int
 
@@ -26,23 +22,18 @@ type CutSceneCommand struct {
 }
 
 var (
-	csMu                    sync.Mutex
-	csQueue                 []CutSceneCommand
-	csLastAnimFrame         int = -1
-	csDelayFramesRemaining  int
+	csQueue                []CutSceneCommand
+	csLastAnimFrame        int = -1
+	csDelayFramesRemaining int
 )
 
 // EnqueueCutSceneCommand adds a command to the cut scene command queue.
 func EnqueueCutSceneCommand(cmd CutSceneCommand) {
-	csMu.Lock()
-	defer csMu.Unlock()
 	csQueue = append(csQueue, cmd)
 }
 
 // ClearCutScene clears the cut scene command queue and resets delay state.
 func ClearCutScene() {
-	csMu.Lock()
-	defer csMu.Unlock()
 	csQueue = nil
 	csDelayFramesRemaining = 0
 	csLastAnimFrame = -1
@@ -50,17 +41,12 @@ func ClearCutScene() {
 
 // IsCutSceneActive returns true if there are queued cut scene commands or an active delay.
 func IsCutSceneActive() bool {
-	csMu.Lock()
-	defer csMu.Unlock()
 	return len(csQueue) > 0 || csDelayFramesRemaining > 0
 }
 
 // UpdateCutScene advances the cut scene queue in lock-step with animation frames.
 // Returns true if a cut scene is currently active.
 func UpdateCutScene(g *Game) bool {
-	csMu.Lock()
-	defer csMu.Unlock()
-
 	currentFrame := GetAnimFrame()
 	if csLastAnimFrame == -1 {
 		csLastAnimFrame = currentFrame

@@ -6,7 +6,6 @@ import (
 	"math/rand"
 	"path/filepath"
 	"strings"
-	"sync"
 
 	"solstice/data"
 
@@ -14,8 +13,6 @@ import (
 )
 
 var (
-	scriptMu         sync.RWMutex
-	stateMu          sync.RWMutex
 	moduleMap        *tengo.ModuleMap
 	compiledScripts  = make(map[string]*tengo.Compiled)
 	rawScriptSources = make(map[string][]byte)
@@ -35,22 +32,16 @@ func IsDialogEnded() bool {
 
 // SetFlag creates and sets the named flag to true.
 func SetFlag(name string) {
-	stateMu.Lock()
-	defer stateMu.Unlock()
 	gameState[name] = true
 }
 
 // ClearFlag removes the named flag.
 func ClearFlag(name string) {
-	stateMu.Lock()
-	defer stateMu.Unlock()
 	delete(gameState, name)
 }
 
 // ToggleFlag removes the named flag if it exists; otherwise creates it and sets it to true.
 func ToggleFlag(name string) {
-	stateMu.Lock()
-	defer stateMu.Unlock()
 	if gameState[name] {
 		delete(gameState, name)
 	} else {
@@ -60,22 +51,16 @@ func ToggleFlag(name string) {
 
 // HasFlag returns true if the named flag exists and is true.
 func HasFlag(name string) bool {
-	stateMu.RLock()
-	defer stateMu.RUnlock()
 	return gameState[name]
 }
 
 // ClearAllFlags resets all flags.
 func ClearAllFlags() {
-	stateMu.Lock()
-	defer stateMu.Unlock()
 	gameState = make(map[string]bool)
 }
 
 // GetAllFlags returns a copy of all current game flags.
 func GetAllFlags() map[string]bool {
-	stateMu.RLock()
-	defer stateMu.RUnlock()
 	res := make(map[string]bool, len(gameState))
 	for k, v := range gameState {
 		res[k] = v
@@ -85,8 +70,6 @@ func GetAllFlags() map[string]bool {
 
 // RestoreFlags restores game flags from saved state.
 func RestoreFlags(flags map[string]bool) {
-	stateMu.Lock()
-	defer stateMu.Unlock()
 	gameState = make(map[string]bool, len(flags))
 	for k, v := range flags {
 		gameState[k] = v
@@ -100,11 +83,14 @@ func ToggleState(name string)    { ToggleFlag(name) }
 func HasState(name string) bool  { return HasFlag(name) }
 func ClearAllState()             { ClearAllFlags() }
 
+// GetScriptModuleMap returns the Tengo ModuleMap containing all registered modules.
+func GetScriptModuleMap() *tengo.ModuleMap {
+	return moduleMap
+}
+
 // InitScriptSystem initializes the Tengo scripting system by recursively loading and pre-compiling
 // all .tengo files in the data/scripts directory from data.FS.
 func InitScriptSystem() error {
-	scriptMu.Lock()
-	defer scriptMu.Unlock()
 
 	moduleMap = tengo.NewModuleMap()
 
@@ -672,7 +658,94 @@ func InitScriptSystem() error {
 			},
 		},
 	}
-	moduleMap.AddBuiltinModule("cut_scene", cutSceneModule)
+	moduleMap.AddBuiltinModule("cut-scene", cutSceneModule)
+
+	// Register builtin "fmt" module
+	fmtModule := map[string]tengo.Object{
+		"print": &tengo.UserFunction{
+			Name: "print",
+			Value: func(args ...tengo.Object) (tengo.Object, error) {
+				var sb strings.Builder
+				for _, arg := range args {
+					s, ok := tengo.ToString(arg)
+					if !ok {
+						s = arg.String()
+					}
+					sb.WriteString(s)
+				}
+				if r := GetTengoREPL(); r != nil {
+					r.AddOutput(sb.String())
+				}
+				return tengo.UndefinedValue, nil
+			},
+		},
+		"printf": &tengo.UserFunction{
+			Name: "printf",
+			Value: func(args ...tengo.Object) (tengo.Object, error) {
+				if len(args) == 0 {
+					return tengo.UndefinedValue, tengo.ErrWrongNumArguments
+				}
+				format, ok := tengo.ToString(args[0])
+				if !ok {
+					return tengo.UndefinedValue, tengo.ErrInvalidArgumentType{
+						Name:     "format",
+						Expected: "string",
+						Found:    args[0].TypeName(),
+					}
+				}
+				s, err := tengo.Format(format, args[1:]...)
+				if err != nil {
+					return tengo.UndefinedValue, err
+				}
+				if r := GetTengoREPL(); r != nil {
+					r.AddOutput(s)
+				}
+				return tengo.UndefinedValue, nil
+			},
+		},
+		"println": &tengo.UserFunction{
+			Name: "println",
+			Value: func(args ...tengo.Object) (tengo.Object, error) {
+				var sb strings.Builder
+				for i, arg := range args {
+					if i > 0 {
+						sb.WriteString(" ")
+					}
+					s, ok := tengo.ToString(arg)
+					if !ok {
+						s = arg.String()
+					}
+					sb.WriteString(s)
+				}
+				if r := GetTengoREPL(); r != nil {
+					r.AddOutput(sb.String())
+				}
+				return tengo.UndefinedValue, nil
+			},
+		},
+		"sprintf": &tengo.UserFunction{
+			Name: "sprintf",
+			Value: func(args ...tengo.Object) (tengo.Object, error) {
+				if len(args) == 0 {
+					return tengo.UndefinedValue, tengo.ErrWrongNumArguments
+				}
+				format, ok := tengo.ToString(args[0])
+				if !ok {
+					return tengo.UndefinedValue, tengo.ErrInvalidArgumentType{
+						Name:     "format",
+						Expected: "string",
+						Found:    args[0].TypeName(),
+					}
+				}
+				s, err := tengo.Format(format, args[1:]...)
+				if err != nil {
+					return tengo.UndefinedValue, err
+				}
+				return &tengo.String{Value: s}, nil
+			},
+		},
+	}
+	moduleMap.AddBuiltinModule("fmt", fmtModule)
 
 	// Walk data/scripts directory in embedded data.FS
 	root := "scripts"
@@ -756,7 +829,6 @@ func ExecuteScript(scriptPath string) error {
 
 // ExecuteScriptWithGlobals executes a script with arbitrary global variables injected into its VM context.
 func ExecuteScriptWithGlobals(scriptPath string, globals map[string]interface{}) error {
-	scriptMu.RLock()
 	cleanKey := filepath.ToSlash(scriptPath)
 	compiled, ok := compiledScripts[cleanKey]
 	if !ok {
@@ -767,7 +839,6 @@ func ExecuteScriptWithGlobals(scriptPath string, globals map[string]interface{})
 			compiled, ok = compiledScripts[cleanKey]
 		}
 	}
-	scriptMu.RUnlock()
 
 	if !ok || compiled == nil {
 		return fmt.Errorf("script %s not found or not pre-compiled", scriptPath)
@@ -834,7 +905,6 @@ func ExecuteDialogScript(scriptPath string, keyword string) (bool, error) {
 		normKeyword = normKeyword[:4]
 	}
 
-	scriptMu.RLock()
 	cleanKey := filepath.ToSlash(scriptPath)
 	compiled, ok := compiledScripts[cleanKey]
 	if !ok {
@@ -845,7 +915,6 @@ func ExecuteDialogScript(scriptPath string, keyword string) (bool, error) {
 			compiled, ok = compiledScripts[cleanKey]
 		}
 	}
-	scriptMu.RUnlock()
 
 	if !ok || compiled == nil {
 		return false, fmt.Errorf("dialog script %s not found or not pre-compiled", scriptPath)

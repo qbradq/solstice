@@ -5,6 +5,7 @@ import (
 	"log"
 
 	"github.com/hajimehoshi/ebiten/v2"
+	"github.com/hajimehoshi/ebiten/v2/inpututil"
 )
 
 const (
@@ -30,6 +31,7 @@ func SetGame(g *Game) {
 type Game struct {
 	assets     *Assets
 	terminal   *Terminal
+	tengoTerm  *TengoTerminal
 	currentMap *Map
 	worldMap   *Map
 	party      *Party
@@ -73,6 +75,18 @@ func (g *Game) SetMode(m Mode) {
 }
 
 func (g *Game) Update() error {
+	// Top-level check for the tilde key (`/~) to cycle Tengo terminal states
+	if inpututil.IsKeyJustPressed(ebiten.KeyGraveAccent) {
+		if g.tengoTerm != nil {
+			g.tengoTerm.CycleState()
+		}
+		return nil
+	}
+
+	if g.tengoTerm != nil && g.tengoTerm.GetState() != TengoTerminalStateHidden {
+		return g.tengoTerm.Update(g)
+	}
+
 	if m := g.GetMode(); m != nil {
 		return m.Update(g)
 	}
@@ -80,8 +94,27 @@ func (g *Game) Update() error {
 }
 
 func (g *Game) Draw(screen *ebiten.Image) {
-	if m := g.GetMode(); m != nil {
-		m.Draw(g, screen)
+	state := TengoTerminalStateHidden
+	if g.tengoTerm != nil {
+		state = g.tengoTerm.GetState()
+	}
+
+	switch state {
+	case TengoTerminalStateHidden:
+		if m := g.GetMode(); m != nil {
+			m.Draw(g, screen)
+		}
+	case TengoTerminalStateHalf:
+		if m := g.GetMode(); m != nil {
+			m.Draw(g, screen)
+		}
+		if g.tengoTerm != nil {
+			g.tengoTerm.DrawHalf(screen, g.assets)
+		}
+	case TengoTerminalStateFull:
+		if g.tengoTerm != nil {
+			g.tengoTerm.DrawFull(screen, g.assets)
+		}
 	}
 }
 
@@ -116,9 +149,9 @@ func Main() {
 		log.Fatalf("failed to initialize script system: %v", err)
 	}
 
-	// Terminal and script system initialization
-	// Note: We no longer execute main.tengo at startup. The game starts in MainMenuMode,
-	// and starting a new game executes data/scripts/new_game.tengo.
+	// Initialize Tengo REPL and pull-down terminal
+	repl := NewTengoREPL()
+	tengoTerm := NewTengoTerminal(repl)
 
 	ebiten.SetWindowSize(windowWidth, windowHeight)
 	ebiten.SetWindowTitle("Solstice")
@@ -127,6 +160,7 @@ func Main() {
 	game := &Game{
 		assets:     assets,
 		terminal:   term,
+		tengoTerm:  tengoTerm,
 		currentMap: GetMap(),
 		worldMap:   GetWorldMap(),
 		party:      GetParty(),

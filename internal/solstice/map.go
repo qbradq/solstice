@@ -8,7 +8,6 @@ import (
 	"math"
 	"strconv"
 	"strings"
-	"sync"
 
 	"solstice/data"
 
@@ -294,8 +293,7 @@ func GetTileProperties(tileID int) TileProperties {
 }
 
 var (
-	loadedMapsMu sync.RWMutex
-	loadedMaps   = make(map[string]*Map)
+	loadedMaps = make(map[string]*Map)
 )
 
 // NormalizeMapName strips path prefixes and extensions (e.g. "maps/home.tmx" -> "home").
@@ -309,15 +307,11 @@ func NormalizeMapName(name string) string {
 
 // ClearLoadedMaps resets the in-memory map cache.
 func ClearLoadedMaps() {
-	loadedMapsMu.Lock()
-	defer loadedMapsMu.Unlock()
 	loadedMaps = make(map[string]*Map)
 }
 
 // GetAllLoadedMaps returns a copy of all loaded map instances in memory.
 func GetAllLoadedMaps() map[string]*Map {
-	loadedMapsMu.RLock()
-	defer loadedMapsMu.RUnlock()
 	res := make(map[string]*Map, len(loadedMaps))
 	for k, v := range loadedMaps {
 		res[k] = v
@@ -327,8 +321,6 @@ func GetAllLoadedMaps() map[string]*Map {
 
 // SetLoadedMap caches or replaces a map instance in memory.
 func SetLoadedMap(name string, m *Map) {
-	loadedMapsMu.Lock()
-	defer loadedMapsMu.Unlock()
 	cleanName := NormalizeMapName(name)
 	loadedMaps[cleanName] = m
 }
@@ -338,21 +330,16 @@ func SetLoadedMap(name string, m *Map) {
 func LoadMap(name string) (*Map, error) {
 	cleanName := NormalizeMapName(name)
 
-	loadedMapsMu.RLock()
 	if cached, ok := loadedMaps[cleanName]; ok && cached != nil {
-		loadedMapsMu.RUnlock()
 		return cached, nil
 	}
-	loadedMapsMu.RUnlock()
 
 	m, err := loadMapFromTMX(cleanName)
 	if err != nil {
 		return nil, err
 	}
 
-	loadedMapsMu.Lock()
 	loadedMaps[cleanName] = m
-	loadedMapsMu.Unlock()
 
 	return m, nil
 }
