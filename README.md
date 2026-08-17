@@ -32,7 +32,7 @@ full text of the license.
     * Level 1 - 0
     * Level 2 - 2000
     * Level 3 - 5000
-    * Level 4 - 1000
+    * Level 4 - 10000
     * Level 5 - 16000
     * Level 6 - 27000
     * Level 7 - 42000

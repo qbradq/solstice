@@ -14,9 +14,10 @@ everything for the game loop.
     map.
   * `set_map_tile(x,y,tile)` sets the tile index at position x,y in the current
     map to tile.
-  * `set_state(name)` creates and sets the named state variable to true.
-  * `clear_state(name)` removes the named state variable.
-  * `toggle_state(name)` if the named state variable exists, remove it.
+  * `set_flag(name)` creates and sets the named flag to true.
+  * `clear_flag(name)` removes the named flag.
+  * `toggle_flag(name)` if the named flag exists, remove it.
     Otherwise, create it and set it to true.
+  * `has_flag(name)` returns true if the named flag exists and is true.
   * `end_dialog()` terminates the current dialog.
   * `random(args ...)` returns one of the arguments passed at random.

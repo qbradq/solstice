@@ -81,18 +81,13 @@ func (m *MainMenuMode) Update(g *Game) error {
 	return nil
 }
 
-// InitNewGame initializes a fresh game session by preloading the world map and creating the initial party.
+// InitNewGame initializes a fresh game session by preloading the world map and creating the initial party (empty in spirit mode).
 func InitNewGame() error {
 	if _, err := PreloadWorldMap(); err != nil {
 		return fmt.Errorf("failed to preload world map: %w", err)
 	}
 
-	kevinActor, err := NewActorFromDef("kevin-1", "kevin", 0, 0)
-	if err != nil {
-		return fmt.Errorf("failed to create kevin actor: %w", err)
-	}
-
-	party, err := NewParty(0, 0, *kevinActor)
+	party, err := NewParty(0, 0)
 	if err != nil {
 		return fmt.Errorf("failed to create party: %w", err)
 	}

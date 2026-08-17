@@ -1,0 +1,8 @@
+game := import("game")
+
+game.spawn_actor("wizard", "wizard-1", 15, 14)
+game.spawn_actor("wizard", "wizard-2", 14, 15)
+game.spawn_actor("wizard", "wizard-3", 16, 15)
+game.spawn_actor("duke_lafey", "duke-lafey", 15, 16)
+
+game.start_dialog("dialog/intro.tengo", "duke-lafey")

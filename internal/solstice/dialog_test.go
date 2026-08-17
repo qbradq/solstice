@@ -155,3 +155,51 @@ func TestDialogCancelWithEscape(t *testing.T) {
 		t.Error("Expected blue '> BYE' line in terminal history")
 	}
 }
+
+func TestDialogEscapeWithoutEnd(t *testing.T) {
+	term := NewTerminal()
+	SetTerminal(term)
+
+	if err := InitScriptSystem(); err != nil {
+		t.Fatalf("InitScriptSystem failed: %v", err)
+	}
+
+	actor := NewActor("duke-lafey", 15, 16, "duke")
+	actor.DialogScript = "dialog/intro.tengo"
+
+	game := &Game{
+		assets:   nil,
+		terminal: term,
+	}
+	game.PushMode(NewMainMode())
+
+	dialogMode := NewDialogMode(actor, actor.DialogScript)
+	game.PushMode(dialogMode)
+
+	// First Update initializes DialogMode with "look"
+	if err := game.Update(); err != nil {
+		t.Fatalf("game.Update() failed: %v", err)
+	}
+
+	// In intro.tengo, "bye" responds with "Will you lend us AID?" without calling end_dialog
+	ended, err := ExecuteDialogScript(actor.DialogScript, "bye")
+	if err != nil {
+		t.Fatalf("ExecuteDialogScript(bye) failed: %v", err)
+	}
+	if ended {
+		t.Error("Expected bye in intro.tengo NOT to end dialog")
+	}
+
+	// Verify terminal received reply
+	lines := term.GetLineTexts()
+	foundAidPrompt := false
+	for _, l := range lines {
+		if strings.Contains(l, "Will you lend us AID?") {
+			foundAidPrompt = true
+			break
+		}
+	}
+	if !foundAidPrompt {
+		t.Errorf("Expected 'Will you lend us AID?' in terminal lines, got %v", lines)
+	}
+}

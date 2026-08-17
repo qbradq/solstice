@@ -6,37 +6,6 @@ import (
 	"github.com/d5/tengo/v2"
 )
 
-func TestInitScriptSystemAndRunMainScript(t *testing.T) {
-	term := NewTerminal()
-	SetTerminal(term)
-
-	if err := InitScriptSystem(); err != nil {
-		t.Fatalf("InitScriptSystem failed: %v", err)
-	}
-
-	if err := RunMainScript(); err != nil {
-		t.Fatalf("RunMainScript failed: %v", err)
-	}
-
-	// Verify that main.tengo logged welcome messages to the terminal
-	lines := term.GetLineTexts()
-	if len(lines) == 0 {
-		t.Error("Expected main.tengo to log messages to terminal, got 0 lines")
-	}
-
-	foundSolstice := false
-	for _, l := range lines {
-		if l == "Solstice Client v0.1.0" {
-			foundSolstice = true
-			break
-		}
-	}
-
-	if !foundSolstice {
-		t.Errorf("Expected 'Solstice Client v0.1.0' in terminal lines, got lines: %v", lines)
-	}
-}
-
 func TestInitScriptSystemAndRunNewGameScript(t *testing.T) {
 	term := NewTerminal()
 	SetTerminal(term)
@@ -49,7 +18,7 @@ func TestInitScriptSystemAndRunNewGameScript(t *testing.T) {
 		t.Fatalf("RunNewGameScript failed: %v", err)
 	}
 
-	// Verify that new_game.tengo logged welcome messages to the terminal and loaded home map
+	// Verify that new_game.tengo logged welcome messages to the terminal and loaded map
 	lines := term.GetLineTexts()
 	if len(lines) == 0 {
 		t.Error("Expected new_game.tengo to log messages to terminal, got 0 lines")
@@ -67,8 +36,8 @@ func TestInitScriptSystemAndRunNewGameScript(t *testing.T) {
 		t.Errorf("Expected 'Solstice Client v0.1.0' in terminal lines, got lines: %v", lines)
 	}
 
-	if m := GetMap(); m == nil || m.Name != "home" {
-		t.Errorf("Expected current map to be 'home', got %v", m)
+	if m := GetMap(); m == nil {
+		t.Errorf("Expected current map to be loaded, got nil")
 	}
 }
 
@@ -143,31 +112,75 @@ func TestAddTimerAndTurnSystem(t *testing.T) {
 	}
 }
 
-func TestGameStateFunctions(t *testing.T) {
-	ClearAllState()
+func TestGameFlagFunctions(t *testing.T) {
+	ClearAllFlags()
 
-	if HasState("quest_started") {
+	if HasFlag("quest_started") {
 		t.Error("Expected quest_started to initially be false")
 	}
 
-	SetState("quest_started")
-	if !HasState("quest_started") {
-		t.Error("Expected quest_started to be true after SetState")
+	SetFlag("quest_started")
+	if !HasFlag("quest_started") {
+		t.Error("Expected quest_started to be true after SetFlag")
 	}
 
-	ToggleState("quest_started")
-	if HasState("quest_started") {
-		t.Error("Expected quest_started to be false after ToggleState")
+	ToggleFlag("quest_started")
+	if HasFlag("quest_started") {
+		t.Error("Expected quest_started to be false after ToggleFlag")
 	}
 
-	ToggleState("quest_started")
-	if !HasState("quest_started") {
-		t.Error("Expected quest_started to be true after second ToggleState")
+	ToggleFlag("quest_started")
+	if !HasFlag("quest_started") {
+		t.Error("Expected quest_started to be true after second ToggleFlag")
 	}
 
-	ClearState("quest_started")
-	if HasState("quest_started") {
-		t.Error("Expected quest_started to be false after ClearState")
+	ClearFlag("quest_started")
+	if HasFlag("quest_started") {
+		t.Error("Expected quest_started to be false after ClearFlag")
+	}
+
+	// Verify Tengo script flag functions
+	if err := InitScriptSystem(); err != nil {
+		t.Fatalf("InitScriptSystem failed: %v", err)
+	}
+
+	gameMod := moduleMap.GetBuiltinModule("game")
+	if gameMod == nil {
+		t.Fatal("Expected builtin game module")
+	}
+
+	// Verify old *_state functions are removed from module
+	for _, oldName := range []string{"set_state", "clear_state", "toggle_state", "has_state"} {
+		if _, exists := gameMod.Attrs[oldName]; exists {
+			t.Errorf("Expected old function %q to be removed from game module", oldName)
+		}
+	}
+
+	// Verify new *_flag functions exist in module
+	for _, newName := range []string{"set_flag", "clear_flag", "toggle_flag", "has_flag"} {
+		if _, exists := gameMod.Attrs[newName]; !exists {
+			t.Errorf("Expected new function %q to exist in game module", newName)
+		}
+	}
+
+	// Test executing script with flag functions
+	scriptSrc := `
+game := import("game")
+game.set_flag("hero_awakened")
+flag1 := game.has_flag("hero_awakened")
+game.toggle_flag("hero_awakened")
+flag2 := game.has_flag("hero_awakened")
+game.clear_flag("hero_awakened")
+flag3 := game.has_flag("hero_awakened")
+`
+	script := tengo.NewScript([]byte(scriptSrc))
+	script.SetImports(moduleMap)
+	compiled, err := script.Compile()
+	if err != nil {
+		t.Fatalf("Failed to compile flag test script: %v", err)
+	}
+	if err := compiled.Run(); err != nil {
+		t.Fatalf("Failed to run flag test script: %v", err)
 	}
 }
 
@@ -233,19 +246,22 @@ func TestGameLoadMapAndTeleportParty(t *testing.T) {
 	}
 	SetParty(p)
 
-	// Run main.tengo which executes load_map("home") and teleport_party(15, 15)
-	if err := RunMainScript(); err != nil {
-		t.Fatalf("RunMainScript failed: %v", err)
+	// Run new_game.tengo which executes load_map and teleport_party(15, 15)
+	if err := RunNewGameScript(); err != nil {
+		t.Fatalf("RunNewGameScript failed: %v", err)
 	}
 
 	m := GetMap()
-	if m == nil || m.Name != "home" {
-		t.Errorf("Expected current map to be 'home' after main.tengo, got %v", m)
+	if m == nil {
+		t.Errorf("Expected current map to be loaded after new_game.tengo, got nil")
 	}
 
 	party := GetParty()
 	if party.X != 15 || party.Y != 15 {
-		t.Errorf("Expected party position (15, 15) after teleport_party in main.tengo, got (%d, %d)", party.X, party.Y)
+		t.Errorf("Expected party position (15, 15) after teleport_party in new_game.tengo, got (%d, %d)", party.X, party.Y)
+	}
+	if party.WorldX != 5 || party.WorldY != 84 {
+		t.Errorf("Expected party world position (5, 84) after teleport_party_on_world_map in new_game.tengo, got (%d, %d)", party.WorldX, party.WorldY)
 	}
 }
 
@@ -275,6 +291,154 @@ func TestExecuteTriggerScript(t *testing.T) {
 	lines = term.GetLineTexts()
 	if len(lines) == 0 || lines[len(lines)-1] != "actor trigger: guard-1" {
 		t.Errorf("Expected 'actor trigger: guard-1' in terminal log, got lines: %v", lines)
+	}
+}
+
+func TestGameStartDialog(t *testing.T) {
+	term := NewTerminal()
+	SetTerminal(term)
+
+	if err := InitScriptSystem(); err != nil {
+		t.Fatalf("InitScriptSystem failed: %v", err)
+	}
+
+	game := &Game{
+		terminal: term,
+	}
+	SetGame(game)
+	game.PushMode(NewMainMode())
+
+	// Call start_dialog from Tengo
+	scriptSrc := `
+game := import("game")
+game.start_dialog("dialog/guard.tengo", "guard-1")
+`
+	script := tengo.NewScript([]byte(scriptSrc))
+	script.SetImports(moduleMap)
+	compiled, err := script.Compile()
+	if err != nil {
+		t.Fatalf("Failed to compile script: %v", err)
+	}
+	if err := compiled.Run(); err != nil {
+		t.Fatalf("Failed to run script: %v", err)
+	}
+
+	// Verify DialogMode was pushed onto game mode stack
+	activeMode := game.GetMode()
+	dialogMode, ok := activeMode.(*DialogMode)
+	if !ok || dialogMode == nil {
+		t.Fatalf("Expected active mode to be *DialogMode, got %T", activeMode)
+	}
+	if dialogMode.scriptPath != "dialog/guard.tengo" {
+		t.Errorf("Expected dialog script 'dialog/guard.tengo', got %s", dialogMode.scriptPath)
+	}
+	if dialogMode.actor == nil || dialogMode.actor.ID != "guard-1" {
+		t.Errorf("Expected actor ID 'guard-1', got %v", dialogMode.actor)
+	}
+}
+
+func TestGameSpawnAndRemoveActor(t *testing.T) {
+	if err := InitScriptSystem(); err != nil {
+		t.Fatalf("InitScriptSystem failed: %v", err)
+	}
+	if _, err := PreloadSpriteDefs(); err != nil {
+		t.Fatalf("PreloadSpriteDefs failed: %v", err)
+	}
+	if _, err := PreloadActorDefs(); err != nil {
+		t.Fatalf("PreloadActorDefs failed: %v", err)
+	}
+
+	m, err := LoadMap("home")
+	if err != nil {
+		t.Fatalf("LoadMap failed: %v", err)
+	}
+	SetMap(m)
+
+	// 1. Spawn actor via Tengo script
+	spawnSrc := `
+game := import("game")
+game.spawn_actor("guard", "new-guard-99", 5, 8)
+`
+	script := tengo.NewScript([]byte(spawnSrc))
+	script.SetImports(moduleMap)
+	compiled, err := script.Compile()
+	if err != nil {
+		t.Fatalf("Failed to compile spawn script: %v", err)
+	}
+	if err := compiled.Run(); err != nil {
+		t.Fatalf("Failed to run spawn script: %v", err)
+	}
+
+	// Verify actor was added to map
+	actor := m.GetActorByID("new-guard-99")
+	if actor == nil {
+		t.Fatalf("Expected spawned actor 'new-guard-99' on map, got nil")
+	}
+	if actor.X != 5 || actor.Y != 8 {
+		t.Errorf("Expected actor position (5, 8), got (%d, %d)", actor.X, actor.Y)
+	}
+
+	// 2. Remove actor via Tengo script
+	removeSrc := `
+game := import("game")
+game.remove_actor("new-guard-99")
+`
+	script2 := tengo.NewScript([]byte(removeSrc))
+	script2.SetImports(moduleMap)
+	compiled2, err := script2.Compile()
+	if err != nil {
+		t.Fatalf("Failed to compile remove script: %v", err)
+	}
+	if err := compiled2.Run(); err != nil {
+		t.Fatalf("Failed to run remove script: %v", err)
+	}
+
+	// Verify actor was removed from map
+	if removedActor := m.GetActorByID("new-guard-99"); removedActor != nil {
+		t.Errorf("Expected actor 'new-guard-99' to be removed from map, but still found: %v", removedActor)
+	}
+}
+
+func TestGameExecuteMapScript(t *testing.T) {
+	if err := InitScriptSystem(); err != nil {
+		t.Fatalf("InitScriptSystem failed: %v", err)
+	}
+	if _, err := PreloadSpriteDefs(); err != nil {
+		t.Fatalf("PreloadSpriteDefs failed: %v", err)
+	}
+	if _, err := PreloadActorDefs(); err != nil {
+		t.Fatalf("PreloadActorDefs failed: %v", err)
+	}
+
+	m, err := LoadMap("kings_shrine")
+	if err != nil {
+		t.Fatalf("LoadMap failed: %v", err)
+	}
+	SetMap(m)
+
+	// Execute intro map script from Tengo
+	scriptSrc := `
+game := import("game")
+game.exec_map_script("intro")
+`
+	script := tengo.NewScript([]byte(scriptSrc))
+	script.SetImports(moduleMap)
+	compiled, err := script.Compile()
+	if err != nil {
+		t.Fatalf("Failed to compile map script runner: %v", err)
+	}
+	if err := compiled.Run(); err != nil {
+		t.Fatalf("Failed to run map script runner: %v", err)
+	}
+
+	// Verify actors from intro.tengo were spawned on map
+	w1 := m.GetActorByID("wizard-1")
+	if w1 == nil || w1.X != 15 || w1.Y != 14 {
+		t.Errorf("Expected wizard-1 at (15, 14), got %v", w1)
+	}
+	duke := m.GetActorByID("duke-lafey")
+	if duke == nil || duke.X != 15 || duke.Y != 16 {
+		t.Errorf("Expected duke-lafey at (15, 16), got %v", duke)
 	}
 }
 

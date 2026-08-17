@@ -64,5 +64,18 @@
         "hit_points": 30,
         "max_magic_points": 0,
         "magic_points": 0
+    },
+    "duke_lafey": {
+        "name": "Duke Lafey",
+        "sprite": "duke",
+        "level": 4,
+        "experience": 12000,
+        "strength": 18,
+        "dexterity": 16,
+        "intelligence": 12,
+        "max_hit_points": 120,
+        "hit_points": 120,
+        "max_magic_points": 40,
+        "magic_points": 40
     }
 }

@@ -8,5 +8,13 @@ game.log("Norman B. Lancaster")
 game.log("Licensed under the MIT License.")
 game.log("------------------------------------")
 
-game.load_map("home")
+// State setup
+game.teleport_party_on_world_map(5, 84)
+game.clear_flag("will_help_duke_lafey")
+
+// Load introductory map
+game.load_map("kings_shrine")
 game.teleport_party(15,15)
+
+// Execute introductory map script
+game.exec_map_script("map/intro.tengo")

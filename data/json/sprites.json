@@ -66,6 +66,16 @@
         "animated": true,
         "frames": 4
     },
+    "duke": {
+        "tile": 376,
+        "animated": true,
+        "frames": 4
+    },
+    "king": {
+        "tile": 380,
+        "animated": true,
+        "frames": 4
+    },
     "guard": {
         "tile": 368,
         "animated": true,

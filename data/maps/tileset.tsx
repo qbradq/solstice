@@ -195,6 +195,16 @@
    <property name="walkable" type="bool" value="true"/>
   </properties>
  </tile>
+ <tile id="41">
+  <properties>
+   <property name="spirit_passable" type="bool" value="true"/>
+  </properties>
+ </tile>
+ <tile id="42">
+  <properties>
+   <property name="spirit_passable" type="bool" value="true"/>
+  </properties>
+ </tile>
  <tile id="44">
   <properties>
    <property name="walkable" type="bool" value="true"/>
@@ -268,6 +278,11 @@
  <tile id="69">
   <properties>
    <property name="walkable" type="bool" value="true"/>
+  </properties>
+ </tile>
+ <tile id="70">
+  <properties>
+   <property name="spirit_passable" type="bool" value="true"/>
   </properties>
  </tile>
  <tile id="71">
@@ -448,6 +463,16 @@
  <tile id="172">
   <properties>
    <property name="actor_half_sprite" type="bool" value="true"/>
+   <property name="walkable" type="bool" value="true"/>
+  </properties>
+ </tile>
+ <tile id="176">
+  <properties>
+   <property name="walkable" type="bool" value="true"/>
+  </properties>
+ </tile>
+ <tile id="177">
+  <properties>
    <property name="walkable" type="bool" value="true"/>
   </properties>
  </tile>

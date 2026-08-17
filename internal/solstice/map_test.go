@@ -342,6 +342,27 @@ func TestSpiritModePartyMovement(t *testing.T) {
 	if m.MoveParty(livingParty, 1, 0) {
 		t.Error("Expected living party to be blocked by spirit_passable (non-walkable) tile")
 	}
+
+	// Test actor collision: place an actor on walkable tile (12, 10)
+	m.SetTile(12, 10, 4) // Walkable tile
+	m.AddActor(&Actor{Entity: Entity{X: 12, Y: 10}, ID: "test-npc"})
+
+	// Position parties at (11, 10) with tile (11, 10) set to walkable
+	m.SetTile(11, 10, 4)
+	spiritParty.X = 11
+	spiritParty.Y = 10
+	livingParty.X = 11
+	livingParty.Y = 10
+
+	// Spirit party SHOULD be able to move onto tile with actor
+	if !m.MoveParty(spiritParty, 1, 0) {
+		t.Error("Expected spirit mode party to be able to move onto tile occupied by an actor")
+	}
+
+	// Living party SHOULD NOT be able to move onto tile with actor
+	if m.MoveParty(livingParty, 1, 0) {
+		t.Error("Expected living party to be blocked by an actor")
+	}
 }
 
 func TestMapDrawCenteredVisibility(t *testing.T) {

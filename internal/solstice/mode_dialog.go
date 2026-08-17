@@ -46,11 +46,15 @@ func (dm *DialogMode) Update(g *Game) error {
 			// Log synthetic player input line "> BYE" in bright blue
 			g.terminal.AddMessageColored("> BYE", VGAPalette16[9])
 
-			// Player canceled out of terminal input mode via Escape key:
-			// Execute dialog script with "bye" keyword to end dialog naturally
-			_, _ = ExecuteDialogScript(dm.scriptPath, "bye")
-			g.terminal.SetInputMode(false)
-			g.PopMode()
+			// Player pressed Escape key in dialog:
+			// Execute dialog script with "bye" keyword (script may or may not end dialog)
+			ended, _ := ExecuteDialogScript(dm.scriptPath, "bye")
+			if ended {
+				g.terminal.SetInputMode(false)
+				g.PopMode()
+				return nil
+			}
+			g.terminal.SetInputMode(true)
 			return nil
 		}
 

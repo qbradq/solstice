@@ -1,0 +1,57 @@
+game := import("game")
+
+if keyword == "look" {
+    reply = "Spirits of ancient kings, come to my AID. Our lands are beset " +
+            "by EVIL. Monsters roam the fields and forests, and deamons flow " +
+            "forth from the DEEP places of the Earth. Come forward as in " +
+            "times of OLD. Claim your CHAMPIONS! Fight back this evil, and " +
+            "save our lands!"
+} else if keyword == "name" {
+    reply = "I am Duke Lafey, Duke of the Isle of Refuge, and primary " +
+            "advisor to his royal majesty, KING Rondal III."
+} else if keyword == "job" {
+    reply = "I serve the crown and the people of the realm by advising KING " +
+            "Rondal III and marshalling the defense forces of the land."
+} else if keyword == "bye" {
+    if game.has_flag("will_help_duke_lafey") {
+        reply = "May the Kings of Old go with you."
+        game.end_dialog()
+    } else {
+        reply = "Will you lend us AID?"
+    }
+} else if keyword == "aid" {
+    reply = "Go into the world with your CHAMPIONS! Find and destroy the " +
+            "source of the evil spreading in our lands! Will you now HELP?"
+} else if keyword == "help" {
+    reply = "Thank you, oh King!"
+    game.set_flag("will_help_duke_lafey")
+} else if keyword == "evil" {
+    reply = "Monsters are in the fields and forests. They accost civilians " +
+            "on the roadways. That's why I've come accompanied by my court " +
+            "mages for protection."
+} else if keyword == "deep" {
+    reply = "Horrible deamons have crawled into every cave, mine, and " +
+            "dungeon in the land. I suspect they are the direct agents " +
+            "of the EVIL invading our land."
+} else if keyword == "old" {
+    reply = "My Lord, in times of great need, our people call upon the " +
+            "spirits of former kings to share their wisdom and lend " +
+            "their power to our cause."
+} else if keyword == "cham" {
+    reply = "Speak to the people of this land. Some may offer to help in " +
+            "our fight! Guide and protect them. They are your only interface " +
+            "to the physical world."
+} else if keyword == "king" {
+    reply = "KING Rondal III rules from his castle on Highcrest Isle in the " +
+            "Northern Sea. He is a wise and just ruler, but he is old. " +
+            "He has no children, and his only heir is his nephew, Prince " +
+            "ELRIC."
+} else if keyword == "elri" {
+    reply = "ELRIC is a weak and foolish prince who is easily influenced."
+} else {
+    reply = game.random(
+        "That's not important right now.",
+        "We must focus on the task at hand.",
+        "I'm not sure I can help with that."
+    )
+}

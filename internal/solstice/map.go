@@ -515,6 +515,40 @@ func (m *Map) GetActorsInArea(area image.Rectangle) []*Actor {
 	return res
 }
 
+// GetActorByID searches the map's actors for an actor with the given ID.
+// Returns nil if no matching actor is found.
+func (m *Map) GetActorByID(id string) *Actor {
+	if m == nil || len(m.Actors) == 0 || id == "" {
+		return nil
+	}
+	for _, a := range m.Actors {
+		if a != nil && a.ID == id {
+			return a
+		}
+	}
+	return nil
+}
+
+// RemoveActorByID removes an actor with the given ID from the map.
+// Returns true if an actor was found and removed, false otherwise.
+func (m *Map) RemoveActorByID(id string) bool {
+	if m == nil || len(m.Actors) == 0 || id == "" {
+		return false
+	}
+	idx := -1
+	for i, actor := range m.Actors {
+		if actor != nil && actor.ID == id {
+			idx = i
+			break
+		}
+	}
+	if idx >= 0 {
+		m.Actors = append(m.Actors[:idx], m.Actors[idx+1:]...)
+		return true
+	}
+	return false
+}
+
 // AddTimer schedules a new timer on the map with a delay expressed in turns,
 // the name of the script to execute upon expiry, and global variables to inject into the script context.
 func (m *Map) AddTimer(delayTurns int, scriptPath string, globals map[string]interface{}) {
@@ -617,8 +651,8 @@ func (m *Map) MoveParty(p *Party, dx, dy int) bool {
 		return false
 	}
 
-	// Prevent party from moving onto a tile occupied by an Actor
-	if m.HasActorAt(targetX, targetY) {
+	// Prevent party from moving onto a tile occupied by an Actor (unless in Spirit Mode)
+	if !p.IsSpiritMode() && m.HasActorAt(targetX, targetY) {
 		return false
 	}
 

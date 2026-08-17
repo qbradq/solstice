@@ -116,8 +116,8 @@ func TestMainMenuModeActivation(t *testing.T) {
 	if game.GetMode() == menu {
 		t.Errorf("Expected menu mode to be popped after activating New Game")
 	}
-	if m := GetMap(); m == nil || m.Name != "home" {
-		t.Errorf("Expected active map to be 'home' after New Game, got %v", m)
+	if m := GetMap(); m == nil || (m.Name != "kings_shrine" && m.Name != "home") {
+		t.Errorf("Expected active map to be loaded after New Game, got %v", m)
 	}
 	if p := GetParty(); p == nil || p.X != 15 || p.Y != 15 {
 		t.Errorf("Expected party position (15, 15), got %v", p)

@@ -33,22 +33,22 @@ func IsDialogEnded() bool {
 	return dialogEnded
 }
 
-// SetState creates and sets the named state variable to true.
-func SetState(name string) {
+// SetFlag creates and sets the named flag to true.
+func SetFlag(name string) {
 	stateMu.Lock()
 	defer stateMu.Unlock()
 	gameState[name] = true
 }
 
-// ClearState removes the named state variable.
-func ClearState(name string) {
+// ClearFlag removes the named flag.
+func ClearFlag(name string) {
 	stateMu.Lock()
 	defer stateMu.Unlock()
 	delete(gameState, name)
 }
 
-// ToggleState removes the named state variable if it exists; otherwise creates it and sets it to true.
-func ToggleState(name string) {
+// ToggleFlag removes the named flag if it exists; otherwise creates it and sets it to true.
+func ToggleFlag(name string) {
 	stateMu.Lock()
 	defer stateMu.Unlock()
 	if gameState[name] {
@@ -58,19 +58,26 @@ func ToggleState(name string) {
 	}
 }
 
-// HasState returns true if the named state variable exists and is true.
-func HasState(name string) bool {
+// HasFlag returns true if the named flag exists and is true.
+func HasFlag(name string) bool {
 	stateMu.RLock()
 	defer stateMu.RUnlock()
 	return gameState[name]
 }
 
-// ClearAllState resets all state variables.
-func ClearAllState() {
+// ClearAllFlags resets all flags.
+func ClearAllFlags() {
 	stateMu.Lock()
 	defer stateMu.Unlock()
 	gameState = make(map[string]bool)
 }
+
+// Backward-compatible aliases for state functions
+func SetState(name string)       { SetFlag(name) }
+func ClearState(name string)     { ClearFlag(name) }
+func ToggleState(name string)    { ToggleFlag(name) }
+func HasState(name string) bool  { return HasFlag(name) }
+func ClearAllState()             { ClearAllFlags() }
 
 // InitScriptSystem initializes the Tengo scripting system by recursively loading and pre-compiling
 // all .tengo files in the data/scripts directory from data.FS.
@@ -144,50 +151,50 @@ func InitScriptSystem() error {
 				return tengo.UndefinedValue, nil
 			},
 		},
-		"set_state": &tengo.UserFunction{
-			Name: "set_state",
+		"set_flag": &tengo.UserFunction{
+			Name: "set_flag",
 			Value: func(args ...tengo.Object) (tengo.Object, error) {
 				if len(args) < 1 {
-					return tengo.UndefinedValue, fmt.Errorf("set_state requires 1 argument: name")
+					return tengo.UndefinedValue, fmt.Errorf("set_flag requires 1 argument: name")
 				}
 				name, ok := tengo.ToString(args[0])
 				if !ok {
-					return tengo.UndefinedValue, fmt.Errorf("set_state argument must be a string")
+					return tengo.UndefinedValue, fmt.Errorf("set_flag argument must be a string")
 				}
 				SetState(name)
 				return tengo.UndefinedValue, nil
 			},
 		},
-		"clear_state": &tengo.UserFunction{
-			Name: "clear_state",
+		"clear_flag": &tengo.UserFunction{
+			Name: "clear_flag",
 			Value: func(args ...tengo.Object) (tengo.Object, error) {
 				if len(args) < 1 {
-					return tengo.UndefinedValue, fmt.Errorf("clear_state requires 1 argument: name")
+					return tengo.UndefinedValue, fmt.Errorf("clear_flag requires 1 argument: name")
 				}
 				name, ok := tengo.ToString(args[0])
 				if !ok {
-					return tengo.UndefinedValue, fmt.Errorf("clear_state argument must be a string")
+					return tengo.UndefinedValue, fmt.Errorf("clear_flag argument must be a string")
 				}
 				ClearState(name)
 				return tengo.UndefinedValue, nil
 			},
 		},
-		"toggle_state": &tengo.UserFunction{
-			Name: "toggle_state",
+		"toggle_flag": &tengo.UserFunction{
+			Name: "toggle_flag",
 			Value: func(args ...tengo.Object) (tengo.Object, error) {
 				if len(args) < 1 {
-					return tengo.UndefinedValue, fmt.Errorf("toggle_state requires 1 argument: name")
+					return tengo.UndefinedValue, fmt.Errorf("toggle_flag requires 1 argument: name")
 				}
 				name, ok := tengo.ToString(args[0])
 				if !ok {
-					return tengo.UndefinedValue, fmt.Errorf("toggle_state argument must be a string")
+					return tengo.UndefinedValue, fmt.Errorf("toggle_flag argument must be a string")
 				}
 				ToggleState(name)
 				return tengo.UndefinedValue, nil
 			},
 		},
-		"has_state": &tengo.UserFunction{
-			Name: "has_state",
+		"has_flag": &tengo.UserFunction{
+			Name: "has_flag",
 			Value: func(args ...tengo.Object) (tengo.Object, error) {
 				if len(args) < 1 {
 					return tengo.FalseValue, nil
@@ -255,6 +262,301 @@ func InitScriptSystem() error {
 				if party != nil {
 					party.X = x
 					party.Y = y
+				}
+				return tengo.UndefinedValue, nil
+			},
+		},
+		"teleport_party_on_world_map": &tengo.UserFunction{
+			Name: "teleport_party_on_world_map",
+			Value: func(args ...tengo.Object) (tengo.Object, error) {
+				if len(args) < 2 {
+					return tengo.UndefinedValue, fmt.Errorf("teleport_party_on_world_map requires 2 arguments: x, y")
+				}
+				x, ok1 := tengo.ToInt(args[0])
+				y, ok2 := tengo.ToInt(args[1])
+				if !ok1 || !ok2 {
+					return tengo.UndefinedValue, fmt.Errorf("teleport_party_on_world_map arguments must be integers")
+				}
+				party := GetParty()
+				if party != nil {
+					party.WorldX = x
+					party.WorldY = y
+				}
+				return tengo.UndefinedValue, nil
+			},
+		},
+		"start_dialog": &tengo.UserFunction{
+			Name: "start_dialog",
+			Value: func(args ...tengo.Object) (tengo.Object, error) {
+				if len(args) < 1 {
+					return tengo.UndefinedValue, fmt.Errorf("start_dialog requires at least 1 argument: [actor_id], dialog_script")
+				}
+				str1, ok1 := tengo.ToString(args[0])
+				if !ok1 {
+					return tengo.UndefinedValue, fmt.Errorf("start_dialog arguments must be strings")
+				}
+
+				scriptPath := str1
+				actorID := ""
+				if len(args) >= 2 {
+					str2, ok2 := tengo.ToString(args[1])
+					if ok2 {
+						if strings.HasSuffix(str2, ".tengo") || strings.Contains(str2, "/") {
+							scriptPath = str2
+							actorID = str1
+						} else {
+							scriptPath = str1
+							actorID = str2
+						}
+					}
+				}
+
+				m := GetMap()
+				var actor *Actor
+				if m != nil && actorID != "" {
+					actor = m.GetActorByID(actorID)
+				}
+				if actor == nil && actorID != "" {
+					if _, ok := GetActorDef(actorID); ok {
+						actor, _ = NewActorFromDef(actorID, actorID, 0, 0)
+					}
+				}
+				if actor == nil {
+					actor = &Actor{
+						ID:           actorID,
+						DialogScript: scriptPath,
+					}
+				}
+				if scriptPath == "" && actor.DialogScript != "" {
+					scriptPath = actor.DialogScript
+				}
+
+				dialogMode := NewDialogMode(actor, scriptPath)
+				if g := GetGame(); g != nil {
+					g.PushMode(dialogMode)
+				}
+				return tengo.UndefinedValue, nil
+			},
+		},
+		"force_dialog": &tengo.UserFunction{
+			Name: "force_dialog",
+			Value: func(args ...tengo.Object) (tengo.Object, error) {
+				if len(args) < 1 {
+					return tengo.UndefinedValue, fmt.Errorf("force_dialog requires at least 1 argument: [actor_id], dialog_script")
+				}
+				str1, ok1 := tengo.ToString(args[0])
+				if !ok1 {
+					return tengo.UndefinedValue, fmt.Errorf("force_dialog arguments must be strings")
+				}
+
+				scriptPath := str1
+				actorID := ""
+				if len(args) >= 2 {
+					str2, ok2 := tengo.ToString(args[1])
+					if ok2 {
+						if strings.HasSuffix(str2, ".tengo") || strings.Contains(str2, "/") {
+							scriptPath = str2
+							actorID = str1
+						} else {
+							scriptPath = str1
+							actorID = str2
+						}
+					}
+				}
+
+				m := GetMap()
+				var actor *Actor
+				if m != nil && actorID != "" {
+					actor = m.GetActorByID(actorID)
+				}
+				if actor == nil && actorID != "" {
+					if _, ok := GetActorDef(actorID); ok {
+						actor, _ = NewActorFromDef(actorID, actorID, 0, 0)
+					}
+				}
+				if actor == nil {
+					actor = &Actor{
+						ID:           actorID,
+						DialogScript: scriptPath,
+					}
+				}
+				if scriptPath == "" && actor.DialogScript != "" {
+					scriptPath = actor.DialogScript
+				}
+
+				dialogMode := NewDialogMode(actor, scriptPath)
+				if g := GetGame(); g != nil {
+					g.PushMode(dialogMode)
+				}
+				return tengo.UndefinedValue, nil
+			},
+		},
+		"enter_dialog": &tengo.UserFunction{
+			Name: "enter_dialog",
+			Value: func(args ...tengo.Object) (tengo.Object, error) {
+				if len(args) < 1 {
+					return tengo.UndefinedValue, fmt.Errorf("enter_dialog requires at least 1 argument: [actor_id], dialog_script")
+				}
+				str1, ok1 := tengo.ToString(args[0])
+				if !ok1 {
+					return tengo.UndefinedValue, fmt.Errorf("enter_dialog arguments must be strings")
+				}
+
+				scriptPath := str1
+				actorID := ""
+				if len(args) >= 2 {
+					str2, ok2 := tengo.ToString(args[1])
+					if ok2 {
+						if strings.HasSuffix(str2, ".tengo") || strings.Contains(str2, "/") {
+							scriptPath = str2
+							actorID = str1
+						} else {
+							scriptPath = str1
+							actorID = str2
+						}
+					}
+				}
+
+				m := GetMap()
+				var actor *Actor
+				if m != nil && actorID != "" {
+					actor = m.GetActorByID(actorID)
+				}
+				if actor == nil && actorID != "" {
+					if _, ok := GetActorDef(actorID); ok {
+						actor, _ = NewActorFromDef(actorID, actorID, 0, 0)
+					}
+				}
+				if actor == nil {
+					actor = &Actor{
+						ID:           actorID,
+						DialogScript: scriptPath,
+					}
+				}
+				if scriptPath == "" && actor.DialogScript != "" {
+					scriptPath = actor.DialogScript
+				}
+
+				dialogMode := NewDialogMode(actor, scriptPath)
+				if g := GetGame(); g != nil {
+					g.PushMode(dialogMode)
+				}
+				return tengo.UndefinedValue, nil
+			},
+		},
+		"spawn_actor": &tengo.UserFunction{
+			Name: "spawn_actor",
+			Value: func(args ...tengo.Object) (tengo.Object, error) {
+				if len(args) < 4 {
+					return tengo.UndefinedValue, fmt.Errorf("spawn_actor requires 4 arguments: template_id, actor_id, x, y")
+				}
+				str1, ok1 := tengo.ToString(args[0])
+				str2, ok2 := tengo.ToString(args[1])
+				x, ok3 := tengo.ToInt(args[2])
+				y, ok4 := tengo.ToInt(args[3])
+				if !ok1 || !ok2 || !ok3 || !ok4 {
+					return tengo.UndefinedValue, fmt.Errorf("spawn_actor arguments must be (string, string, int, int)")
+				}
+
+				templateID := str1
+				actorID := str2
+
+				// Allow flexible ordering if template exists under the other parameter name
+				if _, ok := GetActorDef(str2); ok {
+					if _, okOld := GetActorDef(str1); !okOld {
+						templateID = str2
+						actorID = str1
+					}
+				}
+
+				actor, err := NewActorFromDef(actorID, templateID, x, y)
+				if err != nil {
+					return tengo.UndefinedValue, fmt.Errorf("failed to spawn actor %s from template %s: %w", actorID, templateID, err)
+				}
+
+				if m := GetMap(); m != nil {
+					m.AddActor(actor)
+				}
+				return tengo.UndefinedValue, nil
+			},
+		},
+		"remove_actor": &tengo.UserFunction{
+			Name: "remove_actor",
+			Value: func(args ...tengo.Object) (tengo.Object, error) {
+				if len(args) < 1 {
+					return tengo.UndefinedValue, fmt.Errorf("remove_actor requires 1 argument: actor_id")
+				}
+				actorID, ok := tengo.ToString(args[0])
+				if !ok {
+					return tengo.UndefinedValue, fmt.Errorf("remove_actor argument must be a string")
+				}
+
+				if m := GetMap(); m != nil {
+					m.RemoveActorByID(actorID)
+				}
+				return tengo.UndefinedValue, nil
+			},
+		},
+		"exec_map_script": &tengo.UserFunction{
+			Name: "exec_map_script",
+			Value: func(args ...tengo.Object) (tengo.Object, error) {
+				if len(args) < 1 {
+					return tengo.UndefinedValue, fmt.Errorf("exec_map_script requires 1 argument: script_path")
+				}
+				scriptName, ok := tengo.ToString(args[0])
+				if !ok {
+					return tengo.UndefinedValue, fmt.Errorf("exec_map_script argument must be a string")
+				}
+				if err := ExecuteMapScript(scriptName); err != nil {
+					return tengo.UndefinedValue, err
+				}
+				return tengo.UndefinedValue, nil
+			},
+		},
+		"run_map_script": &tengo.UserFunction{
+			Name: "run_map_script",
+			Value: func(args ...tengo.Object) (tengo.Object, error) {
+				if len(args) < 1 {
+					return tengo.UndefinedValue, fmt.Errorf("run_map_script requires 1 argument: script_path")
+				}
+				scriptName, ok := tengo.ToString(args[0])
+				if !ok {
+					return tengo.UndefinedValue, fmt.Errorf("run_map_script argument must be a string")
+				}
+				if err := ExecuteMapScript(scriptName); err != nil {
+					return tengo.UndefinedValue, err
+				}
+				return tengo.UndefinedValue, nil
+			},
+		},
+		"execute_map_script": &tengo.UserFunction{
+			Name: "execute_map_script",
+			Value: func(args ...tengo.Object) (tengo.Object, error) {
+				if len(args) < 1 {
+					return tengo.UndefinedValue, fmt.Errorf("execute_map_script requires 1 argument: script_path")
+				}
+				scriptName, ok := tengo.ToString(args[0])
+				if !ok {
+					return tengo.UndefinedValue, fmt.Errorf("execute_map_script argument must be a string")
+				}
+				if err := ExecuteMapScript(scriptName); err != nil {
+					return tengo.UndefinedValue, err
+				}
+				return tengo.UndefinedValue, nil
+			},
+		},
+		"map_script": &tengo.UserFunction{
+			Name: "map_script",
+			Value: func(args ...tengo.Object) (tengo.Object, error) {
+				if len(args) < 1 {
+					return tengo.UndefinedValue, fmt.Errorf("map_script requires 1 argument: script_path")
+				}
+				scriptName, ok := tengo.ToString(args[0])
+				if !ok {
+					return tengo.UndefinedValue, fmt.Errorf("map_script argument must be a string")
+				}
+				if err := ExecuteMapScript(scriptName); err != nil {
+					return tengo.UndefinedValue, err
 				}
 				return tengo.UndefinedValue, nil
 			},
@@ -371,6 +673,25 @@ func ExecuteScriptWithGlobals(scriptPath string, globals map[string]interface{})
 	}
 
 	return nil
+}
+
+// ExecuteMapScript executes a map script located in data/scripts/map.
+// No special globals exist for map scripts.
+func ExecuteMapScript(scriptPath string) error {
+	cleanPath := scriptPath
+	if !strings.HasSuffix(cleanPath, ".tengo") {
+		cleanPath += ".tengo"
+	}
+	if !strings.HasPrefix(cleanPath, "map/") && !strings.HasPrefix(cleanPath, "scripts/map/") && !strings.HasPrefix(cleanPath, "data/scripts/map/") {
+		cleanPath = "map/" + cleanPath
+	}
+	err := ExecuteScript(cleanPath)
+	if err != nil && cleanPath != scriptPath {
+		if err2 := ExecuteScript(scriptPath); err2 == nil {
+			return nil
+		}
+	}
+	return err
 }
 
 // ExecuteTileScript executes a tile script with tile_x, tile_y, and tile_idx globals.
