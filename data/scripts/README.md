@@ -10,6 +10,7 @@ everything for the game loop.
   * `log(msg)` adds the string `msg` to the game terminal log.
   * `load_map(name)` loads the named map file. For instance, if name is "home",
     the file "data/maps/home.tmx" is loaded.
+  * `reload_map(name)` reloads the named map file from the embedded file system if already loaded, updating current/world map pointers if applicable.
   * `teleport_party(x,y)` teleports the party to location x,y on the current
     map.
   * `set_map_tile(x,y,tile)` sets the tile index at position x,y in the current

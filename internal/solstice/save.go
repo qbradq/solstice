@@ -74,6 +74,7 @@ type SavedMapState struct {
 	Tiles      string        `json:"tiles"` // Base64-encoded zlib-compressed int32 slice
 	Actors     []*Actor      `json:"actors"`
 	Timers     []*MapTimer   `json:"timers"`
+	Triggers   []*Trigger    `json:"triggers"`
 	Properties MapProperties `json:"properties"`
 	Turn       int           `json:"turn"`
 }
@@ -169,6 +170,15 @@ func (m *Map) ToSavedState() (*SavedMapState, error) {
 		}
 	}
 
+	// Copy triggers
+	triggersCopy := make([]*Trigger, len(m.Triggers))
+	for i, tr := range m.Triggers {
+		if tr != nil {
+			trc := *tr
+			triggersCopy[i] = &trc
+		}
+	}
+
 	return &SavedMapState{
 		Name:       m.Name,
 		Width:      m.Width,
@@ -179,30 +189,16 @@ func (m *Map) ToSavedState() (*SavedMapState, error) {
 		Tiles:      encodedTiles,
 		Actors:     actorsCopy,
 		Timers:     timersCopy,
+		Triggers:   triggersCopy,
 		Properties: m.Properties,
 		Turn:       m.Turn,
 	}, nil
 }
 
-// RestoreMapFromSavedState restores a Map instance from a SavedMapState, merging with baseline TMX triggers.
+// RestoreMapFromSavedState restores a Map instance entirely from a SavedMapState without reading TMX.
 func RestoreMapFromSavedState(saved *SavedMapState) (*Map, error) {
 	if saved == nil {
 		return nil, fmt.Errorf("nil saved map state")
-	}
-
-	// Load baseline map from TMX to obtain triggers and structural geometry
-	baseline, err := loadMapFromTMX(saved.Name)
-	if err != nil {
-		// If TMX loading fails, instantiate standalone map
-		baseline = &Map{
-			Name:       saved.Name,
-			Width:      saved.Width,
-			Height:     saved.Height,
-			TileWidth:  saved.TileWidth,
-			TileHeight: saved.TileHeight,
-			FirstGID:   saved.FirstGID,
-			Triggers:   make([]*Trigger, 0),
-		}
 	}
 
 	// Decompress and restore tile matrix
@@ -211,13 +207,49 @@ func RestoreMapFromSavedState(saved *SavedMapState) (*Map, error) {
 		return nil, fmt.Errorf("failed to decode saved tiles for map %s: %w", saved.Name, err)
 	}
 
-	baseline.Tiles = tiles
-	baseline.Properties = saved.Properties
-	baseline.Turn = saved.Turn
-	baseline.Actors = saved.Actors
-	baseline.Timers = saved.Timers
+	// Copy actors
+	actors := make([]*Actor, len(saved.Actors))
+	for i, a := range saved.Actors {
+		if a != nil {
+			ac := *a
+			actors[i] = &ac
+		}
+	}
 
-	return baseline, nil
+	// Copy timers
+	timers := make([]*MapTimer, len(saved.Timers))
+	for i, t := range saved.Timers {
+		if t != nil {
+			tc := *t
+			timers[i] = &tc
+		}
+	}
+
+	// Copy triggers
+	triggers := make([]*Trigger, len(saved.Triggers))
+	for i, tr := range saved.Triggers {
+		if tr != nil {
+			trc := *tr
+			triggers[i] = &trc
+		}
+	}
+
+	m := &Map{
+		Name:       saved.Name,
+		Width:      saved.Width,
+		Height:     saved.Height,
+		TileWidth:  saved.TileWidth,
+		TileHeight: saved.TileHeight,
+		FirstGID:   saved.FirstGID,
+		Tiles:      tiles,
+		Properties: saved.Properties,
+		Turn:       saved.Turn,
+		Actors:     actors,
+		Timers:     timers,
+		Triggers:   triggers,
+	}
+
+	return m, nil
 }
 
 // GetAllSaveSlotInfos inspects all 3 slots and returns their info.
@@ -297,6 +329,12 @@ func SaveGame(slot int, pretty bool) error {
 
 	// Save all loaded maps in memory
 	allMaps := GetAllLoadedMaps()
+	if wm := GetWorldMap(); wm != nil {
+		allMaps["world"] = wm
+	}
+	if cm := GetMap(); cm != nil {
+		allMaps[NormalizeMapName(cm.Name)] = cm
+	}
 	for name, m := range allMaps {
 		savedMap, err := m.ToSavedState()
 		if err != nil {
@@ -339,8 +377,10 @@ func LoadGame(slot int) error {
 		return fmt.Errorf("failed to unmarshal save file %s: %w", path, err)
 	}
 
-	// 1. Reset in-memory map cache
+	// 1. Reset in-memory map cache and pointers
 	ClearLoadedMaps()
+	SetWorldMap(nil)
+	SetMap(nil)
 
 	// 2. Restore all saved maps
 	for name, savedMap := range saveData.Maps {
@@ -350,12 +390,12 @@ func LoadGame(slot int) error {
 		}
 		SetLoadedMap(name, m)
 		if name == "world" || NormalizeMapName(name) == "world" {
-			defaultWorldMap = m
+			SetWorldMap(m)
 		}
 	}
 
-	// If world map was not loaded yet, preload baseline
-	if defaultWorldMap == nil {
+	// If world map was not loaded from save data, preload baseline
+	if GetWorldMap() == nil {
 		if _, err := PreloadWorldMap(); err != nil {
 			return fmt.Errorf("failed to preload world map: %w", err)
 		}

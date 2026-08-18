@@ -41,9 +41,9 @@ type TileSet struct {
 
 // MapTimer represents a scheduled timer on a map.
 type MapTimer struct {
-	RemainingTurns int
-	ScriptPath     string
-	Globals        map[string]interface{}
+	RemainingTurns int                    `json:"remaining_turns"`
+	ScriptPath     string                 `json:"script_path"`
+	Globals        map[string]interface{} `json:"globals"`
 }
 
 // Trigger represents an interactive or proximity trigger area on a map.
@@ -344,6 +344,37 @@ func LoadMap(name string) (*Map, error) {
 	return m, nil
 }
 
+// ReloadMap reloads a map from embedded data.FS if it is currently present in loadedMaps,
+// wiping out the existing map in loadedMaps.
+// If the named map is not in loadedMaps, it does nothing and returns (nil, nil).
+// If the current map was reloaded, it updates the current map pointer.
+// If the world map was reloaded, it updates the world map pointer.
+func ReloadMap(name string) (*Map, error) {
+	cleanName := NormalizeMapName(name)
+
+	existing, ok := loadedMaps[cleanName]
+	if !ok || existing == nil {
+		return nil, nil
+	}
+
+	newMap, err := loadMapFromTMX(cleanName)
+	if err != nil {
+		return nil, err
+	}
+
+	loadedMaps[cleanName] = newMap
+
+	if defaultMap != nil && (defaultMap == existing || NormalizeMapName(defaultMap.Name) == cleanName) {
+		SetMap(newMap)
+	}
+
+	if defaultWorldMap != nil && (defaultWorldMap == existing || NormalizeMapName(defaultWorldMap.Name) == cleanName || cleanName == "world") {
+		SetWorldMap(newMap)
+	}
+
+	return newMap, nil
+}
+
 // loadMapFromTMX parses a TMX map and instantiates initial actors, triggers, and tiles.
 func loadMapFromTMX(name string) (*Map, error) {
 	if len(actorDefs) == 0 {
@@ -508,13 +539,6 @@ func loadMapFromTMX(name string) (*Map, error) {
 		}
 	}
 
-	defaultMap = m
-	cleanName := strings.TrimSuffix(name, ".tmx")
-	cleanName = strings.TrimPrefix(cleanName, "data/")
-	cleanName = strings.TrimPrefix(cleanName, "maps/")
-	if cleanName == "world" {
-		SetWorldMap(m)
-	}
 	return m, nil
 }
 

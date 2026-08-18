@@ -442,3 +442,78 @@ game.exec_map_script("intro")
 	}
 }
 
+func TestGameReloadMapFunction(t *testing.T) {
+	if err := InitScriptSystem(); err != nil {
+		t.Fatalf("InitScriptSystem failed: %v", err)
+	}
+
+	ClearLoadedMaps()
+
+	// 1. Calling game.reload_map on an unloaded map does nothing
+	scriptSrc1 := `
+game := import("game")
+game.reload_map("home")
+`
+	s1 := tengo.NewScript([]byte(scriptSrc1))
+	s1.SetImports(moduleMap)
+	c1, err := s1.Compile()
+	if err != nil {
+		t.Fatalf("Compile failed: %v", err)
+	}
+	if err := c1.Run(); err != nil {
+		t.Fatalf("Run failed: %v", err)
+	}
+	if len(GetAllLoadedMaps()) != 0 {
+		t.Errorf("Expected no maps loaded, got %d", len(GetAllLoadedMaps()))
+	}
+
+	// 2. Load "home" map via game.load_map, modify a tile via game.set_map_tile, then reload via game.reload_map
+	scriptSrc2 := `
+game := import("game")
+game.load_map("home")
+game.set_map_tile(2, 2, 999)
+`
+	s2 := tengo.NewScript([]byte(scriptSrc2))
+	s2.SetImports(moduleMap)
+	c2, err := s2.Compile()
+	if err != nil {
+		t.Fatalf("Compile failed: %v", err)
+	}
+	if err := c2.Run(); err != nil {
+		t.Fatalf("Run failed: %v", err)
+	}
+
+	curMap := GetMap()
+	if curMap == nil {
+		t.Fatalf("Expected map to be loaded")
+	}
+	if curMap.GetTile(2, 2) != 999 {
+		t.Fatalf("Expected tile at (2, 2) to be 999, got %d", curMap.GetTile(2, 2))
+	}
+
+	scriptSrc3 := `
+game := import("game")
+game.reload_map("home")
+`
+	s3 := tengo.NewScript([]byte(scriptSrc3))
+	s3.SetImports(moduleMap)
+	c3, err := s3.Compile()
+	if err != nil {
+		t.Fatalf("Compile failed: %v", err)
+	}
+	if err := c3.Run(); err != nil {
+		t.Fatalf("Run failed: %v", err)
+	}
+
+	reloadedMap := GetMap()
+	if reloadedMap == nil {
+		t.Fatalf("Expected reloaded map to be current map")
+	}
+	if reloadedMap == curMap {
+		t.Errorf("Expected new map instance after reload")
+	}
+	if reloadedMap.GetTile(2, 2) == 999 {
+		t.Errorf("Expected tile at (2, 2) to be reset to original, got 999")
+	}
+}
+

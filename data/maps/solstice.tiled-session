@@ -16,11 +16,11 @@
             }
         },
         "kings_shrine.tmx": {
-            "scale": 8,
+            "scale": 2,
             "selectedLayer": 0,
             "viewCenter": {
-                "x": 246.875,
-                "y": 247.125
+                "x": 247,
+                "y": 350.5
             }
         },
         "tileset.tsx": {

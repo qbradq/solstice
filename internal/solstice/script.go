@@ -254,6 +254,23 @@ func InitScriptSystem() error {
 				return tengo.UndefinedValue, nil
 			},
 		},
+		"reload_map": &tengo.UserFunction{
+			Name: "reload_map",
+			Value: func(args ...tengo.Object) (tengo.Object, error) {
+				if len(args) < 1 {
+					return tengo.UndefinedValue, fmt.Errorf("reload_map requires 1 argument: name")
+				}
+				mapName, ok := tengo.ToString(args[0])
+				if !ok {
+					return tengo.UndefinedValue, fmt.Errorf("reload_map argument must be a string")
+				}
+				_, err := ReloadMap(mapName)
+				if err != nil {
+					return tengo.UndefinedValue, fmt.Errorf("failed to reload map %s: %w", mapName, err)
+				}
+				return tengo.UndefinedValue, nil
+			},
+		},
 		"teleport_party": &tengo.UserFunction{
 			Name: "teleport_party",
 			Value: func(args ...tengo.Object) (tengo.Object, error) {

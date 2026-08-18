@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<map version="1.10" tiledversion="1.12.2" orientation="orthogonal" renderorder="right-down" width="128" height="128" tilewidth="16" tileheight="16" infinite="0" nextlayerid="4" nextobjectid="17">
+<map version="1.10" tiledversion="1.12.2" orientation="orthogonal" renderorder="right-down" width="128" height="128" tilewidth="16" tileheight="16" infinite="0" nextlayerid="4" nextobjectid="19">
  <tileset firstgid="1" source="tileset.tsx"/>
  <layer id="1" name="Tile Layer 1" width="128" height="128">
   <data encoding="csv">
@@ -141,6 +141,12 @@
    </properties>
   </object>
   <object id="16" name="trigger:kings_shrine" x="87" y="1353">
+   <properties>
+    <property name="on_enter" type="bool" value="true"/>
+    <property name="script" value="triggers/enter_kings_shrine.tengo"/>
+   </properties>
+  </object>
+  <object id="18" name="trigger:onlet" x="200" y="1350.5">
    <properties>
     <property name="on_enter" type="bool" value="true"/>
     <property name="script" value="triggers/enter_kings_shrine.tengo"/>

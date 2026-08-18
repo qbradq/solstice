@@ -2,6 +2,7 @@ package solstice
 
 import (
 	"encoding/json"
+	"image"
 	"os"
 	"strings"
 	"testing"
@@ -37,6 +38,10 @@ func TestSaveAndLoadGame(t *testing.T) {
 	if err != nil {
 		t.Fatalf("PreloadWorldMap failed: %v", err)
 	}
+	// Modify world map tile and add actor to verify world map save/load
+	wm.SetTile(20, 20, 77)
+	wmActor := NewActor("world-guard", 21, 21, "guard")
+	wm.AddActor(wmActor)
 
 	homeMap, err := LoadMap("home")
 	if err != nil {
@@ -136,9 +141,17 @@ func TestSaveAndLoadGame(t *testing.T) {
 		t.Errorf("Expected restored actor at (12, 14), got %v", restoredActor)
 	}
 
-	// Verify world map was also restored
-	if GetWorldMap() == nil && wm == nil {
-		t.Error("Expected world map to be restored")
+	// Verify world map was also restored from save data
+	restoredWM := GetWorldMap()
+	if restoredWM == nil {
+		t.Fatal("Expected world map to be restored")
+	}
+	if restoredWM.GetTile(20, 20) != 77 {
+		t.Errorf("Expected restored world map tile at (20, 20) to be 77, got %d", restoredWM.GetTile(20, 20))
+	}
+	restoredWMActor := restoredWM.GetActorByID("world-guard")
+	if restoredWMActor == nil || restoredWMActor.X != 21 || restoredWMActor.Y != 21 {
+		t.Errorf("Expected restored world map actor 'world-guard' at (21, 21), got %v", restoredWMActor)
 	}
 }
 
@@ -305,8 +318,87 @@ func TestMainMenuModeSaveAndLoadOptions(t *testing.T) {
 	if !menu.options[0].Enabled {
 		t.Errorf("Expected 'Load Game' to be enabled after saving, got %+v", menu.options[0])
 	}
+}
 
-	// Test SlotSelectMode
+func TestMapStateLoadedEntirelyFromSaveWithoutTMX(t *testing.T) {
+	setupTestEnvironment(t)
+	ClearLoadedMaps()
+	ClearAllFlags()
+
+	// Load "home" map
+	homeMap, err := LoadMap("home")
+	if err != nil {
+		t.Fatalf("LoadMap('home') failed: %v", err)
+	}
+	SetMap(homeMap)
+
+	// Remove any baseline TMX actors and set a custom actor and trigger
+	homeMap.Actors = nil
+	homeMap.AddActor(NewActor("save-only-actor", 1, 1, "wizard"))
+
+	homeMap.Triggers = nil
+	customTrig := &Trigger{
+		ID:         99,
+		Name:       "save-only-trigger",
+		Area:       image.Rect(2, 2, 3, 3),
+		ScriptPath: "custom.tengo",
+		OnStep:     true,
+	}
+	homeMap.AddTrigger(customTrig)
+
+	party, err := NewParty(1, 1)
+	if err != nil {
+		t.Fatalf("NewParty failed: %v", err)
+	}
+	SetParty(party)
+
+	// Save to slot 1
+	if err := SaveGame(1, false); err != nil {
+		t.Fatalf("SaveGame failed: %v", err)
+	}
+
+	// Reset in-memory state
+	ClearLoadedMaps()
+	SetParty(nil)
+	SetMap(nil)
+	SetWorldMap(nil)
+
+	// Load game from slot 1
+	if err := LoadGame(1); err != nil {
+		t.Fatalf("LoadGame failed: %v", err)
+	}
+
+	loadedMap := GetMap()
+	if loadedMap == nil {
+		t.Fatalf("Expected current map to be loaded")
+	}
+
+	// Verify that actors are strictly what was saved (baseline TMX actors are NOT re-added)
+	if len(loadedMap.Actors) != 1 {
+		t.Fatalf("Expected exactly 1 actor from save file, got %d", len(loadedMap.Actors))
+	}
+	if loadedMap.Actors[0].ID != "save-only-actor" {
+		t.Errorf("Expected actor 'save-only-actor', got %q", loadedMap.Actors[0].ID)
+	}
+
+	// Verify triggers are strictly what was saved
+	if len(loadedMap.Triggers) != 1 {
+		t.Fatalf("Expected exactly 1 trigger from save file, got %d", len(loadedMap.Triggers))
+	}
+	if loadedMap.Triggers[0].Name != "save-only-trigger" {
+		t.Errorf("Expected trigger 'save-only-trigger', got %q", loadedMap.Triggers[0].Name)
+	}
+}
+
+// Test SlotSelectMode
+func TestSlotSelectMode(t *testing.T) {
+	setupTestEnvironment(t)
+	homeMap, _ := LoadMap("home")
+	SetMap(homeMap)
+	party, _ := NewParty(5, 5)
+	SetParty(party)
+	_ = SaveGame(1, false)
+
 	slotMode := NewSlotSelectMode(SlotActionLoad)
 	if len(slotMode.slots) != 3 {
 		t.Fatalf("Expected 3 slots in SlotSelectMode, got %d", len(slotMode.slots))

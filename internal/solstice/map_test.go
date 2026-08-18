@@ -563,4 +563,70 @@ func TestTriggersAndWizardMode(t *testing.T) {
 	SetWizardMode(false)
 }
 
+func TestReloadMap(t *testing.T) {
+	ClearLoadedMaps()
+
+	// 1. If named map is not in loaded maps set, don't load it
+	reloaded, err := ReloadMap("home")
+	if err != nil {
+		t.Fatalf("ReloadMap on unloaded map returned error: %v", err)
+	}
+	if reloaded != nil {
+		t.Errorf("Expected nil when reloading unloaded map, got %v", reloaded)
+	}
+	allLoaded := GetAllLoadedMaps()
+	if len(allLoaded) != 0 {
+		t.Errorf("Expected loaded maps set to remain empty, got %d maps", len(allLoaded))
+	}
+
+	// 2. Load "home" map and modify it
+	homeMap, err := LoadMap("home")
+	if err != nil {
+		t.Fatalf("LoadMap('home') failed: %v", err)
+	}
+	SetMap(homeMap)
+
+	originalTile := homeMap.GetTile(5, 5)
+	homeMap.SetTile(5, 5, 999)
+	if homeMap.GetTile(5, 5) != 999 {
+		t.Fatalf("Failed to modify tile for test")
+	}
+
+	// Reload "home" map
+	newHomeMap, err := ReloadMap("home")
+	if err != nil {
+		t.Fatalf("ReloadMap('home') failed: %v", err)
+	}
+	if newHomeMap == nil {
+		t.Fatalf("Expected non-nil reloaded map")
+	}
+	if newHomeMap == homeMap {
+		t.Errorf("Expected new map instance, got same instance")
+	}
+	if newHomeMap.GetTile(5, 5) != originalTile {
+		t.Errorf("Expected tile at (5, 5) to be restored to %d, got %d", originalTile, newHomeMap.GetTile(5, 5))
+	}
+	if GetMap() != newHomeMap {
+		t.Errorf("Expected current map pointer to be updated to newHomeMap")
+	}
+
+	// 3. World map reload updates world map pointer
+	worldMap, err := LoadMap("world")
+	if err != nil {
+		t.Fatalf("LoadMap('world') failed: %v", err)
+	}
+	SetWorldMap(worldMap)
+
+	newWorldMap, err := ReloadMap("world")
+	if err != nil {
+		t.Fatalf("ReloadMap('world') failed: %v", err)
+	}
+	if newWorldMap == nil {
+		t.Fatalf("Expected non-nil reloaded world map")
+	}
+	if GetWorldMap() != newWorldMap {
+		t.Errorf("Expected world map pointer to be updated to newWorldMap")
+	}
+}
+
 
