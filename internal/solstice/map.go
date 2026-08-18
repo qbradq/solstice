@@ -664,12 +664,24 @@ func (m *Map) AddTimer(delayTurns int, scriptPath string, globals map[string]int
 }
 
 // AdvanceTurn simulates one game turn within the current map.
-// Decrements all active map timers and executes any timers that expire.
+// Increments turn counter, runs idle AI scripts for actors when not in combat,
+// decrements all active map timers, and executes any timers that expire.
 func (m *Map) AdvanceTurn() {
 	if m == nil {
 		return
 	}
 	m.Turn++
+
+	// Run idle scripts on actors if not in combat
+	if !IsInCombat() && len(m.Actors) > 0 {
+		actors := make([]*Actor, len(m.Actors))
+		copy(actors, m.Actors)
+		for _, actor := range actors {
+			if actor != nil && actor.IdleScript != "" {
+				_ = RunActorAIScript(actor, actor.IdleScript)
+			}
+		}
+	}
 
 	if len(m.Timers) == 0 {
 		return
@@ -692,6 +704,53 @@ func (m *Map) AdvanceTurn() {
 	for _, timer := range expiredTimers {
 		_ = ExecuteScriptWithGlobals(timer.ScriptPath, timer.Globals)
 	}
+}
+
+// IsWalkable returns true if the tile at (x, y) is within map bounds and has the Walkable tile property.
+func (m *Map) IsWalkable(x, y int) bool {
+	if m == nil || x < 0 || x >= m.Width || y < 0 || y >= m.Height {
+		return false
+	}
+	tileIdx := m.GetTile(x, y)
+	return GetTileProperties(tileIdx).Walkable
+}
+
+// CanActorMoveTo returns true if an actor can step into tile (x, y).
+// It verifies the tile is within bounds, is walkable, is not occupied by another actor,
+// and is not occupied by the party (when not in combat mode).
+func (m *Map) CanActorMoveTo(x, y int) bool {
+	if m == nil || x < 0 || x >= m.Width || y < 0 || y >= m.Height {
+		return false
+	}
+	if !m.IsWalkable(x, y) {
+		return false
+	}
+	if m.HasActorAt(x, y) {
+		return false
+	}
+	if !IsInCombat() {
+		p := GetParty()
+		if p != nil && p.X == x && p.Y == y {
+			return false
+		}
+	}
+	return true
+}
+
+// MoveActor moves an actor by (dx, dy) if the target tile is walkable and unoccupied.
+// Returns true if movement succeeded, or false if blocked.
+func (m *Map) MoveActor(actor *Actor, dx, dy int) bool {
+	if m == nil || actor == nil || (dx == 0 && dy == 0) {
+		return false
+	}
+	targetX := actor.X + dx
+	targetY := actor.Y + dy
+	if !m.CanActorMoveTo(targetX, targetY) {
+		return false
+	}
+	actor.X = targetX
+	actor.Y = targetY
+	return true
 }
 
 // ExecuteTileUseScript executes the use_script for the tile at tile coordinates (x, y) if defined.
@@ -1039,7 +1098,7 @@ func (m *Map) DrawCenteredAt(dst *ebiten.Image, assets *Assets, p *Party, scale 
 		}
 	}
 
-	// 3. Render party (in combat mode, render individual members with current member on top; in party mode, render aggregate party sprite)
+	// 3. Render party (in combat mode: re-render the current party member on top; in party mode: render aggregate party sprite)
 	if p != nil {
 		if IsInCombat() && len(p.Members) > 0 {
 			curIdx := GetCombatMemberIndex()
@@ -1047,26 +1106,7 @@ func (m *Map) DrawCenteredAt(dst *ebiten.Image, assets *Assets, p *Party, scale 
 				curIdx = 0
 			}
 
-			// Draw non-current members first
-			for i := range p.Members {
-				if i == curIdx {
-					continue
-				}
-				member := &p.Members[i]
-				stx := centerStx + (member.X - centerX)
-				sty := centerSty + (member.Y - centerY)
-
-				if stx >= 0 && stx < cols && sty >= 0 && sty < rows && isTileVisible(stx, sty) {
-					half := false
-					if m != nil {
-						tileIdx := m.GetTile(member.X, member.Y)
-						half = GetTileProperties(tileIdx).ActorHalfSprite
-					}
-					assets.DrawSpriteDefHalf(dst, member.SpriteDef, stx, sty, scale, half)
-				}
-			}
-
-			// Draw current party member last (displayed on top)
+			// Re-render current party member on top
 			curMember := &p.Members[curIdx]
 			stx := centerStx + (curMember.X - centerX)
 			sty := centerSty + (curMember.Y - centerY)

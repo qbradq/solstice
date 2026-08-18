@@ -10,6 +10,7 @@ import (
 	"solstice/data"
 
 	"github.com/d5/tengo/v2"
+	"github.com/justinian/dice"
 )
 
 var (
@@ -18,7 +19,39 @@ var (
 	rawScriptSources = make(map[string][]byte)
 	gameState        = make(map[string]bool)
 	dialogEnded      bool
+	currentAIActor   *Actor
 )
+
+// GetCurrentAIActor returns the actor whose AI script is currently executing.
+func GetCurrentAIActor() *Actor {
+	return currentAIActor
+}
+
+// SetCurrentAIActor sets the actor whose AI script is currently executing.
+func SetCurrentAIActor(a *Actor) {
+	currentAIActor = a
+}
+
+// RunActorAIScript executes an AI script for the specified actor with runtime globals actor_id, tile_x, and tile_y.
+func RunActorAIScript(actor *Actor, scriptPath string) error {
+	if actor == nil || scriptPath == "" {
+		return nil
+	}
+
+	prevActor := currentAIActor
+	currentAIActor = actor
+	defer func() {
+		currentAIActor = prevActor
+	}()
+
+	globals := map[string]interface{}{
+		"actor_id": actor.ID,
+		"tile_x":   actor.X,
+		"tile_y":   actor.Y,
+	}
+
+	return ExecuteScriptWithGlobals(scriptPath, globals)
+}
 
 // EndDialog flags the active dialog to terminate.
 func EndDialog() {
@@ -234,6 +267,23 @@ func InitScriptSystem() error {
 				}
 				idx := rand.Intn(len(args))
 				return args[idx], nil
+			},
+		},
+		"roll": &tengo.UserFunction{
+			Name: "roll",
+			Value: func(args ...tengo.Object) (tengo.Object, error) {
+				if len(args) < 1 {
+					return tengo.UndefinedValue, fmt.Errorf("roll requires 1 argument: expression")
+				}
+				expr, ok := tengo.ToString(args[0])
+				if !ok {
+					return tengo.UndefinedValue, fmt.Errorf("roll argument must be a string")
+				}
+				res, _, err := dice.Roll(expr)
+				if err != nil {
+					return tengo.UndefinedValue, fmt.Errorf("roll error for %q: %w", expr, err)
+				}
+				return &tengo.Int{Value: int64(res.Int())}, nil
 			},
 		},
 		"load_map": &tengo.UserFunction{
@@ -789,6 +839,86 @@ func InitScriptSystem() error {
 		},
 	}
 	moduleMap.AddBuiltinModule("fmt", fmtModule)
+
+	// Register builtin "ai" module
+	aiModule := map[string]tengo.Object{
+		"get_nearest_party_member": &tengo.UserFunction{
+			Name: "get_nearest_party_member",
+			Value: func(args ...tengo.Object) (tengo.Object, error) {
+				if len(args) < 2 {
+					return tengo.UndefinedValue, fmt.Errorf("get_nearest_party_member requires 2 arguments: x, y")
+				}
+				x, ok1 := tengo.ToInt(args[0])
+				y, ok2 := tengo.ToInt(args[1])
+				if !ok1 || !ok2 {
+					return tengo.UndefinedValue, fmt.Errorf("get_nearest_party_member arguments must be integers")
+				}
+
+				party := GetParty()
+				if party == nil || len(party.Members) == 0 {
+					return &tengo.String{Value: ""}, nil
+				}
+
+				nearestID := ""
+				minDistSq := -1
+				for i := range party.Members {
+					m := &party.Members[i]
+					dx := m.X - x
+					dy := m.Y - y
+					distSq := dx*dx + dy*dy
+					if minDistSq == -1 || distSq < minDistSq {
+						minDistSq = distSq
+						nearestID = m.ID
+					}
+				}
+
+				return &tengo.String{Value: nearestID}, nil
+			},
+		},
+		"step": &tengo.UserFunction{
+			Name: "step",
+			Value: func(args ...tengo.Object) (tengo.Object, error) {
+				if len(args) < 1 {
+					return tengo.UndefinedValue, fmt.Errorf("step requires 1 argument: direction")
+				}
+				dir, ok := tengo.ToString(args[0])
+				if !ok {
+					return tengo.UndefinedValue, fmt.Errorf("step argument must be a string")
+				}
+
+				actor := GetCurrentAIActor()
+				if actor == nil {
+					return tengo.UndefinedValue, fmt.Errorf("no active AI actor context for step")
+				}
+
+				m := GetMap()
+				if m == nil {
+					return tengo.UndefinedValue, fmt.Errorf("no active map")
+				}
+
+				dx, dy := 0, 0
+				switch strings.ToLower(dir) {
+				case "n", "north", "up":
+					dy = -1
+				case "s", "south", "down":
+					dy = 1
+				case "e", "east", "right":
+					dx = 1
+				case "w", "west", "left":
+					dx = -1
+				default:
+					return tengo.UndefinedValue, fmt.Errorf("invalid direction %q (expected n, e, s, w)", dir)
+				}
+
+				moved := m.MoveActor(actor, dx, dy)
+				if moved {
+					return tengo.TrueValue, nil
+				}
+				return tengo.FalseValue, nil
+			},
+		},
+	}
+	moduleMap.AddBuiltinModule("ai", aiModule)
 
 	// Walk data/scripts directory in embedded data.FS
 	root := "scripts"

@@ -82,6 +82,7 @@
         "name": "Lillian",
         "sprite": "wizard",
         "dialog_script": "dialog/lillian.tengo",
+        "idle_script": "ai/idle/wander.tengo",
         "level": 3,
         "experience": 8000,
         "strength": 8,

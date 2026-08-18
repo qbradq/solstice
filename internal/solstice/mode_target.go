@@ -161,40 +161,65 @@ func (tm *TargetMode) Draw(g *Game, screen *ebiten.Image) {
 		scale = 2
 	}
 
-	// 1. Draw the map view area centered on targetting cursor position
-	if g.currentMap != nil {
-		g.currentMap.DrawCenteredAt(screen, g.assets, g.party, scale, tm.cursorX, tm.cursorY)
+	centerX := 16
+	centerY := 16
+	if g.party != nil {
+		if IsInCombat() && len(g.party.Members) > 0 {
+			curIdx := GetCombatMemberIndex()
+			if curIdx >= len(g.party.Members) {
+				curIdx = 0
+			}
+			centerX = g.party.Members[curIdx].X
+			centerY = g.party.Members[curIdx].Y
+		} else {
+			centerX = g.party.X
+			centerY = g.party.Y
+		}
 	}
 
-	// 2. Render targeting cursor border on center cell of map view area (352x352)
+	// 1. Draw the map view area (map tiles, actors, and party/members centered on party or active member)
+	if g.currentMap != nil {
+		g.currentMap.DrawCentered(screen, g.assets, g.party, scale)
+	}
+
+	// 2. Render targeting cursor border relative to the camera center
 	centerStx := 5
 	centerSty := 5
+	cols := 11
+	rows := 11
 	if scale == 1 {
+		cols = 23
+		rows = 23
 		centerStx = 11
 		centerSty = 11
 	}
 
-	var px, py float32
-	if scale == 2 {
-		px = float32(centerStx * 32)
-		py = float32(centerSty * 32)
-	} else {
-		// Account for -8, -8 pixel offset when scale is 1
-		px = float32(-8 + centerStx*16)
-		py = float32(-8 + centerSty*16)
+	cursorStx := centerStx + (tm.cursorX - centerX)
+	cursorSty := centerSty + (tm.cursorY - centerY)
+
+	if cursorStx >= 0 && cursorStx < cols && cursorSty >= 0 && cursorSty < rows {
+		var px, py float32
+		if scale == 2 {
+			px = float32(cursorStx * 32)
+			py = float32(cursorSty * 32)
+		} else {
+			// Account for -8, -8 pixel offset when scale is 1
+			px = float32(-8 + cursorStx*16)
+			py = float32(-8 + cursorSty*16)
+		}
+
+		sz := float32(16 * scale)
+		bw := float32(scale) // Border width: 2px at scale 2, 1px at scale 1
+
+		mapView := screen.SubImage(image.Rect(0, 0, 352, 352)).(*ebiten.Image)
+		cursorColor := VGAPalette16[tm.colorIdx]
+
+		// Border rectangle around the target tile with thickness bw
+		vector.FillRect(mapView, px, py, sz, bw, cursorColor, false)      // Top
+		vector.FillRect(mapView, px, py+sz-bw, sz, bw, cursorColor, false) // Bottom
+		vector.FillRect(mapView, px, py, bw, sz, cursorColor, false)      // Left
+		vector.FillRect(mapView, px+sz-bw, py, bw, sz, cursorColor, false) // Right
 	}
-
-	sz := float32(16 * scale)
-	bw := float32(scale) // Border width: 2px at scale 2, 1px at scale 1
-
-	mapView := screen.SubImage(image.Rect(0, 0, 352, 352)).(*ebiten.Image)
-	cursorColor := VGAPalette16[tm.colorIdx]
-
-	// Border rectangle around the target tile with thickness bw
-	vector.FillRect(mapView, px, py, sz, bw, cursorColor, false)      // Top
-	vector.FillRect(mapView, px, py+sz-bw, sz, bw, cursorColor, false) // Bottom
-	vector.FillRect(mapView, px, py, bw, sz, cursorColor, false)      // Left
-	vector.FillRect(mapView, px+sz-bw, py, bw, sz, cursorColor, false) // Right
 
 	// 3. Draw common UI (party roster area and terminal UI)
 	DrawCommonUI(screen, g.assets, g.party, g.terminal)

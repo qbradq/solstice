@@ -26,14 +26,20 @@ func SetCombatMemberIndex(idx int) {
 }
 
 // StartCombat transitions the game from party mode to combat mode.
-// It sets the starting position of each party member to the party's position (allowing them to overlap)
-// and sets the active party member to the first party member (index 0).
+// It sets the starting position of each party member to the party's position (allowing them to overlap),
+// adds the party member actors to the current active map, and sets the active party member to the first member (index 0).
 func StartCombat() {
 	p := GetParty()
+	m := GetMap()
 	if p != nil {
 		for i := range p.Members {
 			p.Members[i].X = p.X
 			p.Members[i].Y = p.Y
+			if m != nil {
+				if m.GetActorByID(p.Members[i].ID) == nil {
+					m.AddActor(&p.Members[i])
+				}
+			}
 		}
 	}
 	combatMemberIndex = 0
@@ -41,10 +47,17 @@ func StartCombat() {
 }
 
 // StopCombat transitions the game from combat mode back to party mode.
-// It sets the party's position to the first party member's location and disables combat mode.
+// It removes party member actors from the active map, sets the party's position to the first
+// party member's location, and disables combat mode.
 func StopCombat() {
 	p := GetParty()
+	m := GetMap()
 	if p != nil && len(p.Members) > 0 {
+		if m != nil {
+			for i := range p.Members {
+				m.RemoveActorByID(p.Members[i].ID)
+			}
+		}
 		p.X = p.Members[0].X
 		p.Y = p.Members[0].Y
 	}
@@ -68,11 +81,59 @@ func AdvanceCombatMember(g *Game) {
 	}
 }
 
-// RunCombatAI runs the combat AI for every actor on the map for one turn (stubbed for now).
+// RunCombatAI runs the combat AI for every actor on the map for one turn.
 func RunCombatAI(g *Game) {
+	m := GetMap()
 	if g != nil && g.currentMap != nil {
-		g.currentMap.AdvanceTurn()
-	} else if m := GetMap(); m != nil {
-		m.AdvanceTurn()
+		m = g.currentMap
+	}
+	if m == nil {
+		return
+	}
+
+	m.Turn++
+
+	// Run combat scripts for non-party actors
+	p := GetParty()
+	isPartyMember := func(id string) bool {
+		if p == nil {
+			return false
+		}
+		for i := range p.Members {
+			if p.Members[i].ID == id {
+				return true
+			}
+		}
+		return false
+	}
+
+	for _, actor := range m.Actors {
+		if actor == nil || isPartyMember(actor.ID) {
+			continue
+		}
+		if actor.CombatScript != "" {
+			_ = RunActorAIScript(actor, actor.CombatScript)
+		}
+	}
+
+	// Advance map timers
+	if len(m.Timers) > 0 {
+		activeTimers := make([]*MapTimer, 0, len(m.Timers))
+		expiredTimers := make([]*MapTimer, 0)
+
+		for _, timer := range m.Timers {
+			timer.RemainingTurns--
+			if timer.RemainingTurns <= 0 {
+				expiredTimers = append(expiredTimers, timer)
+			} else {
+				activeTimers = append(activeTimers, timer)
+			}
+		}
+
+		m.Timers = activeTimers
+
+		for _, timer := range expiredTimers {
+			_ = ExecuteScriptWithGlobals(timer.ScriptPath, timer.Globals)
+		}
 	}
 }

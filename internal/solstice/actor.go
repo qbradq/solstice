@@ -13,6 +13,8 @@ type ActorDef struct {
 	Name           string `json:"name"`
 	Sprite         string `json:"sprite"`        // Key into sprites.json
 	DialogScript   string `json:"dialog_script"` // Path to dialog script
+	IdleScript     string `json:"idle_script,omitempty"`
+	CombatScript   string `json:"combat_script,omitempty"`
 	Experience     int    `json:"experience"`
 	Level          int    `json:"level"`
 	Strength       int    `json:"strength"`
@@ -29,7 +31,9 @@ type ActorDef struct {
 type Actor struct {
 	Entity
 	ID             string `json:"id"`
-	DialogScript   string `json:"dialog_script"`
+	DialogScript   string `json:"dialog_script,omitempty"`
+	IdleScript     string `json:"idle_script,omitempty"`
+	CombatScript   string `json:"combat_script,omitempty"`
 	Experience     int    `json:"experience"`
 	Level          int    `json:"level"`
 	Strength       int    `json:"strength"`
@@ -110,6 +114,8 @@ func NewActorFromDef(id string, defKey string, x, y int) (*Actor, error) {
 		actor.Name = def.Name
 	}
 	actor.DialogScript = def.DialogScript
+	actor.IdleScript = def.IdleScript
+	actor.CombatScript = def.CombatScript
 	actor.Experience = def.Experience
 	actor.Level = def.Level
 	if actor.Level == 0 {

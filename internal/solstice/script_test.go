@@ -610,3 +610,155 @@ game.add_to_party("lillian")
 	}
 }
 
+func TestGameRoll(t *testing.T) {
+	if err := InitScriptSystem(); err != nil {
+		t.Fatalf("InitScriptSystem failed: %v", err)
+	}
+
+	scriptSrc := `
+game := import("game")
+roll1 := game.roll("1d4")
+roll2 := game.roll("10d1+5")
+`
+	s := tengo.NewScript([]byte(scriptSrc))
+	s.SetImports(moduleMap)
+	c, err := s.Compile()
+	if err != nil {
+		t.Fatalf("Compile failed: %v", err)
+	}
+	if err := c.Run(); err != nil {
+		t.Fatalf("Run failed: %v", err)
+	}
+
+	roll1 := c.Get("roll1").Int()
+	if roll1 < 1 || roll1 > 4 {
+		t.Errorf("Expected roll1 in [1, 4], got %d", roll1)
+	}
+
+	roll2 := c.Get("roll2").Int()
+	if roll2 != 15 {
+		t.Errorf("Expected roll2 to be 15, got %d", roll2)
+	}
+}
+
+func TestAIModule(t *testing.T) {
+	if _, err := PreloadTileSet(); err != nil {
+		t.Fatalf("PreloadTileSet failed: %v", err)
+	}
+	if err := InitScriptSystem(); err != nil {
+		t.Fatalf("InitScriptSystem failed: %v", err)
+	}
+
+	homeMap, err := LoadMap("home")
+	if err != nil {
+		t.Fatalf("LoadMap failed: %v", err)
+	}
+	SetMap(homeMap)
+
+	m1, _ := NewActorFromDef("hero1", "kevin", 0, 0)
+	m2, _ := NewActorFromDef("hero2", "wizard", 0, 0)
+	party, err := NewParty(10, 10, *m1, *m2)
+	if err != nil {
+		t.Fatalf("NewParty failed: %v", err)
+	}
+	party.Members[0].X = 10
+	party.Members[0].Y = 10
+	party.Members[1].X = 20
+	party.Members[1].Y = 20
+	SetParty(party)
+
+	// 1. Test get_nearest_party_member
+	scriptSrc1 := `
+ai := import("ai")
+near1 := ai.get_nearest_party_member(9, 9)
+near2 := ai.get_nearest_party_member(21, 20)
+`
+	s1 := tengo.NewScript([]byte(scriptSrc1))
+	s1.SetImports(moduleMap)
+	c1, err := s1.Compile()
+	if err != nil {
+		t.Fatalf("Compile failed: %v", err)
+	}
+	if err := c1.Run(); err != nil {
+		t.Fatalf("Run failed: %v", err)
+	}
+
+	if c1.Get("near1").String() != "hero1" {
+		t.Errorf("Expected near1 to be 'hero1', got %q", c1.Get("near1").String())
+	}
+	if c1.Get("near2").String() != "hero2" {
+		t.Errorf("Expected near2 to be 'hero2', got %q", c1.Get("near2").String())
+	}
+
+	// 2. Test ai.step(dir)
+	testActor := NewActor("test_actor", 13, 12, "guard")
+	homeMap.AddActor(testActor)
+
+	scriptSrc2 := `
+ai := import("ai")
+res := ai.step("e")
+`
+	s2 := tengo.NewScript([]byte(scriptSrc2))
+	s2.SetImports(moduleMap)
+	_ = s2.Add("actor_id", "test_actor")
+	_ = s2.Add("tile_x", 13)
+	_ = s2.Add("tile_y", 12)
+	c2, err := s2.Compile()
+	if err != nil {
+		t.Fatalf("Compile failed: %v", err)
+	}
+
+	// Run with testActor as current AI actor
+	SetCurrentAIActor(testActor)
+	if err := c2.Run(); err != nil {
+		t.Fatalf("Run failed: %v", err)
+	}
+	SetCurrentAIActor(nil)
+
+	if testActor.X != 14 || testActor.Y != 12 {
+		t.Errorf("Expected testActor to move to (14, 12), got (%d, %d)", testActor.X, testActor.Y)
+	}
+}
+
+func TestActorIdleAndCombatScripts(t *testing.T) {
+	if err := InitScriptSystem(); err != nil {
+		t.Fatalf("InitScriptSystem failed: %v", err)
+	}
+
+	// Verify Lillian definition has idle_script set to "ai/idle/wander.tengo"
+	lillianDef, ok := GetActorDef("lillian")
+	if !ok {
+		t.Fatalf("Lillian actor definition not found")
+	}
+	if lillianDef.IdleScript != "ai/idle/wander.tengo" {
+		t.Errorf("Expected Lillian idle_script 'ai/idle/wander.tengo', got %q", lillianDef.IdleScript)
+	}
+
+	lillian, err := NewActorFromDef("lillian", "lillian", 15, 15)
+	if err != nil {
+		t.Fatalf("NewActorFromDef lillian failed: %v", err)
+	}
+	if lillian.IdleScript != "ai/idle/wander.tengo" {
+		t.Errorf("Expected lillian actor instance idle_script 'ai/idle/wander.tengo', got %q", lillian.IdleScript)
+	}
+
+	homeMap, err := LoadMap("home")
+	if err != nil {
+		t.Fatalf("LoadMap failed: %v", err)
+	}
+	SetMap(homeMap)
+	homeMap.AddActor(lillian)
+
+	party, err := NewParty(5, 5)
+	if err != nil {
+		t.Fatalf("NewParty failed: %v", err)
+	}
+	SetParty(party)
+
+	// Advance turn should execute Lillian's idle script (wander.tengo) without error
+	for i := 0; i < 10; i++ {
+		homeMap.AdvanceTurn()
+	}
+}
+
+

@@ -42,8 +42,21 @@ game := import("game")
 
 #### Logging, Timers & Utilities
 * `game.log(msg)`: Appends the string `msg` to the in-game terminal log.
+* `game.roll(expression)`: Evaluates a dice roll expression string (e.g. `"1d4"`, `"3d6+2"`) and returns the integer result.
 * `game.add_timer(delay_turns, script_name, [globals])`: Schedules a map timer that executes `script_name` after `delay_turns` turns on the current map with an optional map of injected global variables.
 * `game.random(args...)`: Returns one of the provided arguments at random.
+
+---
+
+### `ai` Module
+The `ai` module provides movement and targeting utilities for actor AI scripts.
+
+```golang
+ai := import("ai")
+```
+
+* `ai.get_nearest_party_member(x, y)`: Returns the ID string of the party member actor closest to coordinates `(x, y)` on the current map.
+* `ai.step(direction)`: Moves the executing AI actor by 1 tile in the specified direction (`"n"`, `"e"`, `"s"`, or `"w"`), respecting map boundaries, tile walkability, and actor collisions. Returns `true` if moved, `false` if blocked.
 
 ---
 
@@ -84,5 +97,7 @@ fmt := import("fmt")
 | **Tile Scripts** | `data/scripts/tile/` | `tile_x`, `tile_y`, `tile_idx` | Triggered when interacting with a tile having `use_script` |
 | **Trigger Scripts** | `data/scripts/triggers/` | `map_name`, `tile_x`, `tile_y`, `actor_id` | Triggered on step or enter into a map trigger zone |
 | **Dialog Scripts** | `data/scripts/dialog/` | `keyword` (input query), `reply` (output text) | Invoked during NPC conversation keyword responses |
+| **AI Scripts** | `data/scripts/ai/` | `actor_id`, `tile_x`, `tile_y` | Executed each turn per actor (idle scripts during normal play, combat scripts in combat) |
 | **Map Scripts** | `data/scripts/map/` | Context-dependent | Map setup and cutscene orchestration scripts |
 | **REPL Autoexec** | `data/scripts/repl/autoexec.tengo` | None | Run on REPL initialization/reset, pre-loading modules |
+

@@ -155,6 +155,14 @@ func (p *Party) HandleInput(m *Map) {
 		dx = 1
 	}
 
+	// Pass / Wait turn: Space, Period, Keypad 5
+	if inpututil.IsKeyJustPressed(ebiten.KeySpace) || inpututil.IsKeyJustPressed(ebiten.KeyPeriod) || inpututil.IsKeyJustPressed(ebiten.KeyKP5) {
+		if m != nil {
+			m.AdvanceTurn()
+		}
+		return
+	}
+
 	if dx != 0 || dy != 0 {
 		if m != nil {
 			m.MoveParty(p, dx, dy)

@@ -24,6 +24,12 @@ func TestCombatModeTransitions(t *testing.T) {
 	}
 	SetParty(party)
 
+	homeMap, err := LoadMap("home")
+	if err != nil {
+		t.Fatalf("LoadMap failed: %v", err)
+	}
+	SetMap(homeMap)
+
 	// Ensure initially not in combat
 	SetInCombat(false)
 	SetCombatMemberIndex(0)
@@ -43,6 +49,14 @@ func TestCombatModeTransitions(t *testing.T) {
 		t.Errorf("Expected member 1 at (10, 15), got (%d, %d)", party.Members[1].X, party.Members[1].Y)
 	}
 
+	// Verify party members were added to the map
+	if homeMap.GetActorByID("hero1") == nil {
+		t.Errorf("Expected hero1 to be added to map actors during combat")
+	}
+	if homeMap.GetActorByID("hero2") == nil {
+		t.Errorf("Expected hero2 to be added to map actors during combat")
+	}
+
 	// Move member 0 to (12, 18) and member 1 to (14, 19)
 	party.Members[0].X = 12
 	party.Members[0].Y = 18
@@ -57,6 +71,14 @@ func TestCombatModeTransitions(t *testing.T) {
 	// Party position should be set to first party member's location (12, 18)
 	if party.X != 12 || party.Y != 18 {
 		t.Errorf("Expected party position (12, 18) after StopCombat, got (%d, %d)", party.X, party.Y)
+	}
+
+	// Verify party members were removed from the map
+	if homeMap.GetActorByID("hero1") != nil {
+		t.Errorf("Expected hero1 to be removed from map actors after StopCombat")
+	}
+	if homeMap.GetActorByID("hero2") != nil {
+		t.Errorf("Expected hero2 to be removed from map actors after StopCombat")
 	}
 }
 
