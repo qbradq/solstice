@@ -24,6 +24,7 @@ type ActorDef struct {
 	HitPoints      int    `json:"hit_points"`
 	MaxMagicPoints int    `json:"max_magic_points"`
 	MagicPoints    int    `json:"magic_points"`
+	Move           int    `json:"move"`
 }
 
 // Actor represents an agent or character in the game world (NPC, monster, party member).
@@ -42,6 +43,7 @@ type Actor struct {
 	HitPoints      int    `json:"hit_points"`
 	MaxMagicPoints int    `json:"max_magic_points"`
 	MagicPoints    int    `json:"magic_points"`
+	Move           int    `json:"move"`
 }
 
 var actorDefs = make(map[string]ActorDef)
@@ -98,6 +100,7 @@ func NewActor(id string, x, y int, spriteName string) *Actor {
 			Y:         y,
 		},
 		Level: 1,
+		Move:  3,
 	}
 }
 
@@ -132,6 +135,10 @@ func NewActorFromDef(id string, defKey string, x, y int) (*Actor, error) {
 	actor.MagicPoints = def.MagicPoints
 	if actor.MagicPoints == 0 && actor.MaxMagicPoints > 0 {
 		actor.MagicPoints = actor.MaxMagicPoints
+	}
+	actor.Move = def.Move
+	if actor.Move == 0 {
+		actor.Move = 3
 	}
 	return actor, nil
 }

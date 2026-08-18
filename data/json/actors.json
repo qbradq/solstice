@@ -11,7 +11,8 @@
         "max_hit_points": 40,
         "hit_points": 40,
         "max_magic_points": 0,
-        "magic_points": 0
+        "magic_points": 0,
+        "move": 4
     },
     "wizard": {
         "name": "Wizard",
@@ -24,7 +25,8 @@
         "max_hit_points": 30,
         "hit_points": 30,
         "max_magic_points": 30,
-        "magic_points": 30
+        "magic_points": 30,
+        "move": 3
     },
     "warrior": {
         "name": "Warrior",
@@ -37,7 +39,8 @@
         "max_hit_points": 60,
         "hit_points": 60,
         "max_magic_points": 0,
-        "magic_points": 0
+        "magic_points": 0,
+        "move": 4
     },
     "peasant": {
         "name": "Peasant",
@@ -50,7 +53,8 @@
         "max_hit_points": 15,
         "hit_points": 15,
         "max_magic_points": 0,
-        "magic_points": 0
+        "magic_points": 0,
+        "move": 3
     },
     "duke_lafey": {
         "name": "Duke Lafey",
@@ -63,7 +67,8 @@
         "max_hit_points": 120,
         "hit_points": 120,
         "max_magic_points": 40,
-        "magic_points": 40
+        "magic_points": 40,
+        "move": 5
     },
     "kevin": {
         "name": "Kevin",
@@ -76,7 +81,8 @@
         "max_hit_points": 30,
         "hit_points": 30,
         "max_magic_points": 0,
-        "magic_points": 0
+        "magic_points": 0,
+        "move": 3
     },
     "lillian": {
         "name": "Lillian",
@@ -91,7 +97,8 @@
         "max_hit_points": 15,
         "hit_points": 15,
         "max_magic_points": 20,
-        "magic_points": 20
+        "magic_points": 20,
+        "move": 3
     },
     "rodent": {
         "name": "Rodent of Unusual Size",
@@ -105,6 +112,7 @@
         "max_hit_points": 15,
         "hit_points": 15,
         "max_magic_points": 0,
-        "magic_points": 0
+        "magic_points": 0,
+        "move": 5
     }
 }

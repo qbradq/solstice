@@ -127,13 +127,13 @@ func SetWorldMap(m *Map) {
 
 // XML structures for deserializing TSX tilesets
 type tsxTileset struct {
-	XMLName    xml.Name   `xml:"tileset"`
-	Name       string     `xml:"name,attr"`
-	TileWidth  int        `xml:"tilewidth,attr"`
-	TileHeight int        `xml:"tileheight,attr"`
-	TileCount  int        `xml:"tilecount,attr"`
-	Columns    int        `xml:"columns,attr"`
-	Tiles      []tsxTile  `xml:"tile"`
+	XMLName    xml.Name  `xml:"tileset"`
+	Name       string    `xml:"name,attr"`
+	TileWidth  int       `xml:"tilewidth,attr"`
+	TileHeight int       `xml:"tileheight,attr"`
+	TileCount  int       `xml:"tilecount,attr"`
+	Columns    int       `xml:"columns,attr"`
+	Tiles      []tsxTile `xml:"tile"`
 }
 
 type tsxTile struct {
@@ -1152,11 +1152,13 @@ func (m *Map) DrawCentered(dst *ebiten.Image, assets *Assets, p *Party, scale in
 		}
 	}
 
-	m.DrawCenteredAt(dst, assets, p, scale, centerX, centerY)
+	m.DrawCenteredAt(dst, assets, p, scale, centerX, centerY, centerX, centerY)
 }
 
-// DrawCenteredAt renders the map centered on specific tile coordinates (centerX, centerY) into the map view area.
-func (m *Map) DrawCenteredAt(dst *ebiten.Image, assets *Assets, p *Party, scale int, centerX, centerY int) {
+// DrawCenteredAt renders the map centered on specific tile coordinates (viewCenterX, viewCenterY) into the map view area,
+// with visibility field calculations centered on (visCenterX, visCenterY).
+// For areas outside the visibility field, they are treated as non-visible.
+func (m *Map) DrawCenteredAt(dst *ebiten.Image, assets *Assets, p *Party, scale int, viewCenterX, viewCenterY int, visCenterX, visCenterY int, highlights ...map[image.Point]bool) {
 	if assets == nil {
 		return
 	}
@@ -1177,24 +1179,17 @@ func (m *Map) DrawCenteredAt(dst *ebiten.Image, assets *Assets, p *Party, scale 
 		centerSty = 11
 	}
 
-	// Always calculate visibility using 11 for radius (23x23 area)
-	vis := m.CalculateVisibility(centerX, centerY, 11)
+	// Always calculate visibility using 11 for radius (23x23 area) centered on (visCenterX, visCenterY)
+	vis := m.CalculateVisibility(visCenterX, visCenterY, 11)
 
-	// Helper to check visibility for a screen tile (stx, sty)
-	isTileVisible := func(stx, sty int) bool {
+	// Helper to check visibility for map coordinates (mx, my)
+	isTileVisible := func(mx, my int) bool {
 		if vis == nil {
 			return false
 		}
-		if scale == 1 {
-			if stx >= 0 && stx < 23 && sty >= 0 && sty < 23 {
-				return vis.Test(uint(sty*23 + stx))
-			}
-			return false
-		}
-		// Scale 2: inner 11x11 portion corresponding to offsets -5..+5 -> lx = 6+stx, ly = 6+sty
-		if stx >= 0 && stx < 11 && sty >= 0 && sty < 11 {
-			lx := 6 + stx
-			ly := 6 + sty
+		lx := 11 + (mx - visCenterX)
+		ly := 11 + (my - visCenterY)
+		if lx >= 0 && lx < 23 && ly >= 0 && ly < 23 {
 			return vis.Test(uint(ly*23 + lx))
 		}
 		return false
@@ -1203,10 +1198,10 @@ func (m *Map) DrawCenteredAt(dst *ebiten.Image, assets *Assets, p *Party, scale 
 	// 1. Render map tiles
 	for sty := 0; sty < rows; sty++ {
 		for stx := 0; stx < cols; stx++ {
-			if isTileVisible(stx, sty) {
-				mx := centerX + (stx - centerStx)
-				my := centerY + (sty - centerSty)
+			mx := viewCenterX + (stx - centerStx)
+			my := viewCenterY + (sty - centerSty)
 
+			if isTileVisible(mx, my) {
 				if m != nil && mx >= 0 && mx < m.Width && my >= 0 && my < m.Height {
 					tileIdx := m.GetTile(mx, my)
 					if tileIdx == 157 && p != nil && p.X == mx && p.Y == my+1 {
@@ -1228,10 +1223,10 @@ func (m *Map) DrawCenteredAt(dst *ebiten.Image, assets *Assets, p *Party, scale 
 			if item == nil || item.SpriteDef.Tile <= 0 {
 				continue
 			}
-			stx := centerStx + (item.X - centerX)
-			sty := centerSty + (item.Y - centerY)
+			stx := centerStx + (item.X - viewCenterX)
+			sty := centerSty + (item.Y - viewCenterY)
 
-			if stx >= 0 && stx < cols && sty >= 0 && sty < rows && isTileVisible(stx, sty) {
+			if stx >= 0 && stx < cols && sty >= 0 && sty < rows && isTileVisible(item.X, item.Y) {
 				tileIdx := m.GetTile(item.X, item.Y)
 				props := GetTileProperties(tileIdx)
 				assets.DrawSpriteDefHalf(dst, item.SpriteDef, stx, sty, scale, props.ActorHalfSprite)
@@ -1244,10 +1239,10 @@ func (m *Map) DrawCenteredAt(dst *ebiten.Image, assets *Assets, p *Party, scale 
 			if actor == nil {
 				continue
 			}
-			stx := centerStx + (actor.X - centerX)
-			sty := centerSty + (actor.Y - centerY)
+			stx := centerStx + (actor.X - viewCenterX)
+			sty := centerSty + (actor.Y - viewCenterY)
 
-			if stx >= 0 && stx < cols && sty >= 0 && sty < rows && isTileVisible(stx, sty) {
+			if stx >= 0 && stx < cols && sty >= 0 && sty < rows && isTileVisible(actor.X, actor.Y) {
 				tileIdx := m.GetTile(actor.X, actor.Y)
 				props := GetTileProperties(tileIdx)
 				assets.DrawSpriteDefHalf(dst, actor.SpriteDef, stx, sty, scale, props.ActorHalfSprite)
@@ -1265,9 +1260,9 @@ func (m *Map) DrawCenteredAt(dst *ebiten.Image, assets *Assets, p *Party, scale 
 
 			// Re-render current party member on top
 			curMember := &p.Members[curIdx]
-			stx := centerStx + (curMember.X - centerX)
-			sty := centerSty + (curMember.Y - centerY)
-			if stx >= 0 && stx < cols && sty >= 0 && sty < rows && isTileVisible(stx, sty) {
+			stx := centerStx + (curMember.X - viewCenterX)
+			sty := centerSty + (curMember.Y - viewCenterY)
+			if stx >= 0 && stx < cols && sty >= 0 && sty < rows && isTileVisible(curMember.X, curMember.Y) {
 				half := false
 				if m != nil {
 					tileIdx := m.GetTile(curMember.X, curMember.Y)
@@ -1277,9 +1272,9 @@ func (m *Map) DrawCenteredAt(dst *ebiten.Image, assets *Assets, p *Party, scale 
 			}
 		} else {
 			// Party mode: render aggregate party sprite at its relative position
-			stx := centerStx + (p.X - centerX)
-			sty := centerSty + (p.Y - centerY)
-			if stx >= 0 && stx < cols && sty >= 0 && sty < rows && isTileVisible(stx, sty) {
+			stx := centerStx + (p.X - viewCenterX)
+			sty := centerSty + (p.Y - viewCenterY)
+			if stx >= 0 && stx < cols && sty >= 0 && sty < rows && isTileVisible(p.X, p.Y) {
 				half := false
 				if m != nil {
 					tileIdx := m.GetTile(p.X, p.Y)
@@ -1302,10 +1297,10 @@ func (m *Map) DrawCenteredAt(dst *ebiten.Image, assets *Assets, p *Party, scale 
 			}
 			for ty := trig.Area.Min.Y; ty < trig.Area.Max.Y; ty++ {
 				for tx := trig.Area.Min.X; tx < trig.Area.Max.X; tx++ {
-					stx := centerStx + (tx - centerX)
-					sty := centerSty + (ty - centerY)
+					stx := centerStx + (tx - viewCenterX)
+					sty := centerSty + (ty - viewCenterY)
 
-					if stx >= 0 && stx < cols && sty >= 0 && sty < rows && isTileVisible(stx, sty) {
+					if stx >= 0 && stx < cols && sty >= 0 && sty < rows && isTileVisible(tx, ty) {
 						var px, py, sz float32
 						if scale == 2 {
 							px = float32(stx * 32)
@@ -1319,6 +1314,31 @@ func (m *Map) DrawCenteredAt(dst *ebiten.Image, assets *Assets, p *Party, scale 
 						vector.FillRect(mapArea, px, py, sz, sz, blueOverlay, false)
 					}
 				}
+			}
+		}
+	}
+
+	// 5. Render highlighted tiles (e.g. reachable tiles in targeting mode)
+	if len(highlights) > 0 && len(highlights[0]) > 0 {
+		mapArea := dst.SubImage(image.Rect(0, 0, 352, 352)).(*ebiten.Image)
+		greenOverlay := color.RGBA{R: 0, G: 255, B: 0, A: 89} // 35% transparent VGA bright green
+
+		for pt := range highlights[0] {
+			stx := centerStx + (pt.X - viewCenterX)
+			sty := centerSty + (pt.Y - viewCenterY)
+
+			if stx >= 0 && stx < cols && sty >= 0 && sty < rows && isTileVisible(pt.X, pt.Y) {
+				var px, py, sz float32
+				if scale == 2 {
+					px = float32(stx * 32)
+					py = float32(sty * 32)
+					sz = 32
+				} else {
+					px = float32(-8 + stx*16)
+					py = float32(-8 + sty*16)
+					sz = 16
+				}
+				vector.FillRect(mapArea, px, py, sz, sz, greenOverlay, false)
 			}
 		}
 	}

@@ -82,16 +82,19 @@ type SavedMapState struct {
 
 // SaveGameData is the root serialization object stored in slot JSON files.
 type SaveGameData struct {
-	Version        int                       `json:"version"`
-	Slot           int                       `json:"slot"`
-	Timestamp      string                    `json:"timestamp"`
-	DisplayTime    string                    `json:"display_time"`
-	Party          *Party                    `json:"party"`
-	CurrentMapName string                    `json:"current_map_name"`
-	Flags          map[string]bool           `json:"flags"`
-	Strings        map[string]string         `json:"strings,omitempty"`
-	Maps           map[string]*SavedMapState `json:"maps"`
-	Terminal       []SavedTerminalLine       `json:"terminal,omitempty"`
+	Version           int                       `json:"version"`
+	Slot              int                       `json:"slot"`
+	Timestamp         string                    `json:"timestamp"`
+	DisplayTime       string                    `json:"display_time"`
+	Party             *Party                    `json:"party"`
+	CurrentMapName    string                    `json:"current_map_name"`
+	MapScale          int                       `json:"map_scale,omitempty"`
+	InCombat          bool                      `json:"in_combat,omitempty"`
+	CombatMemberIndex int                       `json:"combat_member_index,omitempty"`
+	Flags             map[string]bool           `json:"flags"`
+	Strings           map[string]string         `json:"strings,omitempty"`
+	Maps              map[string]*SavedMapState `json:"maps"`
+	Terminal          []SavedTerminalLine       `json:"terminal,omitempty"`
 }
 
 // EncodeTilesBase64 compresses and base64-encodes a slice of integer tile IDs.
@@ -338,17 +341,34 @@ func SaveGame(slot int, pretty bool) error {
 		return fmt.Errorf("cannot save game: currentMap is nil")
 	}
 
+	// Sync party members from active map actors if in combat
+	if IsInCombat() && currentMap != nil {
+		for i := range party.Members {
+			if act := currentMap.GetActorByID(party.Members[i].ID); act != nil {
+				party.Members[i] = *act
+			}
+		}
+	}
+
+	scale := GetMapScale()
+	if scale == 0 {
+		scale = 2
+	}
+
 	now := time.Now()
 	saveData := SaveGameData{
-		Version:        1,
-		Slot:           slot,
-		Timestamp:      now.Format(time.RFC3339),
-		DisplayTime:    now.Format("2006/01/02 3:04 PM"),
-		Party:          party,
-		CurrentMapName: currentMap.Name,
-		Flags:          GetAllFlags(),
-		Strings:        GetAllStrings(),
-		Maps:           make(map[string]*SavedMapState),
+		Version:           1,
+		Slot:              slot,
+		Timestamp:         now.Format(time.RFC3339),
+		DisplayTime:       now.Format("2006/01/02 3:04 PM"),
+		Party:             party,
+		CurrentMapName:    currentMap.Name,
+		MapScale:          scale,
+		InCombat:          IsInCombat(),
+		CombatMemberIndex: GetCombatMemberIndex(),
+		Flags:             GetAllFlags(),
+		Strings:           GetAllStrings(),
+		Maps:              make(map[string]*SavedMapState),
 	}
 
 	// Save all loaded maps in memory
@@ -446,14 +466,37 @@ func LoadGame(slot int) error {
 	}
 	SetMap(currentMap)
 
-	// 6. Reset cutscene and combat state
+	// 6. Reset cutscene and restore combat state
 	ClearCutScene()
-	StopCombat()
+	if saveData.InCombat {
+		SetInCombat(true)
+		SetCombatMemberIndex(saveData.CombatMemberIndex)
+		if currentMap != nil && saveData.Party != nil {
+			for i := range saveData.Party.Members {
+				mem := &saveData.Party.Members[i]
+				if act := currentMap.GetActorByID(mem.ID); act != nil {
+					*act = *mem
+				} else {
+					actCopy := *mem
+					currentMap.AddActor(&actCopy)
+				}
+			}
+		}
+	} else {
+		StopCombat()
+	}
 
-	// 7. Reset Tengo REPL globals and output history
+	// 7. Restore map view scale
+	savedScale := saveData.MapScale
+	if savedScale == 0 {
+		savedScale = 2
+	}
+	SetMapScale(savedScale)
+
+	// 8. Reset Tengo REPL globals and output history
 	ResetTengoREPL()
 
-	// 8. Restore game terminal output history
+	// 9. Restore game terminal output history
 	if term := GetTerminal(); term != nil {
 		term.RestoreSavedLines(saveData.Terminal)
 	}

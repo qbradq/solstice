@@ -81,6 +81,9 @@ func TestSaveAndLoadGame(t *testing.T) {
 	term.AddMessage("Welcome to Solstice")
 	term.AddMessageColored("> LOOK", VGAPalette16[9])
 
+	// Set map scale to 1
+	SetMapScale(1)
+
 	// Save to slot 1 (compact)
 	if err := SaveGame(1, false); err != nil {
 		t.Fatalf("SaveGame(1, false) failed: %v", err)
@@ -141,6 +144,11 @@ func TestSaveAndLoadGame(t *testing.T) {
 	}
 	if GetString("quest_status") != "in_progress" {
 		t.Errorf("Expected restored quest_status='in_progress', got %q", GetString("quest_status"))
+	}
+
+	// Verify loaded map scale
+	if scale := GetMapScale(); scale != 1 {
+		t.Errorf("Expected restored map scale 1, got %d", scale)
 	}
 
 	// Verify loaded active map
@@ -441,3 +449,104 @@ func TestSlotSelectMode(t *testing.T) {
 		t.Error("Expected slot 1 to exist in SlotSelectMode")
 	}
 }
+
+func TestSaveAndLoadCombatState(t *testing.T) {
+	setupTestEnvironment(t)
+
+	if _, err := PreloadActorDefs(); err != nil {
+		t.Fatalf("PreloadActorDefs failed: %v", err)
+	}
+
+	cbtMap, err := LoadMap("cbt_grass")
+	if err != nil {
+		t.Fatalf("LoadMap cbt_grass failed: %v", err)
+	}
+	SetMap(cbtMap)
+
+	kevin, _ := NewActorFromDef("kevin", "kevin", 0, 0)
+	lillian, _ := NewActorFromDef("lillian", "lillian", 0, 0)
+	party, err := NewParty(5, 5, *kevin, *lillian)
+	if err != nil {
+		t.Fatalf("NewParty failed: %v", err)
+	}
+	SetParty(party)
+
+	StartCombat()
+
+	// Modify party members and map actors in combat
+	party.Members[0].X = 8
+	party.Members[0].Y = 9
+	party.Members[0].HitPoints = 22
+	party.Members[0].MagicPoints = 5
+	if act := cbtMap.GetActorByID("kevin"); act != nil {
+		*act = party.Members[0]
+	}
+
+	party.Members[1].X = 12
+	party.Members[1].Y = 14
+	party.Members[1].HitPoints = 11
+	party.Members[1].MagicPoints = 15
+	if act := cbtMap.GetActorByID("lillian"); act != nil {
+		*act = party.Members[1]
+	}
+
+	SetCombatMemberIndex(1)
+
+	// Save game to slot 1
+	if err := SaveGame(1, true); err != nil {
+		t.Fatalf("SaveGame failed: %v", err)
+	}
+
+	// Reset state
+	ClearLoadedMaps()
+	SetParty(nil)
+	SetMap(nil)
+	StopCombat()
+
+	if IsInCombat() {
+		t.Fatal("Expected combat mode to be reset before load")
+	}
+
+	// Load game from slot 1
+	if err := LoadGame(1); err != nil {
+		t.Fatalf("LoadGame failed: %v", err)
+	}
+
+	if !IsInCombat() {
+		t.Errorf("Expected IsInCombat to be true after load")
+	}
+	if idx := GetCombatMemberIndex(); idx != 1 {
+		t.Errorf("Expected CombatMemberIndex 1 after load, got %d", idx)
+	}
+
+	loadedParty := GetParty()
+	if loadedParty == nil || len(loadedParty.Members) != 2 {
+		t.Fatalf("Expected loaded party with 2 members, got %v", loadedParty)
+	}
+
+	m0 := loadedParty.Members[0]
+	if m0.ID != "kevin" || m0.X != 8 || m0.Y != 9 || m0.HitPoints != 22 || m0.MagicPoints != 5 {
+		t.Errorf("Expected kevin at (8, 9) HP 22 MP 5, got %+v", m0)
+	}
+
+	m1 := loadedParty.Members[1]
+	if m1.ID != "lillian" || m1.X != 12 || m1.Y != 14 || m1.HitPoints != 11 || m1.MagicPoints != 15 {
+		t.Errorf("Expected lillian at (12, 14) HP 11 MP 15, got %+v", m1)
+	}
+
+	loadedMap := GetMap()
+	if loadedMap == nil {
+		t.Fatalf("Expected loadedMap to be non-nil")
+	}
+
+	act0 := loadedMap.GetActorByID("kevin")
+	if act0 == nil || act0.X != 8 || act0.Y != 9 || act0.HitPoints != 22 || act0.MagicPoints != 5 {
+		t.Errorf("Expected map actor kevin at (8, 9) HP 22 MP 5, got %+v", act0)
+	}
+
+	act1 := loadedMap.GetActorByID("lillian")
+	if act1 == nil || act1.X != 12 || act1.Y != 14 || act1.HitPoints != 11 || act1.MagicPoints != 15 {
+		t.Errorf("Expected map actor lillian at (12, 14) HP 11 MP 15, got %+v", act1)
+	}
+}
+

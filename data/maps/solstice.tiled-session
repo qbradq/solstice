@@ -4,6 +4,14 @@
         "."
     ],
     "fileStates": {
+        "cbt_grass.tmx": {
+            "scale": 3.2953124999999996,
+            "selectedLayer": 1,
+            "viewCenter": {
+                "x": 110.15647226173544,
+                "y": 126.84684684684684
+            }
+        },
         "home.tmx": {
             "expandedObjectLayers": [
                 2

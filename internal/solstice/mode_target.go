@@ -37,24 +37,27 @@ var VGAPalette16 = []color.Color{
 	color.RGBA{R: 255, G: 255, B: 255, A: 255}, // 15: Bright White
 }
 
-type TargetSelectedCallback func(targetX, targetY int)
+type TargetSelectedCallback func(targetX, targetY int) bool
 type TargetCanceledCallback func()
 
 // TargetMode encapsulates spatial tile targeting with range limits, distance metric options,
 // keyboard controls, and color-cycling border cursor rendering.
 type TargetMode struct {
-	centerX    int
-	centerY    int
-	maxRange   int
-	metric     DistanceMetric
-	cursorX    int
-	cursorY    int
-	colorIdx   int
-	onSelected TargetSelectedCallback
-	onCanceled TargetCanceledCallback
+	centerX        int
+	centerY        int
+	maxRange       int
+	metric         DistanceMetric
+	cursorX        int
+	cursorY        int
+	colorIdx       int
+	highlightTiles map[image.Point]bool
+	highlightColor color.Color
+	onSelected     TargetSelectedCallback
+	onCanceled     TargetCanceledCallback
 }
 
 // NewTargetMode creates a new TargetMode with the specified centerpoint, max range, distance metric, and callbacks.
+// If maxRange <= 0, targeting mode operates with unlimited range across the entire map.
 func NewTargetMode(centerX, centerY, maxRange int, metric DistanceMetric, onSelected TargetSelectedCallback, onCanceled TargetCanceledCallback) *TargetMode {
 	return &TargetMode{
 		centerX:    centerX,
@@ -66,6 +69,12 @@ func NewTargetMode(centerX, centerY, maxRange int, metric DistanceMetric, onSele
 		onSelected: onSelected,
 		onCanceled: onCanceled,
 	}
+}
+
+// SetHighlightTiles assigns a set of reachable/targetable tile positions to highlight with the specified overlay color.
+func (tm *TargetMode) SetHighlightTiles(tiles map[image.Point]bool, col color.Color) {
+	tm.highlightTiles = tiles
+	tm.highlightColor = col
 }
 
 func (tm *TargetMode) Update(g *Game) error {
@@ -104,7 +113,10 @@ func (tm *TargetMode) Update(g *Game) error {
 		}
 
 		inRange := false
-		if tm.metric == DistanceDiamond {
+		if tm.maxRange <= 0 {
+			// Range 0 / non-positive indicates unlimited range
+			inRange = true
+		} else if tm.metric == DistanceDiamond {
 			// Manhattan / diamond distance: |dx| + |dy| <= maxRange
 			inRange = (distX + distY) <= tm.maxRange
 		} else {
@@ -132,13 +144,17 @@ func (tm *TargetMode) Update(g *Game) error {
 		} else {
 			g.mapScale = 2
 		}
+		SetMapScale(g.mapScale)
 	}
 
 	// Confirm target selection on Enter, Keypad Enter, or Space bar
 	if inpututil.IsKeyJustPressed(ebiten.KeyEnter) || inpututil.IsKeyJustPressed(ebiten.KeyKPEnter) || inpututil.IsKeyJustPressed(ebiten.KeySpace) {
-		g.PopMode()
 		if tm.onSelected != nil {
-			tm.onSelected(tm.cursorX, tm.cursorY)
+			if tm.onSelected(tm.cursorX, tm.cursorY) {
+				g.PopMode()
+			}
+		} else {
+			g.PopMode()
 		}
 		return nil
 	}
@@ -161,66 +177,57 @@ func (tm *TargetMode) Draw(g *Game, screen *ebiten.Image) {
 		scale = 2
 	}
 
-	centerX := 16
-	centerY := 16
+	visCenterX := 16
+	visCenterY := 16
 	if g.party != nil {
 		if IsInCombat() && len(g.party.Members) > 0 {
 			curIdx := GetCombatMemberIndex()
 			if curIdx >= len(g.party.Members) {
 				curIdx = 0
 			}
-			centerX = g.party.Members[curIdx].X
-			centerY = g.party.Members[curIdx].Y
+			visCenterX = g.party.Members[curIdx].X
+			visCenterY = g.party.Members[curIdx].Y
 		} else {
-			centerX = g.party.X
-			centerY = g.party.Y
+			visCenterX = g.party.X
+			visCenterY = g.party.Y
 		}
 	}
 
-	// 1. Draw the map view area (map tiles, actors, and party/members centered on party or active member)
+	// 1. Draw the map view area centered on the targeting cursor, with visibility field centered on party/combat member and highlight overlays
 	if g.currentMap != nil {
-		g.currentMap.DrawCentered(screen, g.assets, g.party, scale)
+		g.currentMap.DrawCenteredAt(screen, g.assets, g.party, scale, tm.cursorX, tm.cursorY, visCenterX, visCenterY, tm.highlightTiles)
 	}
 
-	// 2. Render targeting cursor border relative to the camera center
 	centerStx := 5
 	centerSty := 5
-	cols := 11
-	rows := 11
 	if scale == 1 {
-		cols = 23
-		rows = 23
 		centerStx = 11
 		centerSty = 11
 	}
 
-	cursorStx := centerStx + (tm.cursorX - centerX)
-	cursorSty := centerSty + (tm.cursorY - centerY)
-
-	if cursorStx >= 0 && cursorStx < cols && cursorSty >= 0 && cursorSty < rows {
-		var px, py float32
-		if scale == 2 {
-			px = float32(cursorStx * 32)
-			py = float32(cursorSty * 32)
-		} else {
-			// Account for -8, -8 pixel offset when scale is 1
-			px = float32(-8 + cursorStx*16)
-			py = float32(-8 + cursorSty*16)
-		}
-
-		sz := float32(16 * scale)
-		bw := float32(scale) // Border width: 2px at scale 2, 1px at scale 1
-
-		mapView := screen.SubImage(image.Rect(0, 0, 352, 352)).(*ebiten.Image)
-		cursorColor := VGAPalette16[tm.colorIdx]
-
-		// Border rectangle around the target tile with thickness bw
-		vector.FillRect(mapView, px, py, sz, bw, cursorColor, false)      // Top
-		vector.FillRect(mapView, px, py+sz-bw, sz, bw, cursorColor, false) // Bottom
-		vector.FillRect(mapView, px, py, bw, sz, cursorColor, false)      // Left
-		vector.FillRect(mapView, px+sz-bw, py, bw, sz, cursorColor, false) // Right
+	// 2. Render targeting cursor border at screen center
+	var px, py float32
+	if scale == 2 {
+		px = float32(centerStx * 32)
+		py = float32(centerSty * 32)
+	} else {
+		// Account for -8, -8 pixel offset when scale is 1
+		px = float32(-8 + centerStx*16)
+		py = float32(-8 + centerSty*16)
 	}
 
-	// 3. Draw common UI (party roster area and terminal UI)
+	sz := float32(16 * scale)
+	bw := float32(scale) // Border width: 2px at scale 2, 1px at scale 1
+
+	mapView := screen.SubImage(image.Rect(0, 0, 352, 352)).(*ebiten.Image)
+	cursorColor := VGAPalette16[tm.colorIdx]
+
+	// Border rectangle around the target tile with thickness bw
+	vector.FillRect(mapView, px, py, sz, bw, cursorColor, false)      // Top
+	vector.FillRect(mapView, px, py+sz-bw, sz, bw, cursorColor, false) // Bottom
+	vector.FillRect(mapView, px, py, bw, sz, cursorColor, false)      // Left
+	vector.FillRect(mapView, px+sz-bw, py, bw, sz, cursorColor, false) // Right
+
+	// 4. Draw common UI (party roster area and terminal UI)
 	DrawCommonUI(screen, g.assets, g.party, g.terminal)
 }

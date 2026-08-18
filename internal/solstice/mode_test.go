@@ -50,9 +50,10 @@ func TestModeStackAndTargeting(t *testing.T) {
 	targetMode := NewTargetMode(
 		10, 10, 1,
 		DistanceDiamond,
-		func(tx, ty int) {
+		func(tx, ty int) bool {
 			selectedX = tx
 			selectedY = ty
+			return true
 		},
 		func() {
 			canceledCalled = true

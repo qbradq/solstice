@@ -16,7 +16,10 @@ const (
 	windowHeight = 720
 )
 
-var defaultGame *Game
+var (
+	defaultGame     *Game
+	defaultMapScale = 2
+)
 
 // GetGame returns the global game instance.
 func GetGame() *Game {
@@ -26,6 +29,28 @@ func GetGame() *Game {
 // SetGame sets the global game instance.
 func SetGame(g *Game) {
 	defaultGame = g
+}
+
+// GetMapScale returns the current map scale (1 or 2). Default is 2.
+func GetMapScale() int {
+	if defaultGame != nil && defaultGame.mapScale > 0 {
+		return defaultGame.mapScale
+	}
+	if defaultMapScale > 0 {
+		return defaultMapScale
+	}
+	return 2
+}
+
+// SetMapScale sets the current map scale (1 or 2).
+func SetMapScale(scale int) {
+	if scale <= 0 {
+		scale = 2
+	}
+	defaultMapScale = scale
+	if defaultGame != nil {
+		defaultGame.mapScale = scale
+	}
 }
 
 type Game struct {

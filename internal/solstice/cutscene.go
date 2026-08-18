@@ -76,17 +76,26 @@ func UpdateCutScene(g *Game) bool {
 					if actor != nil {
 						dx, dy := 0, 0
 						switch cmd.Dir {
-						case "n", "N":
+						case "n", "N", "north", "North", "NORTH", "up", "Up":
 							dy = -1
-						case "s", "S":
+						case "s", "S", "south", "South", "SOUTH", "down", "Down":
 							dy = 1
-						case "w", "W":
+						case "w", "W", "west", "West", "WEST", "left", "Left":
 							dx = -1
-						case "e", "E":
+						case "e", "E", "east", "East", "EAST", "right", "Right":
 							dx = 1
 						}
 						actor.X += dx
 						actor.Y += dy
+
+						if party := GetParty(); party != nil {
+							for i := range party.Members {
+								if party.Members[i].ID == cmd.ActorID {
+									party.Members[i].X = actor.X
+									party.Members[i].Y = actor.Y
+								}
+							}
+						}
 					}
 				}
 

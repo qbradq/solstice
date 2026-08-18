@@ -1,6 +1,9 @@
 package solstice
 
 import (
+	"image"
+	"image/color"
+
 	"github.com/hajimehoshi/ebiten/v2"
 	"github.com/hajimehoshi/ebiten/v2/inpututil"
 )
@@ -26,6 +29,7 @@ func (m *MainMode) Update(g *Game) error {
 			} else {
 				g.mapScale = 2
 			}
+			SetMapScale(g.mapScale)
 		}
 
 		// Allow opening main menu on Escape key press
@@ -50,20 +54,54 @@ func (m *MainMode) Update(g *Game) error {
 			}
 			curMember := &party.Members[curIdx]
 
-			// Move - M key, allows player to move current party member (distance 5 diamond teleport)
+			// Move - M key, allows player to move current party member using A* pathfinding
 			if inpututil.IsKeyJustPressed(ebiten.KeyM) {
-				targetMode := NewTargetMode(
-					curMember.X, curMember.Y,
-					5,
-					DistanceDiamond,
-					func(tx, ty int) {
-						curMember.X = tx
-						curMember.Y = ty
-						AdvanceCombatMember(g)
-					},
-					nil,
-				)
-				g.PushMode(targetMode)
+				curMap := GetMap()
+				if curMap != nil {
+					moveRange := curMember.Move
+					if moveRange <= 0 {
+						moveRange = 3
+					}
+					reachable := FindReachableTiles(curMap, curMember.X, curMember.Y, moveRange, true)
+					targetMode := NewTargetMode(
+						curMember.X, curMember.Y,
+						0, // Unlimited range
+						DistanceDiamond,
+						func(tx, ty int) bool {
+							targetPt := image.Pt(tx, ty)
+							if !reachable[targetPt] {
+								return false
+							}
+							path := FindPath(curMap, curMember.X, curMember.Y, tx, ty, true)
+							if len(path) == 0 {
+								return false
+							}
+							for _, dir := range path {
+								EnqueueCutSceneCommand(CutSceneCommand{
+									Type:    CmdMove,
+									ActorID: curMember.ID,
+									Dir:     dir,
+								})
+								EnqueueCutSceneCommand(CutSceneCommand{
+									Type:   CmdDelay,
+									Frames: 1,
+								})
+							}
+							return true
+						},
+						nil,
+					)
+					targetMode.SetHighlightTiles(reachable, color.RGBA{R: 85, G: 255, B: 85, A: 89})
+					g.PushMode(targetMode)
+				}
+			}
+
+			// Pass - Spacebar, Period, Keypad 5
+			if inpututil.IsKeyJustPressed(ebiten.KeySpace) ||
+				inpututil.IsKeyJustPressed(ebiten.KeyPeriod) ||
+				inpututil.IsKeyJustPressed(ebiten.KeyKP5) ||
+				inpututil.IsKeyJustPressed(ebiten.KeyNumpad5) {
+				AdvanceCombatMember(g)
 			}
 		}
 	} else {
@@ -86,11 +124,12 @@ func (m *MainMode) Update(g *Game) error {
 					g.party.X, g.party.Y, // Centerpoint on party location
 					1,                   // Maximum range of 1
 					DistanceDiamond,     // Manhattan / diamond distance for "use tile/object"
-					func(tx, ty int) {   // On selected callback: execute tile use_script
+					func(tx, ty int) bool { // On selected callback: execute tile use_script
 						if g.currentMap != nil {
 							_ = g.currentMap.ExecuteTileUseScript(tx, ty)
 							g.currentMap.AdvanceTurn()
 						}
+						return true
 					},
 					nil, // On canceled callback: nil
 				)
@@ -105,13 +144,14 @@ func (m *MainMode) Update(g *Game) error {
 					g.party.X, g.party.Y, // Centerpoint on party location
 					5,                   // Maximum range of 5
 					DistanceSquare,      // Square distance
-					func(tx, ty int) {   // On selected callback: talk to targeted actor
+					func(tx, ty int) bool { // On selected callback: talk to targeted actor
 						if g.currentMap != nil {
 							actor := g.currentMap.GetActorAt(tx, ty)
 							if actor != nil && actor.DialogScript != "" {
 								g.PushMode(NewDialogMode(actor, actor.DialogScript))
 							}
 						}
+						return true
 					},
 					nil, // On canceled callback: nil
 				)
@@ -132,6 +172,7 @@ func (m *MainMode) Update(g *Game) error {
 		} else {
 			g.mapScale = 2
 		}
+		SetMapScale(g.mapScale)
 	}
 
 	// Toggle wizard mode on F12 key press

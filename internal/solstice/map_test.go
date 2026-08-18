@@ -409,6 +409,10 @@ func TestMapDrawCenteredVisibility(t *testing.T) {
 	m.DrawCentered(screen, assets, party, 1)
 	m.Draw(screen, assets, 2)
 	m.Draw(screen, assets, 1)
+
+	// Draw with offset view center (e.g. targeting cursor at 25, 25) while visibility is centered at party (15, 15)
+	m.DrawCenteredAt(screen, assets, party, 2, 25, 25, 15, 15)
+	m.DrawCenteredAt(screen, assets, party, 1, 25, 25, 15, 15)
 }
 
 func TestMapPropertiesAndExitToWorld(t *testing.T) {
