@@ -537,54 +537,6 @@ func InitScriptSystem() error {
 				return tengo.UndefinedValue, nil
 			},
 		},
-		"run_map_script": &tengo.UserFunction{
-			Name: "run_map_script",
-			Value: func(args ...tengo.Object) (tengo.Object, error) {
-				if len(args) < 1 {
-					return tengo.UndefinedValue, fmt.Errorf("run_map_script requires 1 argument: script_path")
-				}
-				scriptName, ok := tengo.ToString(args[0])
-				if !ok {
-					return tengo.UndefinedValue, fmt.Errorf("run_map_script argument must be a string")
-				}
-				if err := ExecuteMapScript(scriptName); err != nil {
-					return tengo.UndefinedValue, err
-				}
-				return tengo.UndefinedValue, nil
-			},
-		},
-		"execute_map_script": &tengo.UserFunction{
-			Name: "execute_map_script",
-			Value: func(args ...tengo.Object) (tengo.Object, error) {
-				if len(args) < 1 {
-					return tengo.UndefinedValue, fmt.Errorf("execute_map_script requires 1 argument: script_path")
-				}
-				scriptName, ok := tengo.ToString(args[0])
-				if !ok {
-					return tengo.UndefinedValue, fmt.Errorf("execute_map_script argument must be a string")
-				}
-				if err := ExecuteMapScript(scriptName); err != nil {
-					return tengo.UndefinedValue, err
-				}
-				return tengo.UndefinedValue, nil
-			},
-		},
-		"map_script": &tengo.UserFunction{
-			Name: "map_script",
-			Value: func(args ...tengo.Object) (tengo.Object, error) {
-				if len(args) < 1 {
-					return tengo.UndefinedValue, fmt.Errorf("map_script requires 1 argument: script_path")
-				}
-				scriptName, ok := tengo.ToString(args[0])
-				if !ok {
-					return tengo.UndefinedValue, fmt.Errorf("map_script argument must be a string")
-				}
-				if err := ExecuteMapScript(scriptName); err != nil {
-					return tengo.UndefinedValue, err
-				}
-				return tengo.UndefinedValue, nil
-			},
-		},
 	}
 	moduleMap.AddBuiltinModule("game", gameModule)
 

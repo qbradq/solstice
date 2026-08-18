@@ -1,24 +1,85 @@
 # Script Environment
 
-On game start, the script `main.tengo` is executed, which should setup
-everything for the game loop.
+Solstice uses the [Tengo](https://github.com/d5/tengo) scripting language for game logic, dialogs, map triggers, cutscenes, timers, and interactive debugging in the pull-down console REPL.
+
+When a new game begins, the script `new_game.tengo` is executed to initialize the party, starting location, and map.
+
+---
 
 ## Available Modules
 
-* `game` provides a limited interface to the global game state generally useful
-  to all scripts.
-  * `log(msg)` adds the string `msg` to the game terminal log.
-  * `load_map(name)` loads the named map file. For instance, if name is "home",
-    the file "data/maps/home.tmx" is loaded.
-  * `reload_map(name)` reloads the named map file from the embedded file system if already loaded, updating current/world map pointers if applicable.
-  * `teleport_party(x,y)` teleports the party to location x,y on the current
-    map.
-  * `set_map_tile(x,y,tile)` sets the tile index at position x,y in the current
-    map to tile.
-  * `set_flag(name)` creates and sets the named flag to true.
-  * `clear_flag(name)` removes the named flag.
-  * `toggle_flag(name)` if the named flag exists, remove it.
-    Otherwise, create it and set it to true.
-  * `has_flag(name)` returns true if the named flag exists and is true.
-  * `end_dialog()` terminates the current dialog.
-  * `random(args ...)` returns one of the arguments passed at random.
+### `game` Module
+The `game` module provides access to the game world, party, flags, maps, dialogs, timers, and logging.
+
+```golang
+game := import("game")
+```
+
+#### Map & World Navigation
+* `game.load_map(name)`: Loads the named map file (e.g. `"home"` loads `data/maps/home.tmx`), caching it in memory and setting it as the current active map.
+* `game.reload_map(name)`: Reloads the named map from the embedded filesystem if present in the loaded maps cache, updating current map and world map pointers if applicable.
+* `game.teleport_party(x, y)`: Teleports the party to tile coordinates `(x, y)` on the current active map.
+* `game.teleport_party_on_world_map(x, y)`: Sets the party's location on the world map to tile coordinates `(x, y)`.
+* `game.set_map_tile(x, y, tile_idx)`: Sets the tile index at position `(x, y)` on the current active map.
+
+#### Game Flags & State
+* `game.set_flag(name)`: Creates and sets the named flag to `true`.
+* `game.clear_flag(name)`: Removes the named flag.
+* `game.toggle_flag(name)`: Toggles the named flag (removes if `true`, sets `true` if absent/`false`).
+* `game.has_flag(name)`: Returns `true` if the named flag exists and is `true`, `false` otherwise.
+
+#### Actors & Map Scripts
+* `game.spawn_actor(template_id, actor_id, x, y)`: Spawns an actor instance using the template definition from `data/json/actors.json` at tile `(x, y)` on the current active map.
+* `game.remove_actor(actor_id)`: Removes the actor with the given ID from the current active map.
+* `game.exec_map_script(script_path)`: Executes a map script located in `data/scripts/map/`.
+
+#### Dialog & Interaction
+* `game.start_dialog([actor_id], dialog_script)`: Initiates a dialog interaction using the specified script (aliases: `enter_dialog`, `force_dialog`).
+* `game.end_dialog()`: Terminates the active dialog session.
+
+#### Logging, Timers & Utilities
+* `game.log(msg)`: Appends the string `msg` to the in-game terminal log.
+* `game.add_timer(delay_turns, script_name, [globals])`: Schedules a map timer that executes `script_name` after `delay_turns` turns on the current map with an optional map of injected global variables.
+* `game.random(args...)`: Returns one of the provided arguments at random.
+
+---
+
+### `cut-scene` Module
+The `cut-scene` module queues sequential, frame-timed cutscene actions that advance in lock-step with game animation frames.
+
+```golang
+cs := import("cut-scene")
+```
+
+* `cs.delay(frames)`: Queues a pause of the specified number of animation frames.
+* `cs.next()`: Queues a 1-frame pause (shorthand for `cs.delay(1)`).
+* `cs.move(actor_id, direction)`: Queues a 1-tile movement step for `actor_id` in direction `"n"`, `"s"`, `"w"`, or `"e"`.
+* `cs.set_tile(x, y, tile_id)`: Queues setting tile `(x, y)` on the current map to `tile_id`.
+* `cs.remove_actor(actor_id)`: Queues removing `actor_id` from the current map.
+
+---
+
+### `fmt` Module
+The `fmt` module provides formatted text output mirroring Tengo's standard library `fmt` module, routing printed output into the pull-down Tengo REPL terminal in bright white.
+
+```golang
+fmt := import("fmt")
+```
+
+* `fmt.print(args...)`: Formats arguments and appends word-wrapped output to the Tengo terminal without spaces between operands.
+* `fmt.printf(format, args...)`: Formats according to format specifiers (e.g. `%s`, `%d`, `%v`) and appends word-wrapped output to the Tengo terminal in bright white.
+* `fmt.println(args...)`: Formats arguments separated by spaces and appends word-wrapped output to the Tengo terminal in bright white.
+* `fmt.sprintf(format, args...)`: Formats according to format specifiers and returns the resulting string without printing to the terminal.
+
+---
+
+## Script Contexts & Injected Globals
+
+| Context | Location | Injected Globals | Description |
+| :--- | :--- | :--- | :--- |
+| **New Game** | `data/scripts/new_game.tengo` | None | Run on game start / new game initialization |
+| **Tile Scripts** | `data/scripts/tile/` | `tile_x`, `tile_y`, `tile_idx` | Triggered when interacting with a tile having `use_script` |
+| **Trigger Scripts** | `data/scripts/triggers/` | `map_name`, `tile_x`, `tile_y`, `actor_id` | Triggered on step or enter into a map trigger zone |
+| **Dialog Scripts** | `data/scripts/dialog/` | `keyword` (input query), `reply` (output text) | Invoked during NPC conversation keyword responses |
+| **Map Scripts** | `data/scripts/map/` | Context-dependent | Map setup and cutscene orchestration scripts |
+| **REPL Autoexec** | `data/scripts/repl/autoexec.tengo` | None | Run on REPL initialization/reset, pre-loading modules |

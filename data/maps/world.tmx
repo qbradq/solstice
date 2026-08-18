@@ -149,7 +149,7 @@
   <object id="18" name="trigger:onlet" x="200" y="1350.5">
    <properties>
     <property name="on_enter" type="bool" value="true"/>
-    <property name="script" value="triggers/enter_kings_shrine.tengo"/>
+    <property name="script" value="triggers/enter_onlet.tengo"/>
    </properties>
   </object>
  </objectgroup>

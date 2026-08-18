@@ -1,0 +1,4 @@
+game := import("game")
+
+game.load_map("onlet")
+game.teleport_party(26, 47)
