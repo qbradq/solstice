@@ -976,6 +976,9 @@ func (m *Map) DrawCentered(dst *ebiten.Image, assets *Assets, p *Party, scale in
 
 				if m != nil && mx >= 0 && mx < m.Width && my >= 0 && my < m.Height {
 					tileIdx := m.GetTile(mx, my)
+					if tileIdx == 157 && p != nil && p.X == mx && p.Y == my+1 {
+						tileIdx = 158
+					}
 					assets.DrawMapTile(dst, tileIdx, stx, sty, scale)
 				} else {
 					assets.DrawBlackMapTile(dst, stx, sty, scale)

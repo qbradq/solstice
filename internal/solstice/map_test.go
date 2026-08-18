@@ -629,4 +629,35 @@ func TestReloadMap(t *testing.T) {
 	}
 }
 
+func TestMapDrawTile157SpecialCase(t *testing.T) {
+	assets, err := LoadAssets()
+	if err != nil {
+		t.Fatalf("LoadAssets failed: %v", err)
+	}
+	m, err := LoadMap("home")
+	if err != nil {
+		t.Fatalf("LoadMap failed: %v", err)
+	}
+
+	// Place tile 157 at (10, 10)
+	m.SetTile(10, 10, 157)
+
+	// Case 1: Party is directly south of (10, 10), which is at (10, 11)
+	partySouth, err := NewParty(10, 11)
+	if err != nil {
+		t.Fatalf("NewParty failed: %v", err)
+	}
+	screen := ebiten.NewImage(640, 360)
+	m.DrawCentered(screen, assets, partySouth, 2)
+	m.DrawCentered(screen, assets, partySouth, 1)
+
+	// Case 2: Party is not directly south of (10, 10) (e.g. at 10, 12 or 11, 10)
+	partyOther, err := NewParty(10, 12)
+	if err != nil {
+		t.Fatalf("NewParty failed: %v", err)
+	}
+	m.DrawCentered(screen, assets, partyOther, 2)
+	m.DrawCentered(screen, assets, partyOther, 1)
+}
+
 

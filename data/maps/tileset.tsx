@@ -507,4 +507,14 @@
    <property name="blocks_vis" type="bool" value="true"/>
   </properties>
  </tile>
+ <tile id="202">
+  <properties>
+   <property name="spirit_passable" type="bool" value="true"/>
+  </properties>
+ </tile>
+ <tile id="203">
+  <properties>
+   <property name="spirit_passable" type="bool" value="true"/>
+  </properties>
+ </tile>
 </tileset>
