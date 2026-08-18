@@ -28,7 +28,8 @@ game := import("game")
 * `game.toggle_flag(name)`: Toggles the named flag (removes if `true`, sets `true` if absent/`false`).
 * `game.has_flag(name)`: Returns `true` if the named flag exists and is `true`, `false` otherwise.
 
-#### Actors & Map Scripts
+#### Actors & Party
+* `game.add_to_party(actor_id)`: Adds the identified actor to the party as a new member, removing it from the current map and logging `"[actor_name] joins the party!"` (or `"Too many party members!"` if the party already contains 4 members).
 * `game.spawn_actor(template_id, actor_id, x, y)`: Spawns an actor instance using the template definition from `data/json/actors.json` at tile `(x, y)` on the current active map.
 * `game.remove_actor(actor_id)`: Removes the actor with the given ID from the current active map.
 * `game.exec_map_script(script_path)`: Executes a map script located in `data/scripts/map/`.

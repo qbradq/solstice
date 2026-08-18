@@ -483,7 +483,18 @@ func loadMapFromTMX(name string) (*Map, error) {
 
 			switch objType {
 			case "actor":
-				actorID := fmt.Sprintf("%s-%d", templateName, obj.ID)
+				actorID := templateName
+				if m.GetActorByID(actorID) != nil {
+					idx := 1
+					for {
+						candidate := fmt.Sprintf("%s-%d", templateName, idx)
+						if m.GetActorByID(candidate) == nil {
+							actorID = candidate
+							break
+						}
+						idx++
+					}
+				}
 				actor, err := NewActorFromDef(actorID, templateName, tileX, tileY)
 				if err != nil {
 					actor = NewActor(actorID, tileX, tileY, templateName)

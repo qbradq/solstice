@@ -80,7 +80,7 @@
     },
     "lillian": {
         "name": "Lillian",
-        "sprite": "peasant",
+        "sprite": "wizard",
         "dialog_script": "dialog/lillian.tengo",
         "level": 3,
         "experience": 8000,

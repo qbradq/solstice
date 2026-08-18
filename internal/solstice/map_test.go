@@ -247,6 +247,9 @@ func TestLoadMapObjectLayerActors(t *testing.T) {
 	if guardActor == nil {
 		t.Errorf("Expected guard actor at tile (17, 11), got nil")
 	} else {
+		if guardActor.ID != "guard" {
+			t.Errorf("Expected guard actor ID 'guard', got %q", guardActor.ID)
+		}
 		if guardActor.DialogScript != "dialog/guard.tengo" {
 			t.Errorf("Expected guard DialogScript 'dialog/guard.tengo', got %q", guardActor.DialogScript)
 		}
@@ -256,6 +259,10 @@ func TestLoadMapObjectLayerActors(t *testing.T) {
 	wizardActor := homeMap.GetActorAt(19, 14)
 	if wizardActor == nil {
 		t.Errorf("Expected wizard actor at tile (19, 14), got nil")
+	} else {
+		if wizardActor.ID != "wizard" {
+			t.Errorf("Expected wizard actor ID 'wizard', got %q", wizardActor.ID)
+		}
 	}
 }
 

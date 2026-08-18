@@ -309,6 +309,66 @@ func InitScriptSystem() error {
 				return tengo.UndefinedValue, nil
 			},
 		},
+		"add_to_party": &tengo.UserFunction{
+			Name: "add_to_party",
+			Value: func(args ...tengo.Object) (tengo.Object, error) {
+				if len(args) < 1 {
+					return tengo.UndefinedValue, fmt.Errorf("add_to_party requires 1 argument: actor_id")
+				}
+				actorID, ok := tengo.ToString(args[0])
+				if !ok {
+					return tengo.UndefinedValue, fmt.Errorf("add_to_party argument must be a string")
+				}
+
+				party := GetParty()
+				if party == nil {
+					return tengo.UndefinedValue, fmt.Errorf("party is not initialized")
+				}
+
+				if len(party.Members) >= MaxPartyMembers {
+					if defaultTerminal != nil {
+						defaultTerminal.AddMessage("Too many party members!")
+					}
+					return tengo.UndefinedValue, nil
+				}
+
+				m := GetMap()
+				var actor *Actor
+				if m != nil {
+					actor = m.GetActorByID(actorID)
+				}
+				if actor == nil {
+					if _, ok := GetActorDef(actorID); ok {
+						actor, _ = NewActorFromDef(actorID, actorID, 0, 0)
+					}
+				}
+				if actor == nil {
+					return tengo.UndefinedValue, fmt.Errorf("actor %q not found", actorID)
+				}
+
+				name := actor.Name
+				if name == "" {
+					name = actor.ID
+				}
+
+				if err := party.AddMember(*actor); err != nil {
+					if defaultTerminal != nil {
+						defaultTerminal.AddMessage("Too many party members!")
+					}
+					return tengo.UndefinedValue, nil
+				}
+
+				if m != nil {
+					m.RemoveActorByID(actor.ID)
+				}
+
+				if defaultTerminal != nil {
+					defaultTerminal.AddMessage(fmt.Sprintf("%s joins the party!", name))
+				}
+
+				return tengo.UndefinedValue, nil
+			},
+		},
 		"start_dialog": &tengo.UserFunction{
 			Name: "start_dialog",
 			Value: func(args ...tengo.Object) (tengo.Object, error) {

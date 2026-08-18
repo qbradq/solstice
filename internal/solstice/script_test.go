@@ -517,3 +517,96 @@ game.reload_map("home")
 	}
 }
 
+func TestGameAddToParty(t *testing.T) {
+	if err := InitScriptSystem(); err != nil {
+		t.Fatalf("InitScriptSystem failed: %v", err)
+	}
+
+	term := NewTerminal()
+	SetTerminal(term)
+
+	homeMap, err := LoadMap("home")
+	if err != nil {
+		t.Fatalf("LoadMap failed: %v", err)
+	}
+	SetMap(homeMap)
+
+	// Create party with 1 member
+	hero, _ := NewActorFromDef("hero", "kevin", 0, 0)
+	party, _ := NewParty(10, 10, *hero)
+	SetParty(party)
+
+	// In homeMap, object 1 is "guard"
+	guardActor := homeMap.GetActorByID("guard")
+	if guardActor == nil {
+		t.Fatalf("Expected actor 'guard' on homeMap")
+	}
+
+	// 1. Add "guard" to party
+	scriptSrc1 := `
+game := import("game")
+game.add_to_party("guard")
+`
+	s1 := tengo.NewScript([]byte(scriptSrc1))
+	s1.SetImports(moduleMap)
+	c1, err := s1.Compile()
+	if err != nil {
+		t.Fatalf("Compile failed: %v", err)
+	}
+	if err := c1.Run(); err != nil {
+		t.Fatalf("Run failed: %v", err)
+	}
+
+	// Verify party now has 2 members
+	if len(party.Members) != 2 {
+		t.Fatalf("Expected 2 party members, got %d", len(party.Members))
+	}
+	if party.Members[1].ID != "guard" {
+		t.Errorf("Expected second member ID 'guard', got %s", party.Members[1].ID)
+	}
+
+	// Verify guard was removed from map
+	if homeMap.GetActorByID("guard") != nil {
+		t.Errorf("Expected guard to be removed from map")
+	}
+
+	// Verify log message
+	lines := term.GetLineTexts()
+	if len(lines) == 0 || lines[len(lines)-1] != "Town Guard joins the party!" {
+		t.Errorf("Expected 'Town Guard joins the party!' in terminal log, got lines: %v", lines)
+	}
+
+	// 2. Fill party to 4 members
+	m3, _ := NewActorFromDef("m3", "wizard", 0, 0)
+	m4, _ := NewActorFromDef("m4", "wizard", 0, 0)
+	_ = party.AddMember(*m3)
+	_ = party.AddMember(*m4)
+	if len(party.Members) != 4 {
+		t.Fatalf("Expected 4 members, got %d", len(party.Members))
+	}
+
+	// 3. Try to add 5th member ("lillian")
+	scriptSrc2 := `
+game := import("game")
+game.add_to_party("lillian")
+`
+	s2 := tengo.NewScript([]byte(scriptSrc2))
+	s2.SetImports(moduleMap)
+	c2, err := s2.Compile()
+	if err != nil {
+		t.Fatalf("Compile failed: %v", err)
+	}
+	if err := c2.Run(); err != nil {
+		t.Fatalf("Run failed: %v", err)
+	}
+
+	if len(party.Members) != 4 {
+		t.Errorf("Expected party size to remain 4, got %d", len(party.Members))
+	}
+
+	lines = term.GetLineTexts()
+	if len(lines) == 0 || lines[len(lines)-1] != "Too many party members!" {
+		t.Errorf("Expected 'Too many party members!' in terminal log, got lines: %v", lines)
+	}
+}
+

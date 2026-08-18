@@ -36,9 +36,14 @@ if keyword == "look" {
 } else if keyword == "seal" {
     reply = "The Royal SEAL upon my staff is a well recognized symbol that I " +
             "am under the direct care and protection of King Rondal III. " +
-            "That used to mean I could go where I pleased without fear. Now, " +
-            "I'm afraid to venture too far from the village for fear of " +
-            "monsters!"
+            "That used to mean I could go where I pleased without fear from " +
+            "bandits. Now I get accosted by monsters along the roads! But " +
+            "I'm not as frail as I may look at first glance."
+} else if keyword == "join" {
+    reply = "Would your really have me join your cause? I suppose I could " +
+            "be some help to you. I may be old, but I'm not without my uses."
+    game.add_to_party("lillian")
+    game.end_dialog()
 } else {
     reply = game.random(
         "Perhaps you should ask someone else.",
