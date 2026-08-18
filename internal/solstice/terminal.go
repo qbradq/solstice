@@ -35,6 +35,38 @@ type TerminalLine struct {
 	Color color.Color
 }
 
+// SavedTerminalLine represents a serialized terminal line with color support.
+type SavedTerminalLine struct {
+	Text  string      `json:"text"`
+	Color *color.RGBA `json:"color,omitempty"`
+}
+
+// ColorToRGBA converts any color.Color to *color.RGBA, or nil if c is nil.
+func ColorToRGBA(c color.Color) *color.RGBA {
+	if c == nil {
+		return nil
+	}
+	r, g, b, a := c.RGBA()
+	return &color.RGBA{
+		R: uint8(r >> 8),
+		G: uint8(g >> 8),
+		B: uint8(b >> 8),
+		A: uint8(a >> 8),
+	}
+}
+
+// ToTerminalLine converts a SavedTerminalLine back to a TerminalLine.
+func (s *SavedTerminalLine) ToTerminalLine() TerminalLine {
+	var c color.Color
+	if s.Color != nil {
+		c = *s.Color
+	}
+	return TerminalLine{
+		Text:  s.Text,
+		Color: c,
+	}
+}
+
 // Terminal manages the terminal UI, log message history with per-line colors, input mode, scrolling, and rendering.
 type Terminal struct {
 	lines            []TerminalLine
@@ -107,6 +139,36 @@ func (t *Terminal) GetLineTexts() []string {
 		res[i] = l.Text
 	}
 	return res
+}
+
+// GetSavedLines returns a slice of serializable SavedTerminalLine structs from the current terminal history.
+func (t *Terminal) GetSavedLines() []SavedTerminalLine {
+	if t == nil {
+		return nil
+	}
+	res := make([]SavedTerminalLine, len(t.lines))
+	for i, l := range t.lines {
+		res[i] = SavedTerminalLine{
+			Text:  l.Text,
+			Color: ColorToRGBA(l.Color),
+		}
+	}
+	return res
+}
+
+// RestoreSavedLines restores the terminal history from a slice of SavedTerminalLine structs.
+func (t *Terminal) RestoreSavedLines(saved []SavedTerminalLine) {
+	if t == nil {
+		return
+	}
+	t.lines = make([]TerminalLine, 0, len(saved))
+	for _, sl := range saved {
+		t.lines = append(t.lines, sl.ToTerminalLine())
+	}
+	if len(t.lines) > terminalMaxHistory {
+		t.lines = t.lines[len(t.lines)-terminalMaxHistory:]
+	}
+	t.scrollOffset = 0
 }
 
 // HandleInputScrollOnly handles Page Up and Page Down scrolling.

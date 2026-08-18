@@ -89,6 +89,7 @@ type SaveGameData struct {
 	CurrentMapName string                    `json:"current_map_name"`
 	Flags          map[string]bool           `json:"flags"`
 	Maps           map[string]*SavedMapState `json:"maps"`
+	Terminal       []SavedTerminalLine       `json:"terminal,omitempty"`
 }
 
 // EncodeTilesBase64 compresses and base64-encodes a slice of integer tile IDs.
@@ -343,6 +344,10 @@ func SaveGame(slot int, pretty bool) error {
 		saveData.Maps[name] = savedMap
 	}
 
+	if term := GetTerminal(); term != nil {
+		saveData.Terminal = term.GetSavedLines()
+	}
+
 	var data []byte
 	if pretty {
 		data, err = json.MarshalIndent(saveData, "", "  ")
@@ -422,6 +427,11 @@ func LoadGame(slot int) error {
 
 	// 7. Reset Tengo REPL globals and output history
 	ResetTengoREPL()
+
+	// 8. Restore game terminal output history
+	if term := GetTerminal(); term != nil {
+		term.RestoreSavedLines(saveData.Terminal)
+	}
 
 	return nil
 }

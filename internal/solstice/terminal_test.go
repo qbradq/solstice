@@ -95,3 +95,37 @@ func TestTerminalScrollBounds(t *testing.T) {
 		t.Errorf("scrollOffset should not be negative, got %d", term.scrollOffset)
 	}
 }
+
+func TestTerminalSaveAndRestore(t *testing.T) {
+	term := NewTerminal()
+	term.AddMessage("First log line")
+	term.AddMessageColored("> COMMAND", VGAPalette16[9])
+
+	saved := term.GetSavedLines()
+	if len(saved) != 2 {
+		t.Fatalf("Expected 2 saved lines, got %d", len(saved))
+	}
+	if saved[0].Text != "First log line" || saved[0].Color != nil {
+		t.Errorf("Expected line 0 without color, got %+v", saved[0])
+	}
+	if saved[1].Text != "> COMMAND" || saved[1].Color == nil {
+		t.Errorf("Expected line 1 with color, got %+v", saved[1])
+	}
+
+	term2 := NewTerminal()
+	term2.RestoreSavedLines(saved)
+
+	lines2 := term2.GetLines()
+	if len(lines2) != 2 {
+		t.Fatalf("Expected 2 restored lines, got %d", len(lines2))
+	}
+	if lines2[0].Text != "First log line" {
+		t.Errorf("Expected text 'First log line', got %q", lines2[0].Text)
+	}
+	if lines2[1].Text != "> COMMAND" {
+		t.Errorf("Expected text '> COMMAND', got %q", lines2[1].Text)
+	}
+	if lines2[1].Color == nil {
+		t.Errorf("Expected non-nil color for line 1")
+	}
+}

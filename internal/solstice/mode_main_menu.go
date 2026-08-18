@@ -122,6 +122,9 @@ func InitNewGame() error {
 	ClearLoadedMaps()
 	ClearAllFlags()
 	ResetTengoREPL()
+	if t := GetTerminal(); t != nil {
+		t.Clear()
+	}
 
 	if _, err := PreloadWorldMap(); err != nil {
 		return fmt.Errorf("failed to preload world map: %w", err)

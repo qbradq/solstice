@@ -74,6 +74,12 @@ func TestSaveAndLoadGame(t *testing.T) {
 	SetFlag("rescued_princess")
 	SetFlag("opened_gate")
 
+	// Add terminal messages with colors
+	term := NewTerminal()
+	SetTerminal(term)
+	term.AddMessage("Welcome to Solstice")
+	term.AddMessageColored("> LOOK", VGAPalette16[9])
+
 	// Save to slot 1 (compact)
 	if err := SaveGame(1, false); err != nil {
 		t.Fatalf("SaveGame(1, false) failed: %v", err)
@@ -98,6 +104,7 @@ func TestSaveAndLoadGame(t *testing.T) {
 	SetParty(nil)
 	SetMap(nil)
 	SetWorldMap(nil)
+	term.Clear()
 
 	if HasFlag("rescued_princess") {
 		t.Fatal("Expected flags to be cleared before load")
@@ -152,6 +159,25 @@ func TestSaveAndLoadGame(t *testing.T) {
 	restoredWMActor := restoredWM.GetActorByID("world-guard")
 	if restoredWMActor == nil || restoredWMActor.X != 21 || restoredWMActor.Y != 21 {
 		t.Errorf("Expected restored world map actor 'world-guard' at (21, 21), got %v", restoredWMActor)
+	}
+
+	// Verify terminal output history was restored
+	loadedTerm := GetTerminal()
+	if loadedTerm == nil {
+		t.Fatal("Expected terminal instance")
+	}
+	termLines := loadedTerm.GetLines()
+	if len(termLines) != 2 {
+		t.Fatalf("Expected 2 restored terminal lines, got %d", len(termLines))
+	}
+	if termLines[0].Text != "Welcome to Solstice" {
+		t.Errorf("Expected line 0 'Welcome to Solstice', got %q", termLines[0].Text)
+	}
+	if termLines[1].Text != "> LOOK" {
+		t.Errorf("Expected line 1 '> LOOK', got %q", termLines[1].Text)
+	}
+	if termLines[1].Color == nil {
+		t.Errorf("Expected line 1 to have non-nil bright blue color")
 	}
 }
 
