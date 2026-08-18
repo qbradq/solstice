@@ -18,6 +18,7 @@ var (
 	compiledScripts  = make(map[string]*tengo.Compiled)
 	rawScriptSources = make(map[string][]byte)
 	gameState        = make(map[string]bool)
+	gameStrings      = make(map[string]string)
 	dialogEnded      bool
 	currentAIActor   *Actor
 )
@@ -106,6 +107,43 @@ func RestoreFlags(flags map[string]bool) {
 	gameState = make(map[string]bool, len(flags))
 	for k, v := range flags {
 		gameState[k] = v
+	}
+}
+
+// SetString creates or sets the persistent state string value named name to value.
+func SetString(name, value string) {
+	gameStrings[name] = value
+}
+
+// ClearString removes the persistent state string value named name.
+func ClearString(name string) {
+	delete(gameStrings, name)
+}
+
+// GetString returns the named persistent state string value or empty string if absent.
+func GetString(name string) string {
+	return gameStrings[name]
+}
+
+// ClearAllStrings resets all persistent string values.
+func ClearAllStrings() {
+	gameStrings = make(map[string]string)
+}
+
+// GetAllStrings returns a copy of all persistent string values.
+func GetAllStrings() map[string]string {
+	res := make(map[string]string, len(gameStrings))
+	for k, v := range gameStrings {
+		res[k] = v
+	}
+	return res
+}
+
+// RestoreStrings restores persistent string values from saved state.
+func RestoreStrings(strings map[string]string) {
+	gameStrings = make(map[string]string, len(strings))
+	for k, v := range strings {
+		gameStrings[k] = v
 	}
 }
 
@@ -249,6 +287,49 @@ func InitScriptSystem() error {
 				return tengo.FalseValue, nil
 			},
 		},
+		"set_string": &tengo.UserFunction{
+			Name: "set_string",
+			Value: func(args ...tengo.Object) (tengo.Object, error) {
+				if len(args) < 2 {
+					return tengo.UndefinedValue, fmt.Errorf("set_string requires 2 arguments: name, value")
+				}
+				name, ok1 := tengo.ToString(args[0])
+				val, ok2 := tengo.ToString(args[1])
+				if !ok1 || !ok2 {
+					return tengo.UndefinedValue, fmt.Errorf("set_string arguments must be strings")
+				}
+				SetString(name, val)
+				return tengo.UndefinedValue, nil
+			},
+		},
+		"clear_string": &tengo.UserFunction{
+			Name: "clear_string",
+			Value: func(args ...tengo.Object) (tengo.Object, error) {
+				if len(args) < 1 {
+					return tengo.UndefinedValue, fmt.Errorf("clear_string requires 1 argument: name")
+				}
+				name, ok := tengo.ToString(args[0])
+				if !ok {
+					return tengo.UndefinedValue, fmt.Errorf("clear_string argument must be a string")
+				}
+				ClearString(name)
+				return tengo.UndefinedValue, nil
+			},
+		},
+		"get_string": &tengo.UserFunction{
+			Name: "get_string",
+			Value: func(args ...tengo.Object) (tengo.Object, error) {
+				if len(args) < 1 {
+					return tengo.UndefinedValue, fmt.Errorf("get_string requires 1 argument: name")
+				}
+				name, ok := tengo.ToString(args[0])
+				if !ok {
+					return tengo.UndefinedValue, fmt.Errorf("get_string argument must be a string")
+				}
+				val := GetString(name)
+				return &tengo.String{Value: val}, nil
+			},
+		},
 		"end_dialog": &tengo.UserFunction{
 			Name: "end_dialog",
 			Value: func(args ...tengo.Object) (tengo.Object, error) {
@@ -263,7 +344,25 @@ func InitScriptSystem() error {
 					return tengo.UndefinedValue, nil
 				}
 				if len(args) == 1 {
+					if arr, ok := args[0].(*tengo.Array); ok {
+						if len(arr.Value) == 0 {
+							return tengo.UndefinedValue, nil
+						}
+						idx := rand.Intn(len(arr.Value))
+						return arr.Value[idx], nil
+					}
 					return args[0], nil
+				}
+				if len(args) == 2 {
+					minInt, ok1 := tengo.ToInt(args[0])
+					maxInt, ok2 := tengo.ToInt(args[1])
+					if ok1 && ok2 {
+						if minInt > maxInt {
+							minInt, maxInt = maxInt, minInt
+						}
+						n := rand.Intn(maxInt-minInt+1) + minInt
+						return &tengo.Int{Value: int64(n)}, nil
+					}
 				}
 				idx := rand.Intn(len(args))
 				return args[idx], nil
@@ -284,6 +383,36 @@ func InitScriptSystem() error {
 					return tengo.UndefinedValue, fmt.Errorf("roll error for %q: %w", expr, err)
 				}
 				return &tengo.Int{Value: int64(res.Int())}, nil
+			},
+		},
+		"get_enemies_for_pack": &tengo.UserFunction{
+			Name: "get_enemies_for_pack",
+			Value: func(args ...tengo.Object) (tengo.Object, error) {
+				if len(args) < 1 {
+					return tengo.UndefinedValue, fmt.Errorf("get_enemies_for_pack requires 1 argument: name")
+				}
+				packName, ok := tengo.ToString(args[0])
+				if !ok {
+					return tengo.UndefinedValue, fmt.Errorf("get_enemies_for_pack argument must be a string")
+				}
+
+				pack, exists := GetEnemyPack(packName)
+				if !exists {
+					return &tengo.Array{Value: []tengo.Object{}}, nil
+				}
+
+				numEnemies, err := pack.RollNumEnemies()
+				if err != nil {
+					return tengo.UndefinedValue, fmt.Errorf("failed to roll num enemies for pack %s: %w", packName, err)
+				}
+
+				arr := make([]tengo.Object, numEnemies)
+				for i := 0; i < numEnemies; i++ {
+					tmpl := pack.ChooseEnemy()
+					arr[i] = &tengo.String{Value: tmpl}
+				}
+
+				return &tengo.Array{Value: arr}, nil
 			},
 		},
 		"load_map": &tengo.UserFunction{
@@ -430,6 +559,106 @@ func InitScriptSystem() error {
 			Name: "stop_combat",
 			Value: func(args ...tengo.Object) (tengo.Object, error) {
 				StopCombat()
+				return tengo.UndefinedValue, nil
+			},
+		},
+		"get_party_members": &tengo.UserFunction{
+			Name: "get_party_members",
+			Value: func(args ...tengo.Object) (tengo.Object, error) {
+				party := GetParty()
+				if party == nil {
+					return &tengo.Array{Value: []tengo.Object{}}, nil
+				}
+				arr := make([]tengo.Object, len(party.Members))
+				for i, m := range party.Members {
+					arr[i] = &tengo.Map{
+						Value: map[string]tengo.Object{
+							"id":   &tengo.String{Value: m.ID},
+							"name": &tengo.String{Value: m.Name},
+							"x":    &tengo.Int{Value: int64(m.X)},
+							"y":    &tengo.Int{Value: int64(m.Y)},
+						},
+					}
+				}
+				return &tengo.Array{Value: arr}, nil
+			},
+		},
+		"teleport_actor": &tengo.UserFunction{
+			Name: "teleport_actor",
+			Value: func(args ...tengo.Object) (tengo.Object, error) {
+				if len(args) < 3 {
+					return tengo.UndefinedValue, fmt.Errorf("teleport_actor requires 3 arguments: actor_id, x, y")
+				}
+				actorID, ok1 := tengo.ToString(args[0])
+				x, ok2 := tengo.ToInt(args[1])
+				y, ok3 := tengo.ToInt(args[2])
+				if !ok1 || !ok2 || !ok3 {
+					return tengo.UndefinedValue, fmt.Errorf("teleport_actor arguments must be (string, int, int)")
+				}
+				if m := GetMap(); m != nil {
+					if actor := m.GetActorByID(actorID); actor != nil {
+						actor.X = x
+						actor.Y = y
+					}
+				}
+				if party := GetParty(); party != nil {
+					for i := range party.Members {
+						if party.Members[i].ID == actorID {
+							party.Members[i].X = x
+							party.Members[i].Y = y
+						}
+					}
+				}
+				return tengo.UndefinedValue, nil
+			},
+		},
+		"get_party": &tengo.UserFunction{
+			Name: "get_party",
+			Value: func(args ...tengo.Object) (tengo.Object, error) {
+				party := GetParty()
+				if party == nil {
+					return &tengo.Array{Value: []tengo.Object{}}, nil
+				}
+				arr := make([]tengo.Object, len(party.Members))
+				for i, m := range party.Members {
+					arr[i] = &tengo.Map{
+						Value: map[string]tengo.Object{
+							"id":   &tengo.String{Value: m.ID},
+							"name": &tengo.String{Value: m.Name},
+							"x":    &tengo.Int{Value: int64(m.X)},
+							"y":    &tengo.Int{Value: int64(m.Y)},
+						},
+					}
+				}
+				return &tengo.Array{Value: arr}, nil
+			},
+		},
+		"set_actor_pos": &tengo.UserFunction{
+			Name: "set_actor_pos",
+			Value: func(args ...tengo.Object) (tengo.Object, error) {
+				if len(args) < 3 {
+					return tengo.UndefinedValue, fmt.Errorf("set_actor_pos requires 3 arguments: actor_id, x, y")
+				}
+				actorID, ok1 := tengo.ToString(args[0])
+				x, ok2 := tengo.ToInt(args[1])
+				y, ok3 := tengo.ToInt(args[2])
+				if !ok1 || !ok2 || !ok3 {
+					return tengo.UndefinedValue, fmt.Errorf("set_actor_pos arguments must be (string, int, int)")
+				}
+				if m := GetMap(); m != nil {
+					if actor := m.GetActorByID(actorID); actor != nil {
+						actor.X = x
+						actor.Y = y
+					}
+				}
+				if party := GetParty(); party != nil {
+					for i := range party.Members {
+						if party.Members[i].ID == actorID {
+							party.Members[i].X = x
+							party.Members[i].Y = y
+						}
+					}
+				}
 				return tengo.UndefinedValue, nil
 			},
 		},
@@ -595,26 +824,68 @@ func InitScriptSystem() error {
 		"spawn_actor": &tengo.UserFunction{
 			Name: "spawn_actor",
 			Value: func(args ...tengo.Object) (tengo.Object, error) {
-				if len(args) < 4 {
-					return tengo.UndefinedValue, fmt.Errorf("spawn_actor requires 4 arguments: template_id, actor_id, x, y")
-				}
-				str1, ok1 := tengo.ToString(args[0])
-				str2, ok2 := tengo.ToString(args[1])
-				x, ok3 := tengo.ToInt(args[2])
-				y, ok4 := tengo.ToInt(args[3])
-				if !ok1 || !ok2 || !ok3 || !ok4 {
-					return tengo.UndefinedValue, fmt.Errorf("spawn_actor arguments must be (string, string, int, int)")
+				if len(args) < 3 {
+					return tengo.UndefinedValue, fmt.Errorf("spawn_actor requires at least 3 arguments: template_id, x, y (or template_id, actor_id, x, y)")
 				}
 
-				templateID := str1
-				actorID := str2
+				var templateID, actorID string
+				var x, y int
 
-				// Allow flexible ordering if template exists under the other parameter name
-				if _, ok := GetActorDef(str2); ok {
-					if _, okOld := GetActorDef(str1); !okOld {
-						templateID = str2
-						actorID = str1
+				if len(args) == 3 {
+					tID, ok1 := tengo.ToString(args[0])
+					xi, ok2 := tengo.ToInt(args[1])
+					yi, ok3 := tengo.ToInt(args[2])
+					if !ok1 || !ok2 || !ok3 {
+						return tengo.UndefinedValue, fmt.Errorf("spawn_actor arguments must be (template string, x int, y int)")
 					}
+					templateID = tID
+					actorID = tID
+					x = xi
+					y = yi
+				} else {
+					// 4 arguments:
+					// Try Format A: (template_id string, x int, y int, actor_id string)
+					if str1, ok1 := tengo.ToString(args[0]); ok1 {
+						if xi, ok2 := tengo.ToInt(args[1]); ok2 {
+							if yi, ok3 := tengo.ToInt(args[2]); ok3 {
+								if str2, ok4 := tengo.ToString(args[3]); ok4 {
+									templateID = str1
+									actorID = str2
+									x = xi
+									y = yi
+								}
+							}
+						}
+					}
+
+					// Try Format B: (template_id string, actor_id string, x int, y int)
+					if templateID == "" {
+						str1, ok1 := tengo.ToString(args[0])
+						str2, ok2 := tengo.ToString(args[1])
+						xi, ok3 := tengo.ToInt(args[2])
+						yi, ok4 := tengo.ToInt(args[3])
+						if !ok1 || !ok2 || !ok3 || !ok4 {
+							return tengo.UndefinedValue, fmt.Errorf("spawn_actor arguments must be (string, string, int, int) or (string, int, int, string)")
+						}
+
+						templateID = str1
+						actorID = str2
+						x = xi
+						y = yi
+
+						// Allow flexible ordering if template exists under the other parameter name
+						if _, ok := GetActorDef(str2); ok {
+							if _, okOld := GetActorDef(str1); !okOld {
+								templateID = str2
+								actorID = str1
+							}
+						}
+					}
+				}
+
+				m := GetMap()
+				if m != nil {
+					actorID = m.GenerateUniqueActorID(actorID)
 				}
 
 				actor, err := NewActorFromDef(actorID, templateID, x, y)
@@ -622,10 +893,10 @@ func InitScriptSystem() error {
 					return tengo.UndefinedValue, fmt.Errorf("failed to spawn actor %s from template %s: %w", actorID, templateID, err)
 				}
 
-				if m := GetMap(); m != nil {
+				if m != nil {
 					m.AddActor(actor)
 				}
-				return tengo.UndefinedValue, nil
+				return &tengo.String{Value: actorID}, nil
 			},
 		},
 		"spawn_item": &tengo.UserFunction{

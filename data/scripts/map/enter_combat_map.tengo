@@ -1,3 +1,52 @@
 game := import("game")
 
-game.log("map/enter_combat_map.tengo called")
+// 1. Start combat mode
+game.start_combat()
+
+// Helper to remove an item from an array at a given index
+remove_at := func(arr, idx) {
+	if idx < 0 || idx >= len(arr) {
+		return arr
+	}
+	if idx == 0 {
+		return arr[1:]
+	}
+	if idx == len(arr)-1 {
+		return arr[:len(arr)-1]
+	}
+	return arr[:idx] + arr[idx+1:]
+}
+
+// 2. Get array of player_start (or party_start) items on the map
+player_starts := game.find_items("player_start")
+if len(player_starts) == 0 {
+	player_starts = game.find_items("party_start")
+}
+
+// For each party member, remove a random item from this array and move the party member's actor
+members := game.get_party_members()
+for member in members {
+	if len(player_starts) > 0 {
+		rand_idx := game.random(0, len(player_starts)-1)
+		start_item := player_starts[rand_idx]
+		player_starts = remove_at(player_starts, rand_idx)
+		game.teleport_actor(member.id, start_item.x, start_item.y)
+	}
+}
+
+// 3. Get array of enemy_start items on the map
+enemy_starts := game.find_items("enemy_start")
+
+// 4. Get array of actor templates using get_enemies_for_pack(name)
+pack_name := game.get_string("combat_map_pack")
+enemy_templates := game.get_enemies_for_pack(pack_name)
+
+// For each actor template string, remove a random item from enemy_starts and spawn an actor
+for tmpl in enemy_templates {
+	if len(enemy_starts) > 0 {
+		rand_idx := game.random(0, len(enemy_starts)-1)
+		start_item := enemy_starts[rand_idx]
+		enemy_starts = remove_at(enemy_starts, rand_idx)
+		game.spawn_actor(tmpl, tmpl, start_item.x, start_item.y)
+	}
+}

@@ -70,9 +70,10 @@ func TestSaveAndLoadGame(t *testing.T) {
 	party.WorldY = 77
 	SetParty(party)
 
-	// Set flags
+	// Set flags and strings
 	SetFlag("rescued_princess")
 	SetFlag("opened_gate")
+	SetString("quest_status", "in_progress")
 
 	// Add terminal messages with colors
 	term := NewTerminal()
@@ -101,6 +102,7 @@ func TestSaveAndLoadGame(t *testing.T) {
 	// Reset in-memory game state
 	ClearLoadedMaps()
 	ClearAllFlags()
+	ClearAllStrings()
 	SetParty(nil)
 	SetMap(nil)
 	SetWorldMap(nil)
@@ -108,6 +110,9 @@ func TestSaveAndLoadGame(t *testing.T) {
 
 	if HasFlag("rescued_princess") {
 		t.Fatal("Expected flags to be cleared before load")
+	}
+	if GetString("quest_status") != "" {
+		t.Fatal("Expected strings to be cleared before load")
 	}
 
 	// Load from slot 1
@@ -130,9 +135,12 @@ func TestSaveAndLoadGame(t *testing.T) {
 		t.Errorf("Expected 1 member 'hero-1', got %v", loadedParty.Members)
 	}
 
-	// Verify loaded flags
+	// Verify loaded flags and strings
 	if !HasFlag("rescued_princess") || !HasFlag("opened_gate") {
 		t.Errorf("Expected restored flags, got %v", GetAllFlags())
+	}
+	if GetString("quest_status") != "in_progress" {
+		t.Errorf("Expected restored quest_status='in_progress', got %q", GetString("quest_status"))
 	}
 
 	// Verify loaded active map

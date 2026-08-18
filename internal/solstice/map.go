@@ -588,6 +588,7 @@ func loadMapFromTMX(name string) (*Map, error) {
 
 	// Execute load_script if defined on map load
 	if m.Properties.LoadScript != "" {
+		SetMap(m)
 		_ = ExecuteMapScript(m.Properties.LoadScript)
 	}
 
@@ -668,6 +669,38 @@ func (m *Map) GetActorByID(id string) *Actor {
 		}
 	}
 	return nil
+}
+
+// GenerateUniqueActorID returns an unused actor ID on the map based on desiredID.
+func (m *Map) GenerateUniqueActorID(desiredID string) string {
+	if m == nil || m.GetActorByID(desiredID) == nil {
+		return desiredID
+	}
+	base := desiredID
+	idx := 1
+	for {
+		candidate := fmt.Sprintf("%s-%d", base, idx)
+		if m.GetActorByID(candidate) == nil {
+			return candidate
+		}
+		idx++
+	}
+}
+
+// GenerateUniqueItemID returns an unused item ID on the map based on desiredID.
+func (m *Map) GenerateUniqueItemID(desiredID string) string {
+	if m == nil || m.GetItemByID(desiredID) == nil {
+		return desiredID
+	}
+	base := desiredID
+	idx := 1
+	for {
+		candidate := fmt.Sprintf("%s-%d", base, idx)
+		if m.GetItemByID(candidate) == nil {
+			return candidate
+		}
+		idx++
+	}
 }
 
 // RemoveActorByID removes an actor with the given ID from the map.

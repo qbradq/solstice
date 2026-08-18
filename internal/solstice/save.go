@@ -89,6 +89,7 @@ type SaveGameData struct {
 	Party          *Party                    `json:"party"`
 	CurrentMapName string                    `json:"current_map_name"`
 	Flags          map[string]bool           `json:"flags"`
+	Strings        map[string]string         `json:"strings,omitempty"`
 	Maps           map[string]*SavedMapState `json:"maps"`
 	Terminal       []SavedTerminalLine       `json:"terminal,omitempty"`
 }
@@ -346,6 +347,7 @@ func SaveGame(slot int, pretty bool) error {
 		Party:          party,
 		CurrentMapName: currentMap.Name,
 		Flags:          GetAllFlags(),
+		Strings:        GetAllStrings(),
 		Maps:           make(map[string]*SavedMapState),
 	}
 
@@ -433,8 +435,9 @@ func LoadGame(slot int) error {
 		saveData.Party.UpdateSpriteDef()
 	}
 
-	// 4. Restore flags
+	// 4. Restore flags and strings
 	RestoreFlags(saveData.Flags)
+	RestoreStrings(saveData.Strings)
 
 	// 5. Restore current active map
 	currentMap, err := LoadMap(saveData.CurrentMapName)

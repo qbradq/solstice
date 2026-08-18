@@ -27,12 +27,18 @@ game := import("game")
 * `game.clear_flag(name)`: Removes the named flag.
 * `game.toggle_flag(name)`: Toggles the named flag (removes if `true`, sets `true` if absent/`false`).
 * `game.has_flag(name)`: Returns `true` if the named flag exists and is `true`, `false` otherwise.
+* `game.set_string(name, value)`: Creates or sets a persistent state value named `name` with string `value`.
+* `game.clear_string(name)`: Removes the persistent state value named `name`.
+* `game.get_string(name)`: Returns the named persistent state string value or empty string `""` if not set.
 
 #### Actors, Entities & Combat
-* `game.add_to_party(actor_id)`: Adds the identified actor to the party as a new member, removing it from the current map and logging `"[actor_name] joins the party!"` (or `"Too many party members!"` if the party already contains 4 members).
+* `game.add_to_party(actor_id)`: Adds the identified actor to the party as a new member, removing it from the current map and logging `"[actor_name] joins the party!"` (or `"Too many party members!"` if the party already contains 4 members). Alias: `game.add_party_member(actor_id)`.
+* `game.get_party_members()`: Returns an array of map objects representing the current party members (`id`, `name`, `template`, `x`, `y`). Alias: `game.get_party()`.
+* `game.teleport_actor(actor_id, x, y)`: Moves the actor with the given ID (and corresponding party member if applicable) to tile `(x, y)` on the current active map. Aliases: `game.set_actor_pos(actor_id, x, y)`, `game.move_actor_to(actor_id, x, y)`.
 * `game.start_combat()`: Transitions from party mode to combat mode, setting each member's starting position to the party's location and selecting the first party member.
 * `game.stop_combat()`: Transitions from combat mode back to party mode, setting the party's location to the first party member's position.
-* `game.spawn_actor(template_id, actor_id, x, y)`: Spawns an actor instance using the template definition from `data/json/actors.json` at tile `(x, y)` on the current active map.
+* `game.get_enemies_for_pack(name)`: Returns an array of actor template names rolled for the named pack from `data/json/packs.json`.
+* `game.spawn_actor(template_id, [actor_id], x, y)`: Spawns an actor instance using the template definition from `data/json/actors.json` at tile `(x, y)` on the current active map. Automatically assigns a unique entity ID if the requested ID is already taken.
 * `game.spawn_item(template, x, y, entity_id)`: Spawns an item instance using the template definition from `data/json/items.json` at tile `(x, y)` on the current active map.
 * `game.find_items(template)`: Returns an array of item map objects matching the named template on the current active map.
 * `game.remove(entity_id)`: Removes the entity (actor or item) with the given ID from the current active map.

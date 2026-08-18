@@ -146,6 +146,10 @@ func Main() {
 		log.Fatalf("failed to preload item defs: %v", err)
 	}
 
+	if _, err := PreloadEnemyPacks(); err != nil {
+		log.Fatalf("failed to preload enemy packs: %v", err)
+	}
+
 	term := NewTerminal()
 
 	// Initialize Tengo script system and pre-compile all scripts from data/scripts

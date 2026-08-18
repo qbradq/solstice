@@ -1,7 +1,7 @@
 package solstice
 
 import (
-	"strings"
+	"fmt"
 	"testing"
 
 	"github.com/d5/tengo/v2"
@@ -790,17 +790,8 @@ func TestItemsAndFindItems(t *testing.T) {
 	}
 	SetMap(m)
 
-	// Verify load_script was executed on TMX load
-	lines := term.GetLineTexts()
-	foundLoadScriptLog := false
-	for _, l := range lines {
-		if strings.Contains(l, "map/enter_combat_map.tengo called") {
-			foundLoadScriptLog = true
-			break
-		}
-	}
-	if !foundLoadScriptLog {
-		t.Errorf("Expected load_script execution log in terminal, got: %v", lines)
+	if m.Properties.LoadScript != "map/enter_combat_map.tengo" {
+		t.Errorf("Expected map load_script 'map/enter_combat_map.tengo', got %q", m.Properties.LoadScript)
 	}
 
 	// 1. Test find_items in Tengo script
@@ -900,17 +891,201 @@ func TestScriptErrorLoggedToTerminalInBrightRed(t *testing.T) {
 	if lastLine.Color != brightRed {
 		t.Errorf("Expected script error line to be bright red (%v), got %v", brightRed, lastLine.Color)
 	}
+}
 
-	// 2. Runtime script error
-	err2 := RunNewGameScript()
-	if err2 == nil {
-		t.Fatal("Expected error executing new_game.tengo with non-existent function call, got nil")
+func TestGameStringFunctions(t *testing.T) {
+	ClearAllStrings()
+
+	if val := GetString("combat_pack"); val != "" {
+		t.Errorf("Expected combat_pack to initially be empty string, got %q", val)
 	}
 
-	lines = term.GetLines()
-	lastLine = lines[len(lines)-1]
-	if lastLine.Color != brightRed {
-		t.Errorf("Expected runtime script error line to be bright red (%v), got %v", brightRed, lastLine.Color)
+	SetString("combat_pack", "rodents")
+	if val := GetString("combat_pack"); val != "rodents" {
+		t.Errorf("Expected combat_pack to be 'rodents', got %q", val)
+	}
+
+	all := GetAllStrings()
+	if all["combat_pack"] != "rodents" {
+		t.Errorf("Expected GetAllStrings to contain combat_pack='rodents', got %v", all)
+	}
+
+	ClearString("combat_pack")
+	if val := GetString("combat_pack"); val != "" {
+		t.Errorf("Expected combat_pack to be empty after ClearString, got %q", val)
+	}
+
+	// Test in Tengo script
+	if err := InitScriptSystem(); err != nil {
+		t.Fatalf("InitScriptSystem failed: %v", err)
+	}
+
+	scriptSrc := `
+game := import("game")
+game.set_string("current_pack", "rodents")
+pack1 := game.get_string("current_pack")
+game.clear_string("current_pack")
+pack2 := game.get_string("current_pack")
+missing := game.get_string("non_existent")
+`
+	script := tengo.NewScript([]byte(scriptSrc))
+	script.SetImports(moduleMap)
+	compiled, err := script.Compile()
+	if err != nil {
+		t.Fatalf("Failed to compile string test script: %v", err)
+	}
+	if err := compiled.Run(); err != nil {
+		t.Fatalf("Failed to run string test script: %v", err)
+	}
+
+	if pack1 := compiled.Get("pack1").String(); pack1 != "rodents" {
+		t.Errorf("Expected pack1 'rodents', got %q", pack1)
+	}
+	if pack2 := compiled.Get("pack2").String(); pack2 != "" {
+		t.Errorf("Expected pack2 '', got %q", pack2)
+	}
+	if missing := compiled.Get("missing").String(); missing != "" {
+		t.Errorf("Expected missing '', got %q", missing)
 	}
 }
+
+func TestSpawnActorUniqueIDs(t *testing.T) {
+	if _, err := PreloadActorDefs(); err != nil {
+		t.Fatalf("PreloadActorDefs failed: %v", err)
+	}
+	if err := InitScriptSystem(); err != nil {
+		t.Fatalf("InitScriptSystem failed: %v", err)
+	}
+
+	m, err := LoadMap("home")
+	if err != nil {
+		t.Fatalf("LoadMap home failed: %v", err)
+	}
+	SetMap(m)
+
+	scriptSrc := `
+game := import("game")
+id1 := game.spawn_actor("rodent", 1, 1)
+id2 := game.spawn_actor("rodent", "rodent", 1, 2)
+id3 := game.spawn_actor("rodent", 1, 3, "rodent")
+`
+	s := tengo.NewScript([]byte(scriptSrc))
+	s.SetImports(moduleMap)
+	c, err := s.Compile()
+	if err != nil {
+		t.Fatalf("Compile failed: %v", err)
+	}
+	if err := c.Run(); err != nil {
+		t.Fatalf("Run failed: %v", err)
+	}
+
+	id1 := c.Get("id1").String()
+	id2 := c.Get("id2").String()
+	id3 := c.Get("id3").String()
+
+	if id1 == id2 || id1 == id3 || id2 == id3 {
+		t.Errorf("Expected distinct unique IDs, got id1=%q, id2=%q, id3=%q", id1, id2, id3)
+	}
+}
+
+func TestGetEnemiesForPackAndEnterCombatMapScript(t *testing.T) {
+	if _, err := PreloadActorDefs(); err != nil {
+		t.Fatalf("PreloadActorDefs failed: %v", err)
+	}
+	if _, err := PreloadItemDefs(); err != nil {
+		t.Fatalf("PreloadItemDefs failed: %v", err)
+	}
+	if _, err := PreloadEnemyPacks(); err != nil {
+		t.Fatalf("PreloadEnemyPacks failed: %v", err)
+	}
+	if err := InitScriptSystem(); err != nil {
+		t.Fatalf("InitScriptSystem failed: %v", err)
+	}
+
+	// 1. Test get_enemies_for_pack in Tengo
+	testScript := `
+game := import("game")
+enemies := game.get_enemies_for_pack("rodents")
+num_enemies := len(enemies)
+`
+	s := tengo.NewScript([]byte(testScript))
+	s.SetImports(moduleMap)
+	c, err := s.Compile()
+	if err != nil {
+		t.Fatalf("Compile failed: %v", err)
+	}
+	if err := c.Run(); err != nil {
+		t.Fatalf("Run failed: %v", err)
+	}
+
+	numEnemies := c.Get("num_enemies").Int()
+	if numEnemies < 1 || numEnemies > 8 {
+		t.Errorf("Expected num_enemies between 1 and 8, got %d", numEnemies)
+	}
+
+	// 2. Test full execution of enter_combat_map.tengo
+	party, err := NewParty(0, 0)
+	if err != nil {
+		t.Fatalf("NewParty failed: %v", err)
+	}
+	kevin, err := NewActorFromDef("kevin", "kevin", 0, 0)
+	if err != nil {
+		t.Fatalf("NewActorFromDef kevin failed: %v", err)
+	}
+	lillian, err := NewActorFromDef("lillian", "lillian", 0, 0)
+	if err != nil {
+		t.Fatalf("NewActorFromDef lillian failed: %v", err)
+	}
+	_ = party.AddMember(*kevin)
+	_ = party.AddMember(*lillian)
+	SetParty(party)
+
+	SetString("combat_map_pack", "rodents")
+
+	// Load cbt_grass map which runs load_script: enter_combat_map.tengo
+	m, err := loadMapFromTMX("cbt_grass")
+	if err != nil {
+		t.Fatalf("loadMapFromTMX cbt_grass failed: %v", err)
+	}
+	SetMap(m)
+
+	if !IsInCombat() {
+		t.Errorf("Expected to be in combat mode after enter_combat_map.tengo")
+	}
+
+	// Verify party members were placed on party_start positions
+	partyStarts := m.FindItemsByTemplate("party_start")
+	if len(partyStarts) == 0 {
+		partyStarts = m.FindItemsByTemplate("player_start")
+	}
+	startPositions := make(map[string]bool)
+	for _, it := range partyStarts {
+		startPositions[fmt.Sprintf("%d,%d", it.X, it.Y)] = true
+	}
+
+	curParty := GetParty()
+	for _, mem := range curParty.Members {
+		key := fmt.Sprintf("%d,%d", mem.X, mem.Y)
+		if !startPositions[key] {
+			t.Errorf("Expected party member %s at one of start positions %v, got %s", mem.ID, startPositions, key)
+		}
+	}
+
+	// Verify enemies were spawned with unique IDs on map
+	enemyCount := 0
+	actorIDs := make(map[string]bool)
+	for _, a := range m.Actors {
+		if a.ID != "lillian" && a.ID != "kevin" {
+			enemyCount++
+			if actorIDs[a.ID] {
+				t.Errorf("Duplicate enemy actor ID found on map: %s", a.ID)
+			}
+			actorIDs[a.ID] = true
+		}
+	}
+	if enemyCount < 1 || enemyCount > 8 {
+		t.Errorf("Expected 1-8 enemies spawned on cbt_grass, got %d", enemyCount)
+	}
+}
+
 

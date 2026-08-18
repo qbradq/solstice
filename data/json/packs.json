@@ -1,0 +1,10 @@
+{
+    "rodents": {
+        "level": 1,
+        "bonus_xp": 200,
+        "num_enemies": "1d6+1",
+        "enemies": [
+            "rodent"
+        ]
+    }
+}
