@@ -122,6 +122,7 @@ func InitNewGame() error {
 	ClearLoadedMaps()
 	ClearAllFlags()
 	ResetTengoREPL()
+	StopCombat()
 	if t := GetTerminal(); t != nil {
 		t.Clear()
 	}

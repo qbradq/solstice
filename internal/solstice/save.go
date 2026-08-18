@@ -422,8 +422,9 @@ func LoadGame(slot int) error {
 	}
 	SetMap(currentMap)
 
-	// 6. Reset cutscene state
+	// 6. Reset cutscene and combat state
 	ClearCutScene()
+	StopCombat()
 
 	// 7. Reset Tengo REPL globals and output history
 	ResetTengoREPL()

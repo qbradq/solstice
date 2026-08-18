@@ -369,6 +369,20 @@ func InitScriptSystem() error {
 				return tengo.UndefinedValue, nil
 			},
 		},
+		"start_combat": &tengo.UserFunction{
+			Name: "start_combat",
+			Value: func(args ...tengo.Object) (tengo.Object, error) {
+				StartCombat()
+				return tengo.UndefinedValue, nil
+			},
+		},
+		"stop_combat": &tengo.UserFunction{
+			Name: "stop_combat",
+			Value: func(args ...tengo.Object) (tengo.Object, error) {
+				StopCombat()
+				return tengo.UndefinedValue, nil
+			},
+		},
 		"start_dialog": &tengo.UserFunction{
 			Name: "start_dialog",
 			Value: func(args ...tengo.Object) (tengo.Object, error) {

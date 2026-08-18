@@ -666,7 +666,12 @@ func (m *Map) AddTimer(delayTurns int, scriptPath string, globals map[string]int
 // AdvanceTurn simulates one game turn within the current map.
 // Decrements all active map timers and executes any timers that expire.
 func (m *Map) AdvanceTurn() {
-	if m == nil || len(m.Timers) == 0 {
+	if m == nil {
+		return
+	}
+	m.Turn++
+
+	if len(m.Timers) == 0 {
 		return
 	}
 
@@ -924,14 +929,9 @@ func (m *Map) CalculateVisibility(centerX, centerY, radius int) *bitset.BitSet {
 	return vis2
 }
 
-// DrawCentered renders the map centered on the party's position into the map view area using assets at scale 1 or 2.
-// Visibility is calculated with radius 11. Non-visible tiles are drawn as black void, actors in non-visible tiles are hidden,
-// and the party sprite is always rendered at the center cell.
+// DrawCentered renders the map centered on the party's position (or the active party member in combat mode)
+// into the map view area using assets at scale 1 or 2.
 func (m *Map) DrawCentered(dst *ebiten.Image, assets *Assets, p *Party, scale int) {
-	if assets == nil {
-		return
-	}
-
 	if p == nil {
 		p = GetParty()
 	}
@@ -939,8 +939,30 @@ func (m *Map) DrawCentered(dst *ebiten.Image, assets *Assets, p *Party, scale in
 	centerX := 16
 	centerY := 16
 	if p != nil {
-		centerX = p.X
-		centerY = p.Y
+		if IsInCombat() && len(p.Members) > 0 {
+			curIdx := GetCombatMemberIndex()
+			if curIdx >= len(p.Members) {
+				curIdx = 0
+			}
+			centerX = p.Members[curIdx].X
+			centerY = p.Members[curIdx].Y
+		} else {
+			centerX = p.X
+			centerY = p.Y
+		}
+	}
+
+	m.DrawCenteredAt(dst, assets, p, scale, centerX, centerY)
+}
+
+// DrawCenteredAt renders the map centered on specific tile coordinates (centerX, centerY) into the map view area.
+func (m *Map) DrawCenteredAt(dst *ebiten.Image, assets *Assets, p *Party, scale int, centerX, centerY int) {
+	if assets == nil {
+		return
+	}
+
+	if p == nil {
+		p = GetParty()
 	}
 
 	cols := 11
@@ -1017,15 +1039,59 @@ func (m *Map) DrawCentered(dst *ebiten.Image, assets *Assets, p *Party, scale in
 		}
 	}
 
-	// 3. Render party sprite at the center cell (always drawn regardless of visibility bitmap)
+	// 3. Render party (in combat mode, render individual members with current member on top; in party mode, render aggregate party sprite)
 	if p != nil {
-		half := false
-		if m != nil {
-			tileIdx := m.GetTile(p.X, p.Y)
-			props := GetTileProperties(tileIdx)
-			half = props.ActorHalfSprite
+		if IsInCombat() && len(p.Members) > 0 {
+			curIdx := GetCombatMemberIndex()
+			if curIdx >= len(p.Members) {
+				curIdx = 0
+			}
+
+			// Draw non-current members first
+			for i := range p.Members {
+				if i == curIdx {
+					continue
+				}
+				member := &p.Members[i]
+				stx := centerStx + (member.X - centerX)
+				sty := centerSty + (member.Y - centerY)
+
+				if stx >= 0 && stx < cols && sty >= 0 && sty < rows && isTileVisible(stx, sty) {
+					half := false
+					if m != nil {
+						tileIdx := m.GetTile(member.X, member.Y)
+						half = GetTileProperties(tileIdx).ActorHalfSprite
+					}
+					assets.DrawSpriteDefHalf(dst, member.SpriteDef, stx, sty, scale, half)
+				}
+			}
+
+			// Draw current party member last (displayed on top)
+			curMember := &p.Members[curIdx]
+			stx := centerStx + (curMember.X - centerX)
+			sty := centerSty + (curMember.Y - centerY)
+			if stx >= 0 && stx < cols && sty >= 0 && sty < rows && isTileVisible(stx, sty) {
+				half := false
+				if m != nil {
+					tileIdx := m.GetTile(curMember.X, curMember.Y)
+					half = GetTileProperties(tileIdx).ActorHalfSprite
+				}
+				assets.DrawSpriteDefHalf(dst, curMember.SpriteDef, stx, sty, scale, half)
+			}
+		} else {
+			// Party mode: render aggregate party sprite at its relative position
+			stx := centerStx + (p.X - centerX)
+			sty := centerSty + (p.Y - centerY)
+			if stx >= 0 && stx < cols && sty >= 0 && sty < rows && isTileVisible(stx, sty) {
+				half := false
+				if m != nil {
+					tileIdx := m.GetTile(p.X, p.Y)
+					props := GetTileProperties(tileIdx)
+					half = props.ActorHalfSprite
+				}
+				assets.DrawSpriteDefHalf(dst, p.GetSpriteDef(), stx, sty, scale, half)
+			}
 		}
-		assets.DrawSpriteDefHalf(dst, p.GetSpriteDef(), centerStx, centerSty, scale, half)
 	}
 
 	// 4. In Wizard Mode, render 35% transparent blue rectangle over every covered tile in triggers

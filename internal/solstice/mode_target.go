@@ -161,19 +161,12 @@ func (tm *TargetMode) Draw(g *Game, screen *ebiten.Image) {
 		scale = 2
 	}
 
-	partyX := 16
-	partyY := 16
-	if g.party != nil {
-		partyX = g.party.X
-		partyY = g.party.Y
-	}
-
-	// 1. Draw the map view area (map tiles, actors, and party sprite)
+	// 1. Draw the map view area centered on targetting cursor position
 	if g.currentMap != nil {
-		g.currentMap.DrawCentered(screen, g.assets, g.party, scale)
+		g.currentMap.DrawCenteredAt(screen, g.assets, g.party, scale, tm.cursorX, tm.cursorY)
 	}
 
-	// 3. Render targeting cursor border on top of map view area (352x352)
+	// 2. Render targeting cursor border on center cell of map view area (352x352)
 	centerStx := 5
 	centerSty := 5
 	if scale == 1 {
@@ -181,18 +174,14 @@ func (tm *TargetMode) Draw(g *Game, screen *ebiten.Image) {
 		centerSty = 11
 	}
 
-	// Calculate cursor screen tile position relative to camera center (party position)
-	cursorStx := centerStx + (tm.cursorX - partyX)
-	cursorSty := centerSty + (tm.cursorY - partyY)
-
 	var px, py float32
 	if scale == 2 {
-		px = float32(cursorStx * 32)
-		py = float32(cursorSty * 32)
+		px = float32(centerStx * 32)
+		py = float32(centerSty * 32)
 	} else {
 		// Account for -8, -8 pixel offset when scale is 1
-		px = float32(-8 + cursorStx*16)
-		py = float32(-8 + cursorSty*16)
+		px = float32(-8 + centerStx*16)
+		py = float32(-8 + centerSty*16)
 	}
 
 	sz := float32(16 * scale)

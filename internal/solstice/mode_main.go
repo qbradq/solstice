@@ -35,9 +35,89 @@ func (m *MainMode) Update(g *Game) error {
 		return nil
 	}
 
-	// Handle party movement input (WASD, Arrow keys, VI-style HJKL)
-	if g.party != nil {
-		g.party.HandleInput(g.currentMap)
+	if IsInCombat() {
+		// Combat mode: control the current party member
+		party := g.party
+		if party == nil {
+			party = GetParty()
+		}
+
+		if party != nil && len(party.Members) > 0 {
+			curIdx := GetCombatMemberIndex()
+			if curIdx >= len(party.Members) {
+				curIdx = 0
+				SetCombatMemberIndex(0)
+			}
+			curMember := &party.Members[curIdx]
+
+			// Move - M key, allows player to move current party member (distance 5 diamond teleport)
+			if inpututil.IsKeyJustPressed(ebiten.KeyM) {
+				targetMode := NewTargetMode(
+					curMember.X, curMember.Y,
+					5,
+					DistanceDiamond,
+					func(tx, ty int) {
+						curMember.X = tx
+						curMember.Y = ty
+						AdvanceCombatMember(g)
+					},
+					nil,
+				)
+				g.PushMode(targetMode)
+			}
+		}
+	} else {
+		// Handle party movement input (WASD, Arrow keys, VI-style HJKL)
+		if g.party != nil {
+			g.party.HandleInput(g.currentMap)
+		}
+
+		// Activate on_enter trigger on E key press
+		if inpututil.IsKeyJustPressed(ebiten.KeyE) {
+			if g.party != nil && g.currentMap != nil {
+				g.currentMap.ActivateTriggersOnEnter(g.party.X, g.party.Y, "party")
+			}
+		}
+
+		// Enter targeting mode on U key press
+		if inpututil.IsKeyJustPressed(ebiten.KeyU) {
+			if g.party != nil {
+				targetMode := NewTargetMode(
+					g.party.X, g.party.Y, // Centerpoint on party location
+					1,                   // Maximum range of 1
+					DistanceDiamond,     // Manhattan / diamond distance for "use tile/object"
+					func(tx, ty int) {   // On selected callback: execute tile use_script
+						if g.currentMap != nil {
+							_ = g.currentMap.ExecuteTileUseScript(tx, ty)
+							g.currentMap.AdvanceTurn()
+						}
+					},
+					nil, // On canceled callback: nil
+				)
+				g.PushMode(targetMode)
+			}
+		}
+
+		// Enter dialog targeting mode on T key press
+		if inpututil.IsKeyJustPressed(ebiten.KeyT) {
+			if g.party != nil {
+				targetMode := NewTargetMode(
+					g.party.X, g.party.Y, // Centerpoint on party location
+					5,                   // Maximum range of 5
+					DistanceSquare,      // Square distance
+					func(tx, ty int) {   // On selected callback: talk to targeted actor
+						if g.currentMap != nil {
+							actor := g.currentMap.GetActorAt(tx, ty)
+							if actor != nil && actor.DialogScript != "" {
+								g.PushMode(NewDialogMode(actor, actor.DialogScript))
+							}
+						}
+					},
+					nil, // On canceled callback: nil
+				)
+				g.PushMode(targetMode)
+			}
+		}
 	}
 
 	// Handle terminal input (Page Up, Page Down)
@@ -57,53 +137,6 @@ func (m *MainMode) Update(g *Game) error {
 	// Toggle wizard mode on F12 key press
 	if inpututil.IsKeyJustPressed(ebiten.KeyF12) {
 		ToggleWizardMode()
-	}
-
-	// Activate on_enter trigger on E key press
-	if inpututil.IsKeyJustPressed(ebiten.KeyE) {
-		if g.party != nil && g.currentMap != nil {
-			g.currentMap.ActivateTriggersOnEnter(g.party.X, g.party.Y, "party")
-		}
-	}
-
-	// Enter targeting mode on U key press
-	if inpututil.IsKeyJustPressed(ebiten.KeyU) {
-		if g.party != nil {
-			targetMode := NewTargetMode(
-				g.party.X, g.party.Y, // Centerpoint on party location
-				1,                   // Maximum range of 1
-				DistanceDiamond,     // Manhattan / diamond distance for "use tile/object"
-				func(tx, ty int) {   // On selected callback: execute tile use_script
-					if g.currentMap != nil {
-						_ = g.currentMap.ExecuteTileUseScript(tx, ty)
-						g.currentMap.AdvanceTurn()
-					}
-				},
-				nil, // On canceled callback: nil
-			)
-			g.PushMode(targetMode)
-		}
-	}
-
-	// Enter dialog targeting mode on T key press
-	if inpututil.IsKeyJustPressed(ebiten.KeyT) {
-		if g.party != nil {
-			targetMode := NewTargetMode(
-				g.party.X, g.party.Y, // Centerpoint on party location
-				5,                   // Maximum range of 5
-				DistanceSquare,      // Square distance
-				func(tx, ty int) {   // On selected callback: talk to targeted actor
-					if g.currentMap != nil {
-						actor := g.currentMap.GetActorAt(tx, ty)
-						if actor != nil && actor.DialogScript != "" {
-							g.PushMode(NewDialogMode(actor, actor.DialogScript))
-						}
-					}
-				},
-				nil, // On canceled callback: nil
-			)
-			g.PushMode(targetMode)
-		}
 	}
 
 	// Open main menu on Escape key press
