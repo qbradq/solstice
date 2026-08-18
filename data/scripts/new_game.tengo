@@ -1,5 +1,6 @@
 game := import("game")
 
+/*
 // Welcome message including copyright and license notice
 game.log("------------------------------------")
 game.log("Solstice Client v0.1.0")
@@ -18,3 +19,14 @@ game.teleport_party(15,15)
 
 // Execute introductory map script
 game.exec_map_script("map/intro.tengo")
+*/
+
+// Debug code
+game.log("Debug code running!")
+game.load_map("home")
+game.teleport_party(0,0)
+game.spawn_actor("kevin", "kevin", 1, 0)
+game.add_to_party("kevin")
+game.spawn_actor("lillian", "lillian", 2, 0)
+game.add_to_party("lillian")
+game.load_map("cbt_grass")

@@ -73,6 +73,7 @@ type SavedMapState struct {
 	FirstGID   int           `json:"first_gid"`
 	Tiles      string        `json:"tiles"` // Base64-encoded zlib-compressed int32 slice
 	Actors     []*Actor      `json:"actors"`
+	Items      []*Item       `json:"items,omitempty"`
 	Timers     []*MapTimer   `json:"timers"`
 	Triggers   []*Trigger    `json:"triggers"`
 	Properties MapProperties `json:"properties"`
@@ -162,6 +163,15 @@ func (m *Map) ToSavedState() (*SavedMapState, error) {
 		}
 	}
 
+	// Copy items
+	itemsCopy := make([]*Item, len(m.Items))
+	for i, it := range m.Items {
+		if it != nil {
+			itc := *it
+			itemsCopy[i] = &itc
+		}
+	}
+
 	// Copy timers
 	timersCopy := make([]*MapTimer, len(m.Timers))
 	for i, t := range m.Timers {
@@ -189,6 +199,7 @@ func (m *Map) ToSavedState() (*SavedMapState, error) {
 		FirstGID:   m.FirstGID,
 		Tiles:      encodedTiles,
 		Actors:     actorsCopy,
+		Items:      itemsCopy,
 		Timers:     timersCopy,
 		Triggers:   triggersCopy,
 		Properties: m.Properties,
@@ -214,6 +225,15 @@ func RestoreMapFromSavedState(saved *SavedMapState) (*Map, error) {
 		if a != nil {
 			ac := *a
 			actors[i] = &ac
+		}
+	}
+
+	// Copy items
+	items := make([]*Item, len(saved.Items))
+	for i, it := range saved.Items {
+		if it != nil {
+			itc := *it
+			items[i] = &itc
 		}
 	}
 
@@ -246,6 +266,7 @@ func RestoreMapFromSavedState(saved *SavedMapState) (*Map, error) {
 		Properties: saved.Properties,
 		Turn:       saved.Turn,
 		Actors:     actors,
+		Items:      items,
 		Timers:     timers,
 		Triggers:   triggers,
 	}

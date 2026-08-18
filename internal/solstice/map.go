@@ -58,7 +58,8 @@ type Trigger struct {
 
 // MapProperties holds gameplay and navigation properties for a map.
 type MapProperties struct {
-	ExitToWorld bool `json:"exit_to_world"`
+	ExitToWorld bool   `json:"exit_to_world"`
+	LoadScript  string `json:"load_script,omitempty"`
 }
 
 // Map represents a 2D tile map loaded from a Tiled .tmx file.
@@ -73,6 +74,7 @@ type Map struct {
 	Properties MapProperties // Map-level properties
 	Timers     []*MapTimer   // Scheduled map timers
 	Actors     []*Actor      // Active actors on this map
+	Items      []*Item       // Active items on this map
 	Triggers   []*Trigger    // Trigger areas on this map
 	Turn       int           // Turn counter
 }
@@ -375,10 +377,13 @@ func ReloadMap(name string) (*Map, error) {
 	return newMap, nil
 }
 
-// loadMapFromTMX parses a TMX map and instantiates initial actors, triggers, and tiles.
+// loadMapFromTMX parses a TMX map and instantiates initial actors, items, triggers, and tiles.
 func loadMapFromTMX(name string) (*Map, error) {
 	if len(actorDefs) == 0 {
 		_, _ = PreloadActorDefs()
+	}
+	if len(itemDefs) == 0 {
+		_, _ = PreloadItemDefs()
 	}
 	if defaultSpriteDefs == nil {
 		_, _ = PreloadSpriteDefs()
@@ -428,10 +433,12 @@ func loadMapFromTMX(name string) (*Map, error) {
 
 	var mapProps MapProperties
 	for _, p := range raw.Properties {
-		val, _ := strconv.ParseBool(p.Value)
 		switch p.Name {
 		case "exit_to_world":
+			val, _ := strconv.ParseBool(p.Value)
 			mapProps.ExitToWorld = val
+		case "load_script":
+			mapProps.LoadScript = p.Value
 		default:
 			return nil, fmt.Errorf("unknown map property %q for map %s", p.Name, name)
 		}
@@ -448,6 +455,7 @@ func loadMapFromTMX(name string) (*Map, error) {
 		Properties: mapProps,
 		Timers:     make([]*MapTimer, 0),
 		Actors:     make([]*Actor, 0),
+		Items:      make([]*Item, 0),
 		Triggers:   make([]*Trigger, 0),
 	}
 
@@ -469,6 +477,17 @@ func loadMapFromTMX(name string) (*Map, error) {
 				objY -= h
 			}
 			tileY := int(math.Round(objY / float64(raw.TileHeight)))
+
+			// Check object properties for map-level properties (e.g. exit_to_world, load_script)
+			for _, p := range obj.Properties {
+				switch p.Name {
+				case "exit_to_world":
+					val, _ := strconv.ParseBool(p.Value)
+					mapProps.ExitToWorld = val
+				case "load_script":
+					mapProps.LoadScript = p.Value
+				}
+			}
 
 			objType := ""
 			templateName := ""
@@ -500,6 +519,21 @@ func loadMapFromTMX(name string) (*Map, error) {
 					actor = NewActor(actorID, tileX, tileY, templateName)
 				}
 				m.AddActor(actor)
+			case "item":
+				itemID := templateName
+				if m.GetItemByID(itemID) != nil {
+					idx := 1
+					for {
+						candidate := fmt.Sprintf("%s-%d", templateName, idx)
+						if m.GetItemByID(candidate) == nil {
+							itemID = candidate
+							break
+						}
+						idx++
+					}
+				}
+				item := NewItem(itemID, templateName, tileX, tileY)
+				m.AddItem(item)
 			case "trigger":
 				var tileX, tileY, tileW, tileH int
 				if obj.Width == 0 && obj.Height == 0 {
@@ -548,6 +582,13 @@ func loadMapFromTMX(name string) (*Map, error) {
 				m.AddTrigger(trig)
 			}
 		}
+	}
+
+	m.Properties = mapProps
+
+	// Execute load_script if defined on map load
+	if m.Properties.LoadScript != "" {
+		_ = ExecuteMapScript(m.Properties.LoadScript)
 	}
 
 	return m, nil
@@ -647,6 +688,73 @@ func (m *Map) RemoveActorByID(id string) bool {
 		return true
 	}
 	return false
+}
+
+// AddItem adds an item to the map.
+func (m *Map) AddItem(item *Item) {
+	if m == nil || item == nil {
+		return
+	}
+	m.Items = append(m.Items, item)
+}
+
+// GetItemByID searches the map's items for an item with the given ID.
+// Returns nil if no matching item is found.
+func (m *Map) GetItemByID(id string) *Item {
+	if m == nil || len(m.Items) == 0 || id == "" {
+		return nil
+	}
+	for _, it := range m.Items {
+		if it != nil && it.ID == id {
+			return it
+		}
+	}
+	return nil
+}
+
+// RemoveItemByID removes an item with the given ID from the map.
+// Returns true if an item was found and removed, false otherwise.
+func (m *Map) RemoveItemByID(id string) bool {
+	if m == nil || len(m.Items) == 0 || id == "" {
+		return false
+	}
+	idx := -1
+	for i, it := range m.Items {
+		if it != nil && it.ID == id {
+			idx = i
+			break
+		}
+	}
+	if idx >= 0 {
+		m.Items = append(m.Items[:idx], m.Items[idx+1:]...)
+		return true
+	}
+	return false
+}
+
+// FindItemsByTemplate returns all items on the map created from the given template.
+func (m *Map) FindItemsByTemplate(template string) []*Item {
+	if m == nil || len(m.Items) == 0 {
+		return nil
+	}
+	var res []*Item
+	for _, it := range m.Items {
+		if it != nil && it.Template == template {
+			res = append(res, it)
+		}
+	}
+	return res
+}
+
+// RemoveEntityByID removes any actor or item matching the given ID from the map.
+// Returns true if an entity was found and removed, false otherwise.
+func (m *Map) RemoveEntityByID(id string) bool {
+	if m == nil || id == "" {
+		return false
+	}
+	removedActor := m.RemoveActorByID(id)
+	removedItem := m.RemoveItemByID(id)
+	return removedActor || removedItem
 }
 
 // AddTimer schedules a new timer on the map with a delay expressed in turns,
@@ -1081,7 +1189,23 @@ func (m *Map) DrawCenteredAt(dst *ebiten.Image, assets *Assets, p *Party, scale 
 		}
 	}
 
-	// 2. Render actors present on the map (only in visible locations)
+	// 2. Render items and actors present on the map (only in visible locations)
+	if m != nil && len(m.Items) > 0 {
+		for _, item := range m.Items {
+			if item == nil || item.SpriteDef.Tile <= 0 {
+				continue
+			}
+			stx := centerStx + (item.X - centerX)
+			sty := centerSty + (item.Y - centerY)
+
+			if stx >= 0 && stx < cols && sty >= 0 && sty < rows && isTileVisible(stx, sty) {
+				tileIdx := m.GetTile(item.X, item.Y)
+				props := GetTileProperties(tileIdx)
+				assets.DrawSpriteDefHalf(dst, item.SpriteDef, stx, sty, scale, props.ActorHalfSprite)
+			}
+		}
+	}
+
 	if m != nil && len(m.Actors) > 0 {
 		for _, actor := range m.Actors {
 			if actor == nil {

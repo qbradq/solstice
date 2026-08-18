@@ -52,19 +52,6 @@
         "max_magic_points": 0,
         "magic_points": 0
     },
-    "kevin": {
-        "name": "Kevin",
-        "sprite": "warrior",
-        "level": 1,
-        "experience": 0,
-        "strength": 18,
-        "dexterity": 11,
-        "intelligence": 7,
-        "max_hit_points": 30,
-        "hit_points": 30,
-        "max_magic_points": 0,
-        "magic_points": 0
-    },
     "duke_lafey": {
         "name": "Duke Lafey",
         "sprite": "duke",
@@ -78,19 +65,46 @@
         "max_magic_points": 40,
         "magic_points": 40
     },
+    "kevin": {
+        "name": "Kevin",
+        "sprite": "warrior",
+        "level": 1,
+        "experience": 0,
+        "strength": 18,
+        "dexterity": 11,
+        "intelligence": 7,
+        "max_hit_points": 30,
+        "hit_points": 30,
+        "max_magic_points": 0,
+        "magic_points": 0
+    },
     "lillian": {
         "name": "Lillian",
         "sprite": "wizard",
         "dialog_script": "dialog/lillian.tengo",
         "idle_script": "ai/idle/wander.tengo",
-        "level": 3,
-        "experience": 8000,
+        "level": 1,
+        "experience": 0,
         "strength": 8,
         "dexterity": 12,
         "intelligence": 18,
-        "max_hit_points": 45,
-        "hit_points": 45,
-        "max_magic_points": 60,
-        "magic_points": 60
+        "max_hit_points": 15,
+        "hit_points": 15,
+        "max_magic_points": 20,
+        "magic_points": 20
+    },
+    "rodent": {
+        "name": "Rodent of Unusual Size",
+        "sprite": "mouse",
+        "idle_script": "ai/idle/wander.tengo",
+        "level": 1,
+        "experience": 0,
+        "strength": 8,
+        "dexterity": 8,
+        "intelligence": 3,
+        "max_hit_points": 15,
+        "hit_points": 15,
+        "max_magic_points": 0,
+        "magic_points": 0
     }
 }

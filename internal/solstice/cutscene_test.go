@@ -23,10 +23,10 @@ func TestCutSceneModuleAndExecution(t *testing.T) {
 
 	actor := &Actor{
 		Entity: Entity{
-			X: 10,
-			Y: 10,
+			ID: "test-actor",
+			X:  10,
+			Y:  10,
 		},
-		ID: "test-actor",
 	}
 	m.AddActor(actor)
 
@@ -128,10 +128,10 @@ func TestIntroCutSceneScriptExecution(t *testing.T) {
 	ClearCutScene()
 
 	// Spawn actors like intro.tengo does
-	m.AddActor(&Actor{Entity: Entity{X: 15, Y: 14}, ID: "wizard-1"})
-	m.AddActor(&Actor{Entity: Entity{X: 14, Y: 15}, ID: "wizard-2"})
-	m.AddActor(&Actor{Entity: Entity{X: 16, Y: 15}, ID: "wizard-3"})
-	m.AddActor(&Actor{Entity: Entity{X: 15, Y: 16}, ID: "duke-lafey"})
+	m.AddActor(&Actor{Entity: Entity{ID: "wizard-1", X: 15, Y: 14}})
+	m.AddActor(&Actor{Entity: Entity{ID: "wizard-2", X: 14, Y: 15}})
+	m.AddActor(&Actor{Entity: Entity{ID: "wizard-3", X: 16, Y: 15}})
+	m.AddActor(&Actor{Entity: Entity{ID: "duke-lafey", X: 15, Y: 16}})
 
 	// Execute intro_cut_scene.tengo
 	if err := ExecuteMapScript("map/intro_cut_scene.tengo"); err != nil {

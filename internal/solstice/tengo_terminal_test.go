@@ -110,20 +110,18 @@ func TestTengoTerminalSubmissionAndErrorReporting(t *testing.T) {
 	term := NewTengoTerminal(repl)
 
 	blue := VGAPalette16[9]
-	white := VGAPalette16[15]
+	brightRed := VGAPalette16[12]
 
 	// 1. Valid statement execution
 	term.SetInputText("valid_var := 42")
 	// Simulate what Enter does:
-	// We can invoke the logic or test the REPL directly
-	// Let's verify input line exact formatting:
 	firstChunkLen := len(term.inputRunes)
 	if firstChunkLen > 78 {
 		firstChunkLen = 78
 	}
 	repl.AddRawOutputColored("> "+string(term.inputRunes[:firstChunkLen]), blue)
 	if err := repl.Execute(term.GetInputText()); err != nil {
-		repl.AddOutputColored(err.Error(), white)
+		repl.AddOutputColored(err.Error(), brightRed)
 	}
 
 	history := repl.GetOutputHistory()
@@ -142,7 +140,7 @@ func TestTengoTerminalSubmissionAndErrorReporting(t *testing.T) {
 	}
 	repl.AddRawOutputColored("> "+string(term.inputRunes[:firstChunkLen]), blue)
 	if err := repl.Execute(term.GetInputText()); err != nil {
-		repl.AddOutputColored(err.Error(), white)
+		repl.AddOutputColored(err.Error(), brightRed)
 	}
 
 	history = repl.GetOutputHistory()
@@ -152,7 +150,7 @@ func TestTengoTerminalSubmissionAndErrorReporting(t *testing.T) {
 	if history[1].Text != "> undefined_func()" || history[1].Color != blue {
 		t.Errorf("Expected second input line in blue, got %v (%v)", history[1].Text, history[1].Color)
 	}
-	if history[2].Color != white {
-		t.Errorf("Expected error report line in white, got %v", history[2].Color)
+	if history[2].Color != brightRed {
+		t.Errorf("Expected error report line in bright red, got %v", history[2].Color)
 	}
 }

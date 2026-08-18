@@ -353,7 +353,7 @@ func TestSpiritModePartyMovement(t *testing.T) {
 
 	// Test actor collision: place an actor on walkable tile (12, 10)
 	m.SetTile(12, 10, 4) // Walkable tile
-	m.AddActor(&Actor{Entity: Entity{X: 12, Y: 10}, ID: "test-npc"})
+	m.AddActor(&Actor{Entity: Entity{ID: "test-npc", X: 12, Y: 10}})
 
 	// Position parties at (11, 10) with tile (11, 10) set to walkable
 	m.SetTile(11, 10, 4)

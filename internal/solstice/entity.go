@@ -19,10 +19,11 @@ type SpriteDef struct {
 // Entity represents the common data and base functionality for objects and
 // actors within the world.
 type Entity struct {
+	ID        string    `json:"id"`
 	SpriteDef `json:"sprite"` // Sprite definition
-	Name      string          `json:"name"` // Descriptive name
-	X         int             `json:"x"`    // X position
-	Y         int             `json:"y"`    // Y position
+	Name      string    `json:"name"` // Descriptive name
+	X         int       `json:"x"`    // X position
+	Y         int       `json:"y"`    // Y position
 }
 
 var defaultSpriteDefs map[string]SpriteDef

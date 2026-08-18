@@ -110,11 +110,11 @@ func RestoreFlags(flags map[string]bool) {
 }
 
 // Backward-compatible aliases for state functions
-func SetState(name string)       { SetFlag(name) }
-func ClearState(name string)     { ClearFlag(name) }
-func ToggleState(name string)    { ToggleFlag(name) }
-func HasState(name string) bool  { return HasFlag(name) }
-func ClearAllState()             { ClearAllFlags() }
+func SetState(name string)      { SetFlag(name) }
+func ClearState(name string)    { ClearFlag(name) }
+func ToggleState(name string)   { ToggleFlag(name) }
+func HasState(name string) bool { return HasFlag(name) }
+func ClearAllState()            { ClearAllFlags() }
 
 // GetScriptModuleMap returns the Tengo ModuleMap containing all registered modules.
 func GetScriptModuleMap() *tengo.ModuleMap {
@@ -471,7 +471,7 @@ func InitScriptSystem() error {
 				}
 				if actor == nil {
 					actor = &Actor{
-						ID:           actorID,
+						Entity:       Entity{ID: actorID},
 						DialogScript: scriptPath,
 					}
 				}
@@ -524,7 +524,7 @@ func InitScriptSystem() error {
 				}
 				if actor == nil {
 					actor = &Actor{
-						ID:           actorID,
+						Entity:       Entity{ID: actorID},
 						DialogScript: scriptPath,
 					}
 				}
@@ -577,7 +577,7 @@ func InitScriptSystem() error {
 				}
 				if actor == nil {
 					actor = &Actor{
-						ID:           actorID,
+						Entity:       Entity{ID: actorID},
 						DialogScript: scriptPath,
 					}
 				}
@@ -628,19 +628,78 @@ func InitScriptSystem() error {
 				return tengo.UndefinedValue, nil
 			},
 		},
-		"remove_actor": &tengo.UserFunction{
-			Name: "remove_actor",
+		"spawn_item": &tengo.UserFunction{
+			Name: "spawn_item",
+			Value: func(args ...tengo.Object) (tengo.Object, error) {
+				if len(args) < 4 {
+					return tengo.UndefinedValue, fmt.Errorf("spawn_item requires 4 arguments: template, x, y, entity_id")
+				}
+				tmpl, ok1 := tengo.ToString(args[0])
+				x, ok2 := tengo.ToInt(args[1])
+				y, ok3 := tengo.ToInt(args[2])
+				entityID, ok4 := tengo.ToString(args[3])
+				if !ok1 || !ok2 || !ok3 || !ok4 {
+					return tengo.UndefinedValue, fmt.Errorf("spawn_item arguments must be (template string, x int, y int, entity_id string)")
+				}
+
+				m := GetMap()
+				if m == nil {
+					return tengo.UndefinedValue, fmt.Errorf("no active map")
+				}
+
+				item := NewItem(entityID, tmpl, x, y)
+				m.AddItem(item)
+				return tengo.UndefinedValue, nil
+			},
+		},
+		"find_items": &tengo.UserFunction{
+			Name: "find_items",
 			Value: func(args ...tengo.Object) (tengo.Object, error) {
 				if len(args) < 1 {
-					return tengo.UndefinedValue, fmt.Errorf("remove_actor requires 1 argument: actor_id")
+					return tengo.UndefinedValue, fmt.Errorf("find_items requires 1 argument: template")
 				}
-				actorID, ok := tengo.ToString(args[0])
+				tmpl, ok := tengo.ToString(args[0])
 				if !ok {
-					return tengo.UndefinedValue, fmt.Errorf("remove_actor argument must be a string")
+					return tengo.UndefinedValue, fmt.Errorf("find_items argument must be a string")
+				}
+
+				m := GetMap()
+				if m == nil {
+					return &tengo.Array{Value: []tengo.Object{}}, nil
+				}
+
+				items := m.FindItemsByTemplate(tmpl)
+				arr := make([]tengo.Object, 0, len(items))
+				for _, item := range items {
+					if item == nil {
+						continue
+					}
+					itemMap := map[string]tengo.Object{
+						"id":       &tengo.String{Value: item.ID},
+						"name":     &tengo.String{Value: item.Name},
+						"template": &tengo.String{Value: item.Template},
+						"x":        &tengo.Int{Value: int64(item.X)},
+						"y":        &tengo.Int{Value: int64(item.Y)},
+					}
+					arr = append(arr, &tengo.Map{Value: itemMap})
+				}
+
+				return &tengo.Array{Value: arr}, nil
+			},
+		},
+		"remove": &tengo.UserFunction{
+			Name: "remove",
+			Value: func(args ...tengo.Object) (tengo.Object, error) {
+				if len(args) < 1 {
+					return tengo.UndefinedValue, fmt.Errorf("remove requires 1 argument: entity_id")
+				}
+				entityID, ok := tengo.ToString(args[0])
+				if !ok {
+					return tengo.UndefinedValue, fmt.Errorf("remove argument must be a string")
 				}
 
 				if m := GetMap(); m != nil {
-					m.RemoveActorByID(actorID)
+					m.RemoveEntityByID(entityID)
 				}
 				return tengo.UndefinedValue, nil
 			},
@@ -1014,7 +1073,11 @@ func ExecuteScriptWithGlobals(scriptPath string, globals map[string]interface{})
 	}
 
 	if !ok || compiled == nil {
-		return fmt.Errorf("script %s not found or not pre-compiled", scriptPath)
+		err := fmt.Errorf("script %s not found or not pre-compiled", scriptPath)
+		if defaultTerminal != nil {
+			defaultTerminal.AddMessageColored(err.Error(), VGAPalette16[12])
+		}
+		return err
 	}
 
 	vm := compiled.Clone()
@@ -1023,7 +1086,11 @@ func ExecuteScriptWithGlobals(scriptPath string, globals map[string]interface{})
 	}
 
 	if err := vm.Run(); err != nil {
-		return fmt.Errorf("failed to execute script %s: %w", scriptPath, err)
+		execErr := fmt.Errorf("failed to execute script %s: %w", scriptPath, err)
+		if defaultTerminal != nil {
+			defaultTerminal.AddMessageColored(execErr.Error(), VGAPalette16[12])
+		}
+		return execErr
 	}
 
 	return nil
@@ -1090,7 +1157,11 @@ func ExecuteDialogScript(scriptPath string, keyword string) (bool, error) {
 	}
 
 	if !ok || compiled == nil {
-		return false, fmt.Errorf("dialog script %s not found or not pre-compiled", scriptPath)
+		err := fmt.Errorf("dialog script %s not found or not pre-compiled", scriptPath)
+		if defaultTerminal != nil {
+			defaultTerminal.AddMessageColored(err.Error(), VGAPalette16[12])
+		}
+		return false, err
 	}
 
 	vm := compiled.Clone()
@@ -1098,7 +1169,11 @@ func ExecuteDialogScript(scriptPath string, keyword string) (bool, error) {
 	_ = vm.Set("reply", "")
 
 	if err := vm.Run(); err != nil {
-		return dialogEnded, fmt.Errorf("failed to execute dialog script %s: %w", scriptPath, err)
+		execErr := fmt.Errorf("failed to execute dialog script %s: %w", scriptPath, err)
+		if defaultTerminal != nil {
+			defaultTerminal.AddMessageColored(execErr.Error(), VGAPalette16[12])
+		}
+		return dialogEnded, execErr
 	}
 
 	if replyObj := vm.Get("reply"); replyObj != nil {

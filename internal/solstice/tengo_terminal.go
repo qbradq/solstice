@@ -247,7 +247,6 @@ func (t *TengoTerminal) Update(g *Game) error {
 	if inpututil.IsKeyJustPressed(ebiten.KeyEnter) || inpututil.IsKeyJustPressed(ebiten.KeyKPEnter) {
 		line := string(t.inputRunes)
 		brightBlue := VGAPalette16[9]
-		brightWhite := VGAPalette16[15]
 
 		if t.repl != nil {
 			if strings.TrimSpace(line) != "" {
@@ -275,10 +274,10 @@ func (t *TengoTerminal) Update(g *Game) error {
 				remaining -= chunkSize
 			}
 
-			// Execute statement and report error in white if returned
+			// Execute statement and report error in bright red if returned
 			if strings.TrimSpace(line) != "" {
 				if err := t.repl.Execute(line); err != nil {
-					t.repl.AddOutputColored(err.Error(), brightWhite)
+					t.repl.AddOutputColored(err.Error(), VGAPalette16[12])
 				}
 			}
 		}

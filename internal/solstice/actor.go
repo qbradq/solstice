@@ -30,7 +30,6 @@ type ActorDef struct {
 // It embeds Entity for position and graphical representation.
 type Actor struct {
 	Entity
-	ID             string `json:"id"`
 	DialogScript   string `json:"dialog_script,omitempty"`
 	IdleScript     string `json:"idle_script,omitempty"`
 	CombatScript   string `json:"combat_script,omitempty"`
@@ -92,12 +91,12 @@ func NewActor(id string, x, y int, spriteName string) *Actor {
 
 	return &Actor{
 		Entity: Entity{
+			ID:        id,
 			Name:      id,
 			SpriteDef: sd,
 			X:         x,
 			Y:         y,
 		},
-		ID:    id,
 		Level: 1,
 	}
 }

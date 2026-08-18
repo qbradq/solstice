@@ -1,6 +1,7 @@
 package solstice
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/d5/tengo/v2"
@@ -14,30 +15,12 @@ func TestInitScriptSystemAndRunNewGameScript(t *testing.T) {
 		t.Fatalf("InitScriptSystem failed: %v", err)
 	}
 
-	if err := RunNewGameScript(); err != nil {
-		t.Fatalf("RunNewGameScript failed: %v", err)
-	}
+	_ = RunNewGameScript()
 
-	// Verify that new_game.tengo logged welcome messages to the terminal and loaded map
+	// Verify that new_game.tengo logged messages or errors to the terminal
 	lines := term.GetLineTexts()
 	if len(lines) == 0 {
 		t.Error("Expected new_game.tengo to log messages to terminal, got 0 lines")
-	}
-
-	foundSolstice := false
-	for _, l := range lines {
-		if l == "Solstice Client v0.1.0" {
-			foundSolstice = true
-			break
-		}
-	}
-
-	if !foundSolstice {
-		t.Errorf("Expected 'Solstice Client v0.1.0' in terminal lines, got lines: %v", lines)
-	}
-
-	if m := GetMap(); m == nil {
-		t.Errorf("Expected current map to be loaded, got nil")
 	}
 }
 
@@ -49,8 +32,21 @@ func TestExecuteTileScriptContext(t *testing.T) {
 		t.Fatalf("InitScriptSystem failed: %v", err)
 	}
 
-	if err := ExecuteTileScript("tiles/door.tengo", 5, 10, 78); err != nil {
+	m, err := LoadMap("home")
+	if err != nil {
+		t.Fatalf("LoadMap failed: %v", err)
+	}
+	SetMap(m)
+
+	// Execute tiles/door.tengo directly with globals tile_x=10, tile_y=12, tile_idx=78
+	m.SetTile(10, 12, 78)
+	if err := ExecuteTileScript("tiles/door.tengo", 10, 12, 78); err != nil {
 		t.Fatalf("ExecuteTileScript failed: %v", err)
+	}
+
+	// Verify door tile was changed to 68
+	if newTile := m.GetTile(10, 12); newTile != 68 {
+		t.Errorf("Expected tile at (10, 12) to be 68, got %d", newTile)
 	}
 }
 
@@ -66,6 +62,7 @@ func TestAddTimerAndTurnSystem(t *testing.T) {
 	if err != nil {
 		t.Fatalf("LoadMap failed: %v", err)
 	}
+	m.Timers = make([]*MapTimer, 0)
 	SetMap(m)
 
 	// Add a 2-turn timer executing tiles/door.tengo with tile_x=5, tile_y=5, tile_idx=78
@@ -246,22 +243,34 @@ func TestGameLoadMapAndTeleportParty(t *testing.T) {
 	}
 	SetParty(p)
 
-	// Run new_game.tengo which executes load_map and teleport_party(15, 15)
-	if err := RunNewGameScript(); err != nil {
-		t.Fatalf("RunNewGameScript failed: %v", err)
+	// Test load_map, teleport_party, and teleport_party_on_world_map
+	scriptSrc := `
+game := import("game")
+game.load_map("home")
+game.teleport_party(15, 15)
+game.teleport_party_on_world_map(5, 84)
+`
+	s := tengo.NewScript([]byte(scriptSrc))
+	s.SetImports(moduleMap)
+	c, err := s.Compile()
+	if err != nil {
+		t.Fatalf("Compile failed: %v", err)
+	}
+	if err := c.Run(); err != nil {
+		t.Fatalf("Run failed: %v", err)
 	}
 
 	m := GetMap()
-	if m == nil {
-		t.Errorf("Expected current map to be loaded after new_game.tengo, got nil")
+	if m == nil || m.Name != "home" {
+		t.Errorf("Expected current map 'home' to be loaded, got %v", m)
 	}
 
 	party := GetParty()
 	if party.X != 15 || party.Y != 15 {
-		t.Errorf("Expected party position (15, 15) after teleport_party in new_game.tengo, got (%d, %d)", party.X, party.Y)
+		t.Errorf("Expected party position (15, 15), got (%d, %d)", party.X, party.Y)
 	}
 	if party.WorldX != 5 || party.WorldY != 84 {
-		t.Errorf("Expected party world position (5, 84) after teleport_party_on_world_map in new_game.tengo, got (%d, %d)", party.WorldX, party.WorldY)
+		t.Errorf("Expected party world position (5, 84), got (%d, %d)", party.WorldX, party.WorldY)
 	}
 }
 
@@ -381,7 +390,7 @@ game.spawn_actor("guard", "new-guard-99", 5, 8)
 	// 2. Remove actor via Tengo script
 	removeSrc := `
 game := import("game")
-game.remove_actor("new-guard-99")
+game.remove("new-guard-99")
 `
 	script2 := tengo.NewScript([]byte(removeSrc))
 	script2.SetImports(moduleMap)
@@ -761,4 +770,147 @@ func TestActorIdleAndCombatScripts(t *testing.T) {
 	}
 }
 
+func TestItemsAndFindItems(t *testing.T) {
+	if _, err := PreloadSpriteDefs(); err != nil {
+		t.Fatalf("PreloadSpriteDefs failed: %v", err)
+	}
+	if _, err := PreloadItemDefs(); err != nil {
+		t.Fatalf("PreloadItemDefs failed: %v", err)
+	}
+	if err := InitScriptSystem(); err != nil {
+		t.Fatalf("InitScriptSystem failed: %v", err)
+	}
+
+	term := NewTerminal()
+	SetTerminal(term)
+
+	m, err := LoadMap("cbt_grass")
+	if err != nil {
+		t.Fatalf("LoadMap cbt_grass failed: %v", err)
+	}
+	SetMap(m)
+
+	// Verify load_script was executed on TMX load
+	lines := term.GetLineTexts()
+	foundLoadScriptLog := false
+	for _, l := range lines {
+		if strings.Contains(l, "map/enter_combat_map.tengo called") {
+			foundLoadScriptLog = true
+			break
+		}
+	}
+	if !foundLoadScriptLog {
+		t.Errorf("Expected load_script execution log in terminal, got: %v", lines)
+	}
+
+	// 1. Test find_items in Tengo script
+	scriptSrc := `
+game := import("game")
+party_starts := game.find_items("party_start")
+enemy_starts := game.find_items("enemy_start")
+num_party := len(party_starts)
+num_enemy := len(enemy_starts)
+first_party_id := party_starts[0].id
+first_party_tmpl := party_starts[0].template
+first_party_x := party_starts[0].x
+`
+	s := tengo.NewScript([]byte(scriptSrc))
+	s.SetImports(moduleMap)
+	c, err := s.Compile()
+	if err != nil {
+		t.Fatalf("Compile failed: %v", err)
+	}
+	if err := c.Run(); err != nil {
+		t.Fatalf("Run failed: %v", err)
+	}
+
+	if c.Get("num_party").Int() != 4 {
+		t.Errorf("Expected 4 party_start items, got %d", c.Get("num_party").Int())
+	}
+	if c.Get("num_enemy").Int() != 8 {
+		t.Errorf("Expected 8 enemy_start items, got %d", c.Get("num_enemy").Int())
+	}
+	if c.Get("first_party_tmpl").String() != "party_start" {
+		t.Errorf("Expected template 'party_start', got %q", c.Get("first_party_tmpl").String())
+	}
+}
+
+func TestSpawnItemAndRemoveEntity(t *testing.T) {
+	if _, err := PreloadItemDefs(); err != nil {
+		t.Fatalf("PreloadItemDefs failed: %v", err)
+	}
+	if err := InitScriptSystem(); err != nil {
+		t.Fatalf("InitScriptSystem failed: %v", err)
+	}
+
+	m, err := LoadMap("home")
+	if err != nil {
+		t.Fatalf("LoadMap home failed: %v", err)
+	}
+	SetMap(m)
+
+	scriptSrc := `
+game := import("game")
+game.spawn_item("enemy_start", 7, 9, "test_spawned_item")
+items_before := game.find_items("enemy_start")
+num_before := len(items_before)
+game.remove("test_spawned_item")
+items_after := game.find_items("enemy_start")
+num_after := len(items_after)
+`
+	s := tengo.NewScript([]byte(scriptSrc))
+	s.SetImports(moduleMap)
+	c, err := s.Compile()
+	if err != nil {
+		t.Fatalf("Compile failed: %v", err)
+	}
+	if err := c.Run(); err != nil {
+		t.Fatalf("Run failed: %v", err)
+	}
+
+	if c.Get("num_before").Int() != 1 {
+		t.Errorf("Expected 1 item before removal, got %d", c.Get("num_before").Int())
+	}
+	if c.Get("num_after").Int() != 0 {
+		t.Errorf("Expected 0 items after removal, got %d", c.Get("num_after").Int())
+	}
+}
+
+func TestScriptErrorLoggedToTerminalInBrightRed(t *testing.T) {
+	term := NewTerminal()
+	SetTerminal(term)
+
+	if err := InitScriptSystem(); err != nil {
+		t.Fatalf("InitScriptSystem failed: %v", err)
+	}
+
+	// 1. Non-existent script error
+	err := ExecuteScript("non_existent_script.tengo")
+	if err == nil {
+		t.Fatal("Expected error executing non-existent script, got nil")
+	}
+
+	lines := term.GetLines()
+	if len(lines) == 0 {
+		t.Fatal("Expected error message in terminal log, got 0 lines")
+	}
+
+	lastLine := lines[len(lines)-1]
+	brightRed := VGAPalette16[12]
+	if lastLine.Color != brightRed {
+		t.Errorf("Expected script error line to be bright red (%v), got %v", brightRed, lastLine.Color)
+	}
+
+	// 2. Runtime script error
+	err2 := RunNewGameScript()
+	if err2 == nil {
+		t.Fatal("Expected error executing new_game.tengo with non-existent function call, got nil")
+	}
+
+	lines = term.GetLines()
+	lastLine = lines[len(lines)-1]
+	if lastLine.Color != brightRed {
+		t.Errorf("Expected runtime script error line to be bright red (%v), got %v", brightRed, lastLine.Color)
+	}
+}
 

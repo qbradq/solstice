@@ -1,0 +1,3 @@
+game := import("game")
+
+game.log("map/enter_combat_map.tengo called")

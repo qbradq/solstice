@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<map version="1.10" tiledversion="1.12.2" orientation="orthogonal" renderorder="right-down" width="16" height="16" tilewidth="16" tileheight="16" infinite="0" nextlayerid="3" nextobjectid="17">
+ <tileset firstgid="1" source="tileset.tsx"/>
+ <layer id="1" name="Tile Layer 1" width="16" height="16">
+  <data encoding="csv">
+6,6,6,6,6,6,6,6,6,6,6,6,6,6,6,6,
+6,6,6,6,6,6,6,6,9,6,6,6,6,6,6,6,
+6,6,6,6,6,6,6,6,6,6,6,6,6,6,7,6,
+6,6,7,6,6,6,6,6,6,6,6,6,6,6,6,6,
+6,6,6,6,6,6,6,6,6,6,6,6,6,6,6,6,
+6,6,6,6,6,6,6,6,6,6,6,6,6,6,6,6,
+6,6,6,6,6,6,6,6,6,6,6,6,6,6,6,6,
+6,6,6,6,6,6,6,6,6,6,6,6,6,6,6,6,
+6,6,9,6,6,6,7,6,6,6,6,6,6,7,6,6,
+6,6,6,6,6,6,6,6,6,6,6,6,6,6,6,6,
+6,6,6,6,6,6,6,6,6,6,6,6,6,6,6,6,
+6,6,6,6,6,6,6,6,6,6,6,6,6,6,6,6,
+6,6,6,6,6,6,6,6,9,6,6,6,6,6,6,6,
+6,6,6,6,6,6,6,6,6,6,6,6,6,6,9,6,
+6,6,6,7,6,6,6,6,6,6,6,6,6,6,6,6,
+6,6,6,6,6,6,6,6,6,6,6,6,6,6,6,6
+</data>
+ </layer>
+ <objectgroup id="2" name="Object Layer 1">
+  <object id="2" name="item:enemy_start" x="98.018" y="24.5804">
+   <properties>
+    <property name="exit_to_world" type="bool" value="true"/>
+    <property name="load_script" value="map/enter_combat_map.tengo"/>
+   </properties>
+  </object>
+  <object id="3" name="item:enemy_start" x="137.771" y="24.8838"/>
+  <object id="4" name="item:enemy_start" x="180.256" y="26.0977"/>
+  <object id="5" name="item:enemy_start" x="139.289" y="78.9"/>
+  <object id="6" name="item:enemy_start" x="57.9611" y="113.798"/>
+  <object id="7" name="item:enemy_start" x="209.995" y="114.405"/>
+  <object id="14" name="item:enemy_start" x="232.755" y="196.643"/>
+  <object id="13" name="item:enemy_start" x="30.6496" y="26.0977"/>
+  <object id="9" name="item:party_start" x="135.344" y="180.56"/>
+  <object id="10" name="item:party_start" x="135.951" y="219.099"/>
+  <object id="11" name="item:party_start" x="95.2869" y="219.403"/>
+  <object id="12" name="item:party_start" x="176.008" y="218.492"/>
+ </objectgroup>
+</map>

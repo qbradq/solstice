@@ -142,6 +142,10 @@ func Main() {
 		log.Fatalf("failed to preload actor defs: %v", err)
 	}
 
+	if _, err := PreloadItemDefs(); err != nil {
+		log.Fatalf("failed to preload item defs: %v", err)
+	}
+
 	term := NewTerminal()
 
 	// Initialize Tengo script system and pre-compile all scripts from data/scripts

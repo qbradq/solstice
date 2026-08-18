@@ -62,7 +62,7 @@
         "world.tmx"
     ],
     "project": "solstice.tiled-project",
-    "property.type": "bool",
+    "property.type": "string",
     "recentFiles": [
         "tileset.tsx",
         "world.tmx",

@@ -1,6 +1,4 @@
 {
-    "map_entrance": {
-        "sprite": "map_entrance_village",
-        "enter_destination": "home"
-    }
+    "party_start": {},
+    "enemy_start": {}
 }
