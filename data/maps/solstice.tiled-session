@@ -9,10 +9,10 @@
                 2
             ],
             "scale": 3,
-            "selectedLayer": 0,
+            "selectedLayer": 1,
             "viewCenter": {
-                "x": 528,
-                "y": 266.3333333333333
+                "x": 279.66666666666663,
+                "y": 199.99999999999997
             }
         },
         "kings_shrine.tmx": {
@@ -24,11 +24,11 @@
             }
         },
         "onlet.tmx": {
-            "scale": 3,
-            "selectedLayer": 0,
+            "scale": 5.5,
+            "selectedLayer": 1,
             "viewCenter": {
-                "x": 641.6666666666666,
-                "y": 90.66666666666669
+                "x": 631.8181818181819,
+                "y": 119.81818181818183
             }
         },
         "tileset.tsx": {

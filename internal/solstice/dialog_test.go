@@ -101,6 +101,11 @@ func TestDialogModeStack(t *testing.T) {
 		t.Error("Expected terminal to be in Input Mode during dialog")
 	}
 
+	lines := term.GetLines()
+	if len(lines) == 0 || lines[0].Text != "> LOOK" || lines[0].Color != VGAPalette16[9] {
+		t.Errorf("Expected initial '> LOOK' line in bright blue, got %+v", lines)
+	}
+
 	// Test rendering in DialogMode
 	game.Draw(screen)
 

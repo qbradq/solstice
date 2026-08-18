@@ -28,6 +28,7 @@ func (dm *DialogMode) Update(g *Game) error {
 		dm.initialized = true
 		if g.terminal != nil {
 			g.terminal.SetInputMode(true)
+			g.terminal.AddMessageColored("> LOOK", VGAPalette16[9])
 		}
 		// First exchange: execute dialog script with "look" keyword
 		ended, _ := ExecuteDialogScript(dm.scriptPath, "look")

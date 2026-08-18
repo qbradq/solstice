@@ -77,5 +77,19 @@
         "hit_points": 120,
         "max_magic_points": 40,
         "magic_points": 40
+    },
+    "lillian": {
+        "name": "Lillian",
+        "sprite": "peasant",
+        "dialog_script": "dialog/lillian.tengo",
+        "level": 3,
+        "experience": 8000,
+        "strength": 8,
+        "dexterity": 12,
+        "intelligence": 18,
+        "max_hit_points": 45,
+        "hit_points": 45,
+        "max_magic_points": 60,
+        "magic_points": 60
     }
 }

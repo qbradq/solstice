@@ -1,0 +1,49 @@
+game := import("game")
+
+if keyword == "look" {
+    reply = "You see a kindly looking woman of advanced age supporting " +
+            "herself with a gnarled oaken STAFF."
+} else if keyword == "name" {
+    reply = "My name is Lillian."
+} else if keyword == "job" {
+    reply = "I used to tend the fields with my LATE HUSBAND. Now I spin FLAX " +
+            "into THREAD to pay for my meals."
+} else if keyword == "bye" {
+    reply = "Go in peace."
+    game.end_dialog()
+} else if keyword == "late" {
+    reply = "Yes, Thomas passed 5 years ago from the FEVER."
+} else if keyword == "husb" || keyword == "thom" {
+    reply = "Thomas, my LATE husband, was a fine man. We knew one another " +
+            "since childhood, although we didn't become close until our 20s." +
+            "We were married for 50 years before he passed."
+} else if keyword == "staf" {
+    reply = "This old STAFF has seen me through thick and thin. It was given " +
+            "to me by DUKE Lafey when I became a widow. It bears the Royal " +
+            "SEAL!"
+} else if keyword == "thre" {
+    reply = "Spinning THREAD is honest work."
+} else if keyword == "flax" {
+    reply = "FLAX is a plant that is used to make linen. THOMAS and I used " +
+            "to grow it ourselves and sell it to the spinner widows in the " +
+            "village. Now I am one."
+} else if keyword == "feve" {
+    reply = "The FEVER took so many good people. King Rondal III acted " +
+            "swiftly, employing the Royal Mage's Academy to quickly " +
+            "discover the cause of the illness and distribute the cure."
+} else if keyword == "duke" {
+    reply = "DUKE Lafey has always been a friend to the common folk."
+} else if keyword == "seal" {
+    reply = "The Royal SEAL upon my staff is a well recognized symbol that I " +
+            "am under the direct care and protection of King Rondal III. " +
+            "That used to mean I could go where I pleased without fear. Now, " +
+            "I'm afraid to venture too far from the village for fear of " +
+            "monsters!"
+} else {
+    reply = game.random(
+        "Perhaps you should ask someone else.",
+        "I'm not sure I can help with that.",
+        "Let's talk about something else.",
+        "I've said all I can say on that topic."
+    )
+}
