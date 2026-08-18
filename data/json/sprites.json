@@ -66,6 +66,11 @@
         "animated": true,
         "frames": 4
     },
+    "guard": {
+        "tile": 368,
+        "animated": true,
+        "frames": 4
+    },
     "duke": {
         "tile": 376,
         "animated": true,
@@ -76,45 +81,154 @@
         "animated": true,
         "frames": 4
     },
-    "guard": {
-        "tile": 368,
+    "seahorse": {
+        "tile": 384,
         "animated": true,
         "frames": 4
     },
-    "map_entrance_house": {
-        "tile": 16
+    "kraken": {
+        "tile": 388,
+        "animated": true,
+        "frames": 4
     },
-    "map_entrance_temple": {
-        "tile": 17
+    "sea_serpent": {
+        "tile": 392,
+        "animated": true,
+        "frames": 4
     },
-    "map_entrance_tower": {
-        "tile": 18
+    "shark": {
+        "tile": 396,
+        "animated": true,
+        "frames": 4
     },
-    "map_entrance_village": {
-        "tile": 19
+    "rat": {
+        "tile": 400,
+        "animated": true,
+        "frames": 4
     },
-    "map_entrance_fort": {
-        "tile": 20
+    "bat": {
+        "tile": 404,
+        "animated": true,
+        "frames": 4
     },
-    "map_entrance_castle": {
-        "tile": 21
+    "spider": {
+        "tile": 408,
+        "animated": true,
+        "frames": 4
     },
-    "map_entrance_cave": {
-        "tile": 22
+    "ghost": {
+        "tile": 412,
+        "animated": true,
+        "frames": 4
     },
-    "map_entrance_mine": {
-        "tile": 23
+    "slime": {
+        "tile": 416,
+        "animated": true,
+        "frames": 4
     },
-    "map_entrance_dungeon": {
-        "tile": 24
+    "gremlin": {
+        "tile": 420,
+        "animated": true,
+        "frames": 4
     },
-    "map_entrance_shrine": {
-        "tile": 25
+    "mimic": {
+        "tile": 424,
+        "animated": true,
+        "frames": 4
     },
-    "map_entrance_shrine_ruined": {
-        "tile": 26
+    "reaper": {
+        "tile": 428,
+        "animated": true,
+        "frames": 4
     },
-    "map_entrance_lighthouse": {
-        "tile": 27
+    "gazer": {
+        "tile": 432,
+        "animated": true,
+        "frames": 4
+    },
+    "mouse": {
+        "tile": 440,
+        "animated": true,
+        "frames": 4
+    },
+    "swarm": {
+        "tile": 444,
+        "animated": true,
+        "frames": 4
+    },
+    "orc": {
+        "tile": 448,
+        "animated": true,
+        "frames": 4
+    },
+    "skeleton": {
+        "tile": 452,
+        "animated": true,
+        "frames": 4
+    },
+    "serpent": {
+        "tile": 456,
+        "animated": true,
+        "frames": 4
+    },
+    "giant": {
+        "tile": 460,
+        "animated": true,
+        "frames": 4
+    },
+    "cyclops": {
+        "tile": 464,
+        "animated": true,
+        "frames": 4
+    },
+    "will-o-wisp": {
+        "tile": 468,
+        "animated": true,
+        "frames": 4
+    },
+    "deamon": {
+        "tile": 472,
+        "animated": true,
+        "frames": 4
+    },
+    "dragon": {
+        "tile": 476,
+        "animated": true,
+        "frames": 4
+    },
+    "sand-worm": {
+        "tile": 480,
+        "animated": true,
+        "frames": 4
+    },
+    "devil": {
+        "tile": 484,
+        "animated": true,
+        "frames": 4
+    },
+    "whirlpool": {
+        "tile": 492,
+        "animated": true,
+        "frames": 4
+    },
+    "imp": {
+        "tile": 496,
+        "animated": true,
+        "frames": 4
+    },
+    "vine": {
+        "tile": 500,
+        "animated": true,
+        "frames": 4
+    },
+    "leach": {
+        "tile": 504,
+        "animated": true,
+        "frames": 4
+    },
+    "dark-lord": {
+        "tile": 508,
+        "animated": true,
+        "frames": 4
     }
 }
