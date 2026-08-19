@@ -1,5 +1,11 @@
 {
     "party_start": {},
     "player_start": {},
-    "enemy_start": {}
+    "enemy_start": {},
+    "human_corpse": {
+        "sprite": "human-corpse"
+    },
+    "animal_corpse": {
+        "sprite": "animal-corpse"
+    }
 }

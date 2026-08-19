@@ -117,7 +117,7 @@ func (m *MainMode) Update(g *Game) error {
 				}
 			}
 
-			// Attack - A key, triggers targeting mode with range 1 (diamond) and executes attack.tengo (once per turn)
+			// Attack - A key, triggers targeting mode with range 1 (diamond) on locations with an actor present (once per turn)
 			if inpututil.IsKeyJustPressed(ebiten.KeyA) && !GetCombatMemberActed() {
 				curMap := GetMap()
 				if curMap != nil {
@@ -136,7 +136,9 @@ func (m *MainMode) Update(g *Game) error {
 								tx := curMember.X + dx
 								ty := curMember.Y + dy
 								if tx >= 0 && tx < curMap.Width && ty >= 0 && ty < curMap.Height {
-									attackTiles[image.Pt(tx, ty)] = true
+									if curMap.GetActorAt(tx, ty) != nil {
+										attackTiles[image.Pt(tx, ty)] = true
+									}
 								}
 							}
 						}
@@ -150,12 +152,12 @@ func (m *MainMode) Update(g *Game) error {
 							if !attackTiles[targetPt] {
 								return false
 							}
-							SetCombatMemberActed(true)
-							targetID := ""
-							if act := curMap.GetActorAt(tx, ty); act != nil {
-								targetID = act.ID
+							act := curMap.GetActorAt(tx, ty)
+							if act == nil {
+								return false
 							}
-							_ = ExecuteEffectScript("effects/attack.tengo", tx, ty, targetID, curMember.ID)
+							SetCombatMemberActed(true)
+							_ = ExecuteEffectScript("effects/attack.tengo", tx, ty, act.ID, curMember.ID)
 							return true
 						},
 						nil,

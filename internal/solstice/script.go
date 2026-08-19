@@ -173,9 +173,19 @@ func InitScriptSystem() error {
 				if len(args) == 0 {
 					return tengo.UndefinedValue, nil
 				}
-				msg, ok := tengo.ToString(args[0])
+				format, ok := tengo.ToString(args[0])
 				if !ok {
-					msg = args[0].String()
+					format = args[0].String()
+				}
+				var msg string
+				if len(args) == 1 {
+					msg = format
+				} else {
+					formatted, err := tengo.Format(format, args[1:]...)
+					if err != nil {
+						return tengo.UndefinedValue, err
+					}
+					msg = formatted
 				}
 				if defaultTerminal != nil {
 					defaultTerminal.AddMessage(msg)
@@ -631,6 +641,116 @@ func InitScriptSystem() error {
 					}
 				}
 				return &tengo.Array{Value: arr}, nil
+			},
+		},
+		"get_actor": &tengo.UserFunction{
+			Name: "get_actor",
+			Value: func(args ...tengo.Object) (tengo.Object, error) {
+				if len(args) < 1 {
+					return tengo.UndefinedValue, fmt.Errorf("get_actor requires 1 argument: actor_id")
+				}
+				actorID, ok := tengo.ToString(args[0])
+				if !ok {
+					return tengo.UndefinedValue, fmt.Errorf("get_actor argument must be a string")
+				}
+
+				var actor *Actor
+				m := GetMap()
+				if m != nil {
+					actor = m.GetActorByID(actorID)
+				}
+				if actor == nil {
+					p := GetParty()
+					if p != nil {
+						for i := range p.Members {
+							if p.Members[i].ID == actorID {
+								actor = &p.Members[i]
+								break
+							}
+						}
+					}
+				}
+
+				if actor == nil {
+					return tengo.UndefinedValue, nil
+				}
+
+				humanVal := tengo.FalseValue
+				if actor.Human {
+					humanVal = tengo.TrueValue
+				}
+
+				return &tengo.Map{
+					Value: map[string]tengo.Object{
+						"id":               &tengo.String{Value: actor.ID},
+						"name":             &tengo.String{Value: actor.Name},
+						"human":            humanVal,
+						"level":            &tengo.Int{Value: int64(actor.Level)},
+						"strength":         &tengo.Int{Value: int64(actor.Strength)},
+						"dexterity":        &tengo.Int{Value: int64(actor.Dexterity)},
+						"intelligence":     &tengo.Int{Value: int64(actor.Intelligence)},
+						"max_hit_points":   &tengo.Int{Value: int64(actor.MaxHitPoints)},
+						"hit_points":       &tengo.Int{Value: int64(actor.HitPoints)},
+						"max_magic_points": &tengo.Int{Value: int64(actor.MaxMagicPoints)},
+						"magic_points":     &tengo.Int{Value: int64(actor.MagicPoints)},
+					},
+				}, nil
+			},
+		},
+		"damage_actor": &tengo.UserFunction{
+			Name: "damage_actor",
+			Value: func(args ...tengo.Object) (tengo.Object, error) {
+				if len(args) < 2 {
+					return tengo.UndefinedValue, fmt.Errorf("damage_actor requires 2 arguments: actor_id, amount")
+				}
+				actorID, ok1 := tengo.ToString(args[0])
+				amount, ok2 := tengo.ToInt(args[1])
+				if !ok1 || !ok2 {
+					return tengo.UndefinedValue, fmt.Errorf("damage_actor arguments must be (string, int)")
+				}
+
+				var actor *Actor
+				m := GetMap()
+				if m != nil {
+					actor = m.GetActorByID(actorID)
+				}
+				var partyMember *Actor
+				p := GetParty()
+				if p != nil {
+					for i := range p.Members {
+						if p.Members[i].ID == actorID {
+							partyMember = &p.Members[i]
+							if actor == nil {
+								actor = partyMember
+							}
+							break
+						}
+					}
+				}
+
+				if actor == nil {
+					return tengo.UndefinedValue, nil
+				}
+
+				actor.HitPoints -= amount
+				if partyMember != nil {
+					partyMember.HitPoints = actor.HitPoints
+				}
+
+				if actor.HitPoints <= 0 {
+					if m != nil {
+						corpseTmpl := "animal_corpse"
+						if actor.Human {
+							corpseTmpl = "human_corpse"
+						}
+						corpseID := m.GenerateUniqueItemID(fmt.Sprintf("%s_corpse", actor.ID))
+						item := NewItem(corpseID, corpseTmpl, actor.X, actor.Y)
+						m.RemoveActor(actor)
+						m.AddItem(item)
+					}
+				}
+
+				return tengo.UndefinedValue, nil
 			},
 		},
 		"set_actor_pos": &tengo.UserFunction{

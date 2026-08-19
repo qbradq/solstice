@@ -8,29 +8,44 @@ import (
 	"solstice/data"
 )
 
+// FlexibleBool unmarshals both boolean and string representations of booleans (e.g. true, "true").
+type FlexibleBool bool
+
+func (b *FlexibleBool) UnmarshalJSON(data []byte) error {
+	s := strings.ToLower(strings.Trim(string(data), `"`))
+	if s == "true" || s == "1" {
+		*b = true
+		return nil
+	}
+	*b = false
+	return nil
+}
+
 // ActorDef represents an actor definition loaded from JSON.
 type ActorDef struct {
-	Name           string `json:"name"`
-	Sprite         string `json:"sprite"`        // Key into sprites.json
-	DialogScript   string `json:"dialog_script"` // Path to dialog script
-	IdleScript     string `json:"idle_script,omitempty"`
-	CombatScript   string `json:"combat_script,omitempty"`
-	Experience     int    `json:"experience"`
-	Level          int    `json:"level"`
-	Strength       int    `json:"strength"`
-	Dexterity      int    `json:"dexterity"`
-	Intelligence   int    `json:"intelligence"`
-	MaxHitPoints   int    `json:"max_hit_points"`
-	HitPoints      int    `json:"hit_points"`
-	MaxMagicPoints int    `json:"max_magic_points"`
-	MagicPoints    int    `json:"magic_points"`
-	Move           int    `json:"move"`
+	Name           string       `json:"name"`
+	Sprite         string       `json:"sprite"` // Key into sprites.json
+	Human          FlexibleBool `json:"human,omitempty"`
+	DialogScript   string       `json:"dialog_script"` // Path to dialog script
+	IdleScript     string       `json:"idle_script,omitempty"`
+	CombatScript   string       `json:"combat_script,omitempty"`
+	Experience     int          `json:"experience"`
+	Level          int          `json:"level"`
+	Strength       int          `json:"strength"`
+	Dexterity      int          `json:"dexterity"`
+	Intelligence   int          `json:"intelligence"`
+	MaxHitPoints   int          `json:"max_hit_points"`
+	HitPoints      int          `json:"hit_points"`
+	MaxMagicPoints int          `json:"max_magic_points"`
+	MagicPoints    int          `json:"magic_points"`
+	Move           int          `json:"move"`
 }
 
 // Actor represents an agent or character in the game world (NPC, monster, party member).
 // It embeds Entity for position and graphical representation.
 type Actor struct {
 	Entity
+	Human          bool   `json:"human,omitempty"`
 	DialogScript   string `json:"dialog_script,omitempty"`
 	IdleScript     string `json:"idle_script,omitempty"`
 	CombatScript   string `json:"combat_script,omitempty"`
@@ -118,6 +133,7 @@ func NewActorFromDef(id string, defKey string, x, y int) (*Actor, error) {
 	actor.DialogScript = def.DialogScript
 	actor.IdleScript = def.IdleScript
 	actor.CombatScript = def.CombatScript
+	actor.Human = bool(def.Human)
 	actor.Experience = def.Experience
 	actor.Level = def.Level
 	if actor.Level == 0 {

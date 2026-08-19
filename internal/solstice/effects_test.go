@@ -3,123 +3,250 @@ package solstice
 import (
 	"image"
 	"image/color"
+	"strings"
 	"testing"
 )
 
-func TestEffectScriptExecution(t *testing.T) {
+func TestGameGetActorAndDamageActor(t *testing.T) {
 	if _, err := PreloadActorDefs(); err != nil {
 		t.Fatalf("PreloadActorDefs failed: %v", err)
 	}
 	if _, err := PreloadTileSet(); err != nil {
 		t.Fatalf("PreloadTileSet failed: %v", err)
 	}
+	if _, err := PreloadItemDefs(); err != nil {
+		t.Fatalf("PreloadItemDefs failed: %v", err)
+	}
 	if err := InitScriptSystem(); err != nil {
 		t.Fatalf("InitScriptSystem failed: %v", err)
 	}
 
+	homeMap, err := ReloadMap("home")
+	if err != nil || homeMap == nil {
+		homeMap, err = LoadMap("home")
+		if err != nil {
+			t.Fatalf("LoadMap failed: %v", err)
+		}
+	}
+	SetMap(homeMap)
+
+	hero, err := NewActorFromDef("hero1", "kevin", 5, 5)
+	if err != nil {
+		t.Fatalf("NewActorFromDef hero1 failed: %v", err)
+	}
+	party, err := NewParty(5, 5, *hero)
+	if err != nil {
+		t.Fatalf("NewParty failed: %v", err)
+	}
+	SetParty(party)
+
+	enemy, err := NewActorFromDef("enemy1", "rodent", 6, 5)
+	if err != nil {
+		t.Fatalf("NewActorFromDef enemy1 failed: %v", err)
+	}
+	homeMap.AddActor(enemy)
+
 	term := NewTerminal()
 	SetTerminal(term)
 
-	// Execute attack.tengo directly
-	err := ExecuteEffectScript("effects/attack.tengo", 10, 15, "rat1", "hero1")
+	repl := NewTengoREPL()
+
+	// Test game.get_actor on map actor
+	err = repl.Execute(`
+act := game.get_actor("enemy1")
+game.log(act["name"])
+game.log(string(act["level"]))
+game.log(string(act["strength"]))
+game.log(string(act["hit_points"]))
+game.log(string(act["human"]))
+`)
+	if err != nil {
+		t.Fatalf("REPL get_actor failed: %v", err)
+	}
+
+	lines := term.GetLineTexts()
+	if len(lines) < 5 {
+		t.Fatalf("Expected at least 5 lines, got %d", len(lines))
+	}
+	last5 := lines[len(lines)-5:]
+	if last5[0] != "Rodent of Unusual Size" {
+		t.Errorf("Expected 'Rodent of Unusual Size', got %q", last5[0])
+	}
+	if last5[1] != "1" {
+		t.Errorf("Expected level '1', got %q", last5[1])
+	}
+	if last5[2] != "8" {
+		t.Errorf("Expected strength '8', got %q", last5[2])
+	}
+	if last5[3] != "15" {
+		t.Errorf("Expected hit points '15', got %q", last5[3])
+	}
+	if last5[4] != "true" {
+		t.Errorf("Expected human 'true', got %q", last5[4])
+	}
+
+	// Test game.damage_actor damaging enemy
+	err = repl.Execute(`
+game.damage_actor("enemy1", 6)
+act2 := game.get_actor("enemy1")
+game.log(string(act2["hit_points"]))
+`)
+	if err != nil {
+		t.Fatalf("REPL damage_actor failed: %v", err)
+	}
+
+	lines = term.GetLineTexts()
+	if lines[len(lines)-1] != "9" {
+		t.Errorf("Expected updated hit points '9', got %q", lines[len(lines)-1])
+	}
+
+	// Test game.damage_actor killing human actor (enemy1 has human: true)
+	err = repl.Execute(`
+game.damage_actor("enemy1", 10)
+`)
+	if err != nil {
+		t.Fatalf("REPL lethal damage_actor failed: %v", err)
+	}
+
+	// Verify enemy1 was removed from map
+	if homeMap.GetActorByID("enemy1") != nil {
+		t.Errorf("Expected enemy1 to be removed from map after death")
+	}
+
+	// Verify human_corpse item spawned at (6, 5)
+	corpseItems := homeMap.FindItemsByTemplate("human_corpse")
+	if len(corpseItems) == 0 {
+		t.Errorf("Expected human_corpse item to be present on map at (6, 5)")
+	} else {
+		found := false
+		for _, it := range corpseItems {
+			if it != nil && it.X == 6 && it.Y == 5 {
+				found = true
+				break
+			}
+		}
+		if !found {
+			t.Errorf("Expected human_corpse item at (6, 5), got %v", corpseItems)
+		}
+	}
+
+	// Test animal actor death spawning animal_corpse
+	wolf, err := NewActorFromDef("wolf1", "rodent", 7, 5)
+	if err != nil {
+		t.Fatalf("NewActorFromDef wolf1 failed: %v", err)
+	}
+	wolf.Human = false
+	homeMap.AddActor(wolf)
+
+	err = repl.Execute(`
+game.damage_actor("wolf1", 50)
+`)
+	if err != nil {
+		t.Fatalf("REPL lethal damage on animal failed: %v", err)
+	}
+
+	if homeMap.GetActorByID("wolf1") != nil {
+		t.Errorf("Expected wolf1 to be removed from map after death")
+	}
+
+	animalCorpses := homeMap.FindItemsByTemplate("animal_corpse")
+	if len(animalCorpses) == 0 {
+		t.Errorf("Expected animal_corpse item on map")
+	} else {
+		found := false
+		for _, it := range animalCorpses {
+			if it != nil && it.X == 7 && it.Y == 5 {
+				found = true
+				break
+			}
+		}
+		if !found {
+			t.Errorf("Expected animal_corpse item at (7, 5), got %v", animalCorpses)
+		}
+	}
+
+	// Test game.get_actor on non-existent actor returns undefined
+	err = repl.Execute(`
+none := game.get_actor("nonexistent")
+if none == undefined {
+    game.log("not_found")
+}
+`)
+	if err != nil {
+		t.Fatalf("REPL get_actor nonexistent failed: %v", err)
+	}
+
+	lines = term.GetLineTexts()
+	if lines[len(lines)-1] != "not_found" {
+		t.Errorf("Expected 'not_found', got %q", lines[len(lines)-1])
+	}
+}
+
+func TestAttackEffectScriptExecution(t *testing.T) {
+	if _, err := PreloadActorDefs(); err != nil {
+		t.Fatalf("PreloadActorDefs failed: %v", err)
+	}
+	if _, err := PreloadTileSet(); err != nil {
+		t.Fatalf("PreloadTileSet failed: %v", err)
+	}
+	if _, err := PreloadItemDefs(); err != nil {
+		t.Fatalf("PreloadItemDefs failed: %v", err)
+	}
+	if err := InitScriptSystem(); err != nil {
+		t.Fatalf("InitScriptSystem failed: %v", err)
+	}
+
+	homeMap, err := ReloadMap("home")
+	if err != nil || homeMap == nil {
+		homeMap, err = LoadMap("home")
+		if err != nil {
+			t.Fatalf("LoadMap failed: %v", err)
+		}
+	}
+	SetMap(homeMap)
+
+	hero, err := NewActorFromDef("hero_atk", "kevin", 5, 5)
+	if err != nil {
+		t.Fatalf("NewActorFromDef hero failed: %v", err)
+	}
+	party, err := NewParty(5, 5, *hero)
+	if err != nil {
+		t.Fatalf("NewParty failed: %v", err)
+	}
+	SetParty(party)
+
+	enemy, err := NewActorFromDef("enemy_target", "rodent", 6, 5)
+	if err != nil {
+		t.Fatalf("NewActorFromDef enemy failed: %v", err)
+	}
+	enemy.HitPoints = 50
+	enemy.MaxHitPoints = 50
+	homeMap.AddActor(enemy)
+
+	term := NewTerminal()
+	SetTerminal(term)
+
+	// Execute attack.tengo
+	err = ExecuteEffectScript("effects/attack.tengo", 6, 5, "enemy_target", "hero_atk")
 	if err != nil {
 		t.Fatalf("ExecuteEffectScript failed: %v", err)
 	}
 
-	// Verify terminal output received the 4 game.log lines from attack.tengo
-	lines := term.GetLines()
-	if len(lines) < 4 {
-		t.Fatalf("Expected at least 4 terminal lines, got %d", len(lines))
+	lines := term.GetLineTexts()
+	if len(lines) == 0 {
+		t.Fatal("Expected attack message logged to terminal")
 	}
 
-	last4 := lines[len(lines)-4:]
-	if last4[0].Text != "rat1" {
-		t.Errorf("Expected target_id 'rat1', got %q", last4[0].Text)
-	}
-	if last4[1].Text != "10" {
-		t.Errorf("Expected target_x '10', got %q", last4[1].Text)
-	}
-	if last4[2].Text != "15" {
-		t.Errorf("Expected target_y '15', got %q", last4[2].Text)
-	}
-	if last4[3].Text != "hero1" {
-		t.Errorf("Expected source_id 'hero1', got %q", last4[3].Text)
-	}
-}
-
-func TestGameEffectOnTargetAndEffectAt(t *testing.T) {
-	if _, err := PreloadActorDefs(); err != nil {
-		t.Fatalf("PreloadActorDefs failed: %v", err)
-	}
-	if _, err := PreloadTileSet(); err != nil {
-		t.Fatalf("PreloadTileSet failed: %v", err)
-	}
-	if err := InitScriptSystem(); err != nil {
-		t.Fatalf("InitScriptSystem failed: %v", err)
+	joined := strings.Join(lines, " ")
+	if !strings.Contains(joined, "Kevin hits Rodent of Unusual Size for") && !strings.Contains(joined, "Kevin misses Rodent of Unusual Size!") {
+		t.Errorf("Unexpected attack log message in %q", joined)
 	}
 
-	homeMap, err := LoadMap("home")
-	if err != nil {
-		t.Fatalf("LoadMap('home') failed: %v", err)
-	}
-	SetMap(homeMap)
-
-	actor, err := NewActorFromDef("enemy1", "rodent", 7, 8)
-	if err != nil {
-		t.Fatalf("NewActorFromDef failed: %v", err)
-	}
-	homeMap.AddActor(actor)
-
-	term := NewTerminal()
-	SetTerminal(term)
-
-	// Test game.effect_on_target via REPL (game is pre-imported in autoexec)
-	repl := NewTengoREPL()
-	err = repl.Execute(`game.effect_on_target("effects/attack.tengo", "enemy1", "player1")`)
-	if err != nil {
-		t.Fatalf("REPL execute game.effect_on_target failed: %v", err)
-	}
-
-	lines := term.GetLines()
-	if len(lines) < 4 {
-		t.Fatalf("Expected at least 4 terminal lines, got %d", len(lines))
-	}
-	last4 := lines[len(lines)-4:]
-	if last4[0].Text != "enemy1" {
-		t.Errorf("Expected target_id 'enemy1', got %q", last4[0].Text)
-	}
-	if last4[1].Text != "7" {
-		t.Errorf("Expected target_x '7', got %q", last4[1].Text)
-	}
-	if last4[2].Text != "8" {
-		t.Errorf("Expected target_y '8', got %q", last4[2].Text)
-	}
-	if last4[3].Text != "player1" {
-		t.Errorf("Expected source_id 'player1', got %q", last4[3].Text)
-	}
-
-	// Test game.effect_at via REPL
-	err = repl.Execute(`game.effect_at("effects/attack.tengo", 20, 30, "caster1")`)
-	if err != nil {
-		t.Fatalf("REPL execute game.effect_at failed: %v", err)
-	}
-
-	lines = term.GetLines()
-	if len(lines) < 8 {
-		t.Fatalf("Expected at least 8 terminal lines, got %d", len(lines))
-	}
-	last4 = lines[len(lines)-4:]
-	if last4[0].Text != "" {
-		t.Errorf("Expected empty target_id, got %q", last4[0].Text)
-	}
-	if last4[1].Text != "20" {
-		t.Errorf("Expected target_x '20', got %q", last4[1].Text)
-	}
-	if last4[2].Text != "30" {
-		t.Errorf("Expected target_y '30', got %q", last4[2].Text)
-	}
-	if last4[3].Text != "caster1" {
-		t.Errorf("Expected source_id 'caster1', got %q", last4[3].Text)
+	// If it hit, verify HP was reduced
+	if strings.Contains(joined, "hits") {
+		if enemy.HitPoints >= 50 {
+			t.Errorf("Expected enemy HP to be reduced from 50 on hit, got %d", enemy.HitPoints)
+		}
 	}
 }
 
@@ -130,13 +257,19 @@ func TestAttackCombatMoveTargeting(t *testing.T) {
 	if _, err := PreloadTileSet(); err != nil {
 		t.Fatalf("PreloadTileSet failed: %v", err)
 	}
+	if _, err := PreloadItemDefs(); err != nil {
+		t.Fatalf("PreloadItemDefs failed: %v", err)
+	}
 	if err := InitScriptSystem(); err != nil {
 		t.Fatalf("InitScriptSystem failed: %v", err)
 	}
 
-	homeMap, err := LoadMap("home")
-	if err != nil {
-		t.Fatalf("LoadMap('home') failed: %v", err)
+	homeMap, err := ReloadMap("home")
+	if err != nil || homeMap == nil {
+		homeMap, err = LoadMap("home")
+		if err != nil {
+			t.Fatalf("LoadMap('home') failed: %v", err)
+		}
 	}
 	SetMap(homeMap)
 
@@ -163,24 +296,47 @@ func TestAttackCombatMoveTargeting(t *testing.T) {
 	SetTerminal(term)
 
 	attackExecuted := false
-	attackTiles := map[image.Point]bool{
-		{X: 5, Y: 4}: true,
-		{X: 5, Y: 6}: true,
-		{X: 4, Y: 5}: true,
-		{X: 6, Y: 5}: true,
-		{X: 5, Y: 5}: true,
+	attackTiles := make(map[image.Point]bool)
+	for dx := -1; dx <= 1; dx++ {
+		for dy := -1; dy <= 1; dy++ {
+			adx := dx
+			if adx < 0 {
+				adx = -adx
+			}
+			ady := dy
+			if ady < 0 {
+				ady = -ady
+			}
+			if adx+ady <= 1 {
+				tx := hero.X + dx
+				ty := hero.Y + dy
+				if tx >= 0 && tx < homeMap.Width && ty >= 0 && ty < homeMap.Height {
+					if homeMap.GetActorAt(tx, ty) != nil {
+						attackTiles[image.Pt(tx, ty)] = true
+					}
+				}
+			}
+		}
+	}
+
+	// Only hero tile (5, 5) and enemy tile (6, 5) have actors
+	if attackTiles[image.Pt(5, 4)] || attackTiles[image.Pt(5, 6)] || attackTiles[image.Pt(4, 5)] {
+		t.Errorf("Expected empty tiles not to be included in attackTiles")
+	}
+	if !attackTiles[image.Pt(6, 5)] {
+		t.Errorf("Expected enemy tile (6, 5) to be in attackTiles")
 	}
 
 	tm := NewTargetMode(5, 5, 1, DistanceDiamond, func(tx, ty int) bool {
 		if !attackTiles[image.Pt(tx, ty)] {
 			return false
 		}
-		SetCombatMemberActed(true)
-		targetID := ""
-		if act := homeMap.GetActorAt(tx, ty); act != nil {
-			targetID = act.ID
+		act := homeMap.GetActorAt(tx, ty)
+		if act == nil {
+			return false
 		}
-		_ = ExecuteEffectScript("effects/attack.tengo", tx, ty, targetID, hero.ID)
+		SetCombatMemberActed(true)
+		_ = ExecuteEffectScript("effects/attack.tengo", tx, ty, act.ID, hero.ID)
 		attackExecuted = true
 		return true
 	}, nil)
@@ -191,9 +347,9 @@ func TestAttackCombatMoveTargeting(t *testing.T) {
 		t.Errorf("Expected CombatMemberActed to be false before action")
 	}
 
-	// Invalid target beyond range
-	if tm.onSelected(8, 8) {
-		t.Errorf("Expected target at (8, 8) to be rejected")
+	// Invalid target on unoccupied adjacent tile (5, 4)
+	if tm.onSelected(5, 4) {
+		t.Errorf("Expected unoccupied target at (5, 4) to be rejected")
 	}
 	if GetCombatMemberActed() {
 		t.Errorf("Expected CombatMemberActed to remain false after rejected target")
@@ -210,22 +366,13 @@ func TestAttackCombatMoveTargeting(t *testing.T) {
 		t.Errorf("Expected CombatMemberActed to be true after successful attack")
 	}
 
-	// Verify terminal output from attack.tengo
-	lines := term.GetLines()
-	if len(lines) < 4 {
-		t.Fatalf("Expected at least 4 terminal lines, got %d", len(lines))
+	// Verify terminal output from attack.tengo (hit or miss message)
+	lines := term.GetLineTexts()
+	if len(lines) == 0 {
+		t.Fatal("Expected at least 1 terminal line from attack.tengo")
 	}
-	last4 := lines[len(lines)-4:]
-	if last4[0].Text != "target_orc" {
-		t.Errorf("Expected target_id 'target_orc', got %q", last4[0].Text)
-	}
-	if last4[1].Text != "6" {
-		t.Errorf("Expected target_x '6', got %q", last4[1].Text)
-	}
-	if last4[2].Text != "5" {
-		t.Errorf("Expected target_y '5', got %q", last4[2].Text)
-	}
-	if last4[3].Text != "hero1" {
-		t.Errorf("Expected source_id 'hero1', got %q", last4[3].Text)
+	joined := strings.Join(lines, " ")
+	if !strings.Contains(joined, "Kevin hits Rodent of Unusual Size for") && !strings.Contains(joined, "Kevin misses Rodent of Unusual Size!") {
+		t.Errorf("Unexpected attack output in %q", joined)
 	}
 }

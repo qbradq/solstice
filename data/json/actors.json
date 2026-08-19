@@ -2,6 +2,7 @@
     "guard": {
         "name": "Town Guard",
         "sprite": "guard",
+        "human": "true",
         "dialog_script": "dialog/guard.tengo",
         "level": 2,
         "experience": 2000,
@@ -17,6 +18,7 @@
     "wizard": {
         "name": "Wizard",
         "sprite": "wizard",
+        "human": "true",
         "level": 3,
         "experience": 5000,
         "strength": 8,
@@ -31,6 +33,7 @@
     "warrior": {
         "name": "Warrior",
         "sprite": "warrior",
+        "human": "true",
         "level": 3,
         "experience": 5000,
         "strength": 16,
@@ -45,6 +48,7 @@
     "peasant": {
         "name": "Peasant",
         "sprite": "peasant",
+        "human": "true",
         "level": 1,
         "experience": 0,
         "strength": 8,
@@ -59,6 +63,7 @@
     "duke_lafey": {
         "name": "Duke Lafey",
         "sprite": "duke",
+        "human": "true",
         "level": 4,
         "experience": 12000,
         "strength": 18,
@@ -73,6 +78,7 @@
     "kevin": {
         "name": "Kevin",
         "sprite": "warrior",
+        "human": "true",
         "level": 1,
         "experience": 0,
         "strength": 18,
@@ -87,6 +93,7 @@
     "lillian": {
         "name": "Lillian",
         "sprite": "wizard",
+        "human": "true",
         "dialog_script": "dialog/lillian.tengo",
         "idle_script": "ai/idle/wander.tengo",
         "level": 1,
@@ -103,6 +110,7 @@
     "rodent": {
         "name": "Rodent of Unusual Size",
         "sprite": "mouse",
+        "human": "false",
         "idle_script": "ai/idle/wander.tengo",
         "level": 1,
         "experience": 0,

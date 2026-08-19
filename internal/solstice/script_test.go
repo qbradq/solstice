@@ -2,6 +2,7 @@ package solstice
 
 import (
 	"fmt"
+	"strings"
 	"testing"
 
 	"github.com/d5/tengo/v2"
@@ -1085,6 +1086,36 @@ num_enemies := len(enemies)
 	}
 	if enemyCount < 1 || enemyCount > 8 {
 		t.Errorf("Expected 1-8 enemies spawned on cbt_grass, got %d", enemyCount)
+	}
+}
+
+func TestGameLogFormatting(t *testing.T) {
+	if err := InitScriptSystem(); err != nil {
+		t.Fatalf("InitScriptSystem failed: %v", err)
+	}
+
+	term := NewTerminal()
+	SetTerminal(term)
+
+	repl := NewTengoREPL()
+	err := repl.Execute(`
+game.log("simple string")
+game.log("hello %s, you have %d hit points!", "hero", 42)
+`)
+	if err != nil {
+		t.Fatalf("REPL execute game.log failed: %v", err)
+	}
+
+	lines := term.GetLineTexts()
+	if len(lines) < 2 {
+		t.Fatalf("Expected at least 2 terminal lines, got %d: %v", len(lines), lines)
+	}
+	joined := strings.Join(lines, " ")
+	if !strings.Contains(joined, "simple string") {
+		t.Errorf("Expected 'simple string' in terminal output %q", joined)
+	}
+	if !strings.Contains(joined, "hello hero, you have 42 hit points!") {
+		t.Errorf("Expected 'hello hero, you have 42 hit points!' in terminal output %q", joined)
 	}
 }
 

@@ -9,6 +9,12 @@
         "animated": true,
         "frames": 4
     },
+    "human-corpse": {
+        "tile": 286
+    },
+    "animal-corpse": {
+        "tile": 287
+    },
     "party-sitting-north": {
         "tile": 304
     },

@@ -39,8 +39,8 @@ game := import("game")
 * `game.stop_combat()`: Transitions from combat mode back to party mode, setting the party's location to the first party member's position.
 * `game.get_enemies_for_pack(name)`: Returns an array of actor template names rolled for the named pack from `data/json/packs.json`.
 * `game.spawn_actor(template_id, [actor_id], x, y)`: Spawns an actor instance using the template definition from `data/json/actors.json` at tile `(x, y)` on the current active map. Automatically assigns a unique entity ID if the requested ID is already taken.
-* `game.spawn_item(template, x, y, entity_id)`: Spawns an item instance using the template definition from `data/json/items.json` at tile `(x, y)` on the current active map.
-* `game.find_items(template)`: Returns an array of item map objects matching the named template on the current active map.
+* `game.get_actor(actor_id)`: Returns a map of properties for the identified actor on the current map or in the party (`id`, `name`, `human`, `level`, `strength`, `dexterity`, `intelligence`, `max_hit_points`, `hit_points`, `max_magic_points`, `magic_points`), or `undefined` if not found.
+* `game.damage_actor(actor_id, amount)`: Deducts `amount` hit points from the identified actor. If the actor's hit points drop to 0 or lower, replaces the actor on the map with a `"human_corpse"` or `"animal_corpse"` item based on the actor's `human` property.
 * `game.remove(entity_id)`: Removes the entity (actor or item) with the given ID from the current active map.
 * `game.exec_map_script(script_path)`: Executes a map script located in `data/scripts/map/`.
 * `game.effect_on_target(effect_script, target_id, source_id)`: Runs the given effect script located in `data/scripts/effects/` on the entity with `target_id` (if it exists on the map or in the party), injecting `target_id`, `target_x`, `target_y`, and `source_id` globals.
@@ -51,7 +51,7 @@ game := import("game")
 * `game.end_dialog()`: Terminates the active dialog session.
 
 #### Logging, Timers & Utilities
-* `game.log(msg)`: Appends the string `msg` to the in-game terminal log.
+* `game.log(format, [args...])`: Formats and appends a message to the in-game terminal log (matching the signature of `fmt.printf`).
 * `game.roll(expression)`: Evaluates a dice roll expression string (e.g. `"1d4"`, `"3d6+2"`) and returns the integer result.
 * `game.add_timer(delay_turns, script_name, [globals])`: Schedules a map timer that executes `script_name` after `delay_turns` turns on the current map with an optional map of injected global variables.
 * `game.random(args...)`: Returns one of the provided arguments at random.
