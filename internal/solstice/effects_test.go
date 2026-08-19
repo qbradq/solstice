@@ -51,7 +51,7 @@ func TestGameGetActorAndDamageActor(t *testing.T) {
 
 	repl := NewTengoREPL()
 
-	// Test game.get_actor on map actor
+	// Test game.get_actor on map actor (rodent has human: "false")
 	err = repl.Execute(`
 act := game.get_actor("enemy1")
 game.log(act["name"])
@@ -59,30 +59,49 @@ game.log(string(act["level"]))
 game.log(string(act["strength"]))
 game.log(string(act["hit_points"]))
 game.log(string(act["human"]))
+game.log(string(act["range"]))
+game.log(act["damage"])
 `)
 	if err != nil {
 		t.Fatalf("REPL get_actor failed: %v", err)
 	}
 
 	lines := term.GetLineTexts()
-	if len(lines) < 5 {
-		t.Fatalf("Expected at least 5 lines, got %d", len(lines))
+	if len(lines) < 7 {
+		t.Fatalf("Expected at least 7 lines, got %d: %v", len(lines), lines)
 	}
-	last5 := lines[len(lines)-5:]
-	if last5[0] != "Rodent of Unusual Size" {
-		t.Errorf("Expected 'Rodent of Unusual Size', got %q", last5[0])
+	last7 := lines[len(lines)-7:]
+	if last7[0] != "Rodent of Unusual Size" {
+		t.Errorf("Expected 'Rodent of Unusual Size', got %q", last7[0])
 	}
-	if last5[1] != "1" {
-		t.Errorf("Expected level '1', got %q", last5[1])
+	if last7[1] != "1" {
+		t.Errorf("Expected level '1', got %q", last7[1])
 	}
-	if last5[2] != "8" {
-		t.Errorf("Expected strength '8', got %q", last5[2])
+	if last7[2] != "8" {
+		t.Errorf("Expected strength '8', got %q", last7[2])
 	}
-	if last5[3] != "15" {
-		t.Errorf("Expected hit points '15', got %q", last5[3])
+	if last7[3] != "15" {
+		t.Errorf("Expected hit points '15', got %q", last7[3])
 	}
-	if last5[4] != "true" {
-		t.Errorf("Expected human 'true', got %q", last5[4])
+	if last7[4] != "false" {
+		t.Errorf("Expected human 'false', got %q", last7[4])
+	}
+	if last7[5] != "1" {
+		t.Errorf("Expected range '1', got %q", last7[5])
+	}
+	if last7[6] != "1d4+1" {
+		t.Errorf("Expected damage '1d4+1', got %q", last7[6])
+	}
+
+	// Test hero (kevin) weapon range and damage (dagger: range 1, damage "1d4+2")
+	if hero.Weapon == nil || hero.Weapon.Template != "dagger" {
+		t.Errorf("Expected hero to equip dagger, got %v", hero.Weapon)
+	}
+	if hero.GetWeaponRange() != 1 {
+		t.Errorf("Expected hero weapon range 1, got %d", hero.GetWeaponRange())
+	}
+	if hero.GetWeaponDamage() != "1d4+2" {
+		t.Errorf("Expected hero weapon damage '1d4+2', got %q", hero.GetWeaponDamage())
 	}
 
 	// Test game.damage_actor damaging enemy
@@ -100,7 +119,7 @@ game.log(string(act2["hit_points"]))
 		t.Errorf("Expected updated hit points '9', got %q", lines[len(lines)-1])
 	}
 
-	// Test game.damage_actor killing human actor (enemy1 has human: true)
+	// Test game.damage_actor killing animal actor (enemy1 has human: false)
 	err = repl.Execute(`
 game.damage_actor("enemy1", 10)
 `)
@@ -113,55 +132,54 @@ game.damage_actor("enemy1", 10)
 		t.Errorf("Expected enemy1 to be removed from map after death")
 	}
 
-	// Verify human_corpse item spawned at (6, 5)
-	corpseItems := homeMap.FindItemsByTemplate("human_corpse")
-	if len(corpseItems) == 0 {
-		t.Errorf("Expected human_corpse item to be present on map at (6, 5)")
+	// Verify animal_corpse item spawned at (6, 5)
+	animalCorpses := homeMap.FindItemsByTemplate("animal_corpse")
+	if len(animalCorpses) == 0 {
+		t.Errorf("Expected animal_corpse item to be present on map at (6, 5)")
 	} else {
 		found := false
-		for _, it := range corpseItems {
+		for _, it := range animalCorpses {
 			if it != nil && it.X == 6 && it.Y == 5 {
 				found = true
 				break
 			}
 		}
 		if !found {
-			t.Errorf("Expected human_corpse item at (6, 5), got %v", corpseItems)
+			t.Errorf("Expected animal_corpse item at (6, 5), got %v", animalCorpses)
 		}
 	}
 
-	// Test animal actor death spawning animal_corpse
-	wolf, err := NewActorFromDef("wolf1", "rodent", 7, 5)
+	// Test human actor death spawning human_corpse (guard has human: "true")
+	guard, err := NewActorFromDef("guard1", "guard", 7, 5)
 	if err != nil {
-		t.Fatalf("NewActorFromDef wolf1 failed: %v", err)
+		t.Fatalf("NewActorFromDef guard1 failed: %v", err)
 	}
-	wolf.Human = false
-	homeMap.AddActor(wolf)
+	homeMap.AddActor(guard)
 
 	err = repl.Execute(`
-game.damage_actor("wolf1", 50)
+game.damage_actor("guard1", 100)
 `)
 	if err != nil {
-		t.Fatalf("REPL lethal damage on animal failed: %v", err)
+		t.Fatalf("REPL lethal damage on human failed: %v", err)
 	}
 
-	if homeMap.GetActorByID("wolf1") != nil {
-		t.Errorf("Expected wolf1 to be removed from map after death")
+	if homeMap.GetActorByID("guard1") != nil {
+		t.Errorf("Expected guard1 to be removed from map after death")
 	}
 
-	animalCorpses := homeMap.FindItemsByTemplate("animal_corpse")
-	if len(animalCorpses) == 0 {
-		t.Errorf("Expected animal_corpse item on map")
+	humanCorpses := homeMap.FindItemsByTemplate("human_corpse")
+	if len(humanCorpses) == 0 {
+		t.Errorf("Expected human_corpse item on map")
 	} else {
 		found := false
-		for _, it := range animalCorpses {
+		for _, it := range humanCorpses {
 			if it != nil && it.X == 7 && it.Y == 5 {
 				found = true
 				break
 			}
 		}
 		if !found {
-			t.Errorf("Expected animal_corpse item at (7, 5), got %v", animalCorpses)
+			t.Errorf("Expected human_corpse item at (7, 5), got %v", humanCorpses)
 		}
 	}
 
@@ -296,9 +314,10 @@ func TestAttackCombatMoveTargeting(t *testing.T) {
 	SetTerminal(term)
 
 	attackExecuted := false
+	weaponRange := hero.GetWeaponRange()
 	attackTiles := make(map[image.Point]bool)
-	for dx := -1; dx <= 1; dx++ {
-		for dy := -1; dy <= 1; dy++ {
+	for dx := -weaponRange; dx <= weaponRange; dx++ {
+		for dy := -weaponRange; dy <= weaponRange; dy++ {
 			adx := dx
 			if adx < 0 {
 				adx = -adx
@@ -307,7 +326,7 @@ func TestAttackCombatMoveTargeting(t *testing.T) {
 			if ady < 0 {
 				ady = -ady
 			}
-			if adx+ady <= 1 {
+			if adx+ady <= weaponRange {
 				tx := hero.X + dx
 				ty := hero.Y + dy
 				if tx >= 0 && tx < homeMap.Width && ty >= 0 && ty < homeMap.Height {
@@ -327,7 +346,7 @@ func TestAttackCombatMoveTargeting(t *testing.T) {
 		t.Errorf("Expected enemy tile (6, 5) to be in attackTiles")
 	}
 
-	tm := NewTargetMode(5, 5, 1, DistanceDiamond, func(tx, ty int) bool {
+	tm := NewTargetMode(5, 5, weaponRange, DistanceDiamond, func(tx, ty int) bool {
 		if !attackTiles[image.Pt(tx, ty)] {
 			return false
 		}

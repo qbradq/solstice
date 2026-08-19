@@ -7,5 +7,29 @@
     },
     "animal_corpse": {
         "sprite": "animal-corpse"
+    },
+    "hands": {
+        "sprite": "item-weapon",
+        "type": "weapon",
+        "meta": {
+            "range": 1,
+            "damage": "1d4"
+        }
+    },
+    "rodent-teeth": {
+        "sprite": "item-weapon",
+        "type": "weapon",
+        "meta": {
+            "range": 1,
+            "damage": "1d4+1"
+        }
+    },
+    "dagger": {
+        "sprite": "item-weapon",
+        "type": "weapon",
+        "meta": {
+            "range": 1,
+            "damage": "1d4+2"
+        }
     }
 }

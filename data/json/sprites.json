@@ -27,6 +27,51 @@
     "party-sitting-west": {
         "tile": 307
     },
+    "item-chest": {
+        "tile": 257
+    },
+    "item-money": {
+        "tile": 258
+    },
+    "item-potion": {
+        "tile": 259
+    },
+    "item-scroll": {
+        "tile": 260
+    },
+    "item-weapon": {
+        "tile": 261
+    },
+    "item-shield": {
+        "tile": 262
+    },
+    "item-key": {
+        "tile": 263
+    },
+    "item-gem": {
+        "tile": 264
+    },
+    "item-helm": {
+        "tile": 265
+    },
+    "item-ring": {
+        "tile": 266
+    },
+    "item-armor": {
+        "tile": 267
+    },
+    "item-necklace": {
+        "tile": 268
+    },
+    "item-torch": {
+        "tile": 269
+    },
+    "item-box": {
+        "tile": 270
+    },
+    "item-food": {
+        "tile": 271
+    },
     "wizard": {
         "tile": 320,
         "animated": true,

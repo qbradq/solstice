@@ -10,14 +10,18 @@ import (
 
 // ItemDef represents an item template definition loaded from JSON.
 type ItemDef struct {
-	Name   string `json:"name,omitempty"`
-	Sprite string `json:"sprite,omitempty"` // Key into sprites.json
+	Name   string                 `json:"name,omitempty"`
+	Sprite string                 `json:"sprite,omitempty"` // Key into sprites.json
+	Type   string                 `json:"type,omitempty"`
+	Meta   map[string]interface{} `json:"meta,omitempty"`
 }
 
 // Item represents a map entity item.
 type Item struct {
 	Entity
-	Template string `json:"template"`
+	Template string                 `json:"template"`
+	Type     string                 `json:"type,omitempty"`
+	Meta     map[string]interface{} `json:"meta,omitempty"`
 }
 
 var itemDefs = make(map[string]ItemDef)
@@ -60,10 +64,19 @@ func GetItemDef(key string) (ItemDef, bool) {
 // NewItem creates a new Item instance for the given ID, template, and coordinates.
 func NewItem(id string, template string, x, y int) *Item {
 	name := id
+	itemType := ""
+	var meta map[string]interface{}
 	var sd SpriteDef
 	if def, ok := GetItemDef(template); ok {
 		if def.Name != "" {
 			name = def.Name
+		}
+		itemType = def.Type
+		if len(def.Meta) > 0 {
+			meta = make(map[string]interface{}, len(def.Meta))
+			for k, v := range def.Meta {
+				meta[k] = v
+			}
 		}
 		if def.Sprite != "" {
 			if s, found := GetSpriteDef(def.Sprite); found {
@@ -83,5 +96,7 @@ func NewItem(id string, template string, x, y int) *Item {
 			Y:         y,
 		},
 		Template: template,
+		Type:     itemType,
+		Meta:     meta,
 	}
 }

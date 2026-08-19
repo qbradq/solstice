@@ -174,6 +174,12 @@ func (m *Map) ToSavedState() (*SavedMapState, error) {
 	for i, it := range m.Items {
 		if it != nil {
 			itc := *it
+			if len(it.Meta) > 0 {
+				itc.Meta = make(map[string]interface{}, len(it.Meta))
+				for k, v := range it.Meta {
+					itc.Meta[k] = v
+				}
+			}
 			itemsCopy[i] = &itc
 		}
 	}
@@ -239,6 +245,12 @@ func RestoreMapFromSavedState(saved *SavedMapState) (*Map, error) {
 	for i, it := range saved.Items {
 		if it != nil {
 			itc := *it
+			if len(it.Meta) > 0 {
+				itc.Meta = make(map[string]interface{}, len(it.Meta))
+				for k, v := range it.Meta {
+					itc.Meta[k] = v
+				}
+			}
 			items[i] = &itc
 		}
 	}

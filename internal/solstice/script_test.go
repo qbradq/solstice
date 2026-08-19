@@ -859,12 +859,40 @@ num_after := len(items_after)
 	if err := c.Run(); err != nil {
 		t.Fatalf("Run failed: %v", err)
 	}
-
 	if c.Get("num_before").Int() != 1 {
 		t.Errorf("Expected 1 item before removal, got %d", c.Get("num_before").Int())
 	}
 	if c.Get("num_after").Int() != 0 {
 		t.Errorf("Expected 0 items after removal, got %d", c.Get("num_after").Int())
+	}
+
+	// Test spawning item with type and meta (e.g. dagger)
+	daggerScript := `
+game := import("game")
+game.spawn_item("dagger", 3, 4, "test_dagger_1")
+daggers := game.find_items("dagger")
+dagger_type := daggers[0].type
+dagger_range := daggers[0].meta.range
+dagger_damage := daggers[0].meta.damage
+`
+	s2 := tengo.NewScript([]byte(daggerScript))
+	s2.SetImports(moduleMap)
+	c2, err := s2.Compile()
+	if err != nil {
+		t.Fatalf("Compile daggerScript failed: %v", err)
+	}
+	if err := c2.Run(); err != nil {
+		t.Fatalf("Run daggerScript failed: %v", err)
+	}
+
+	if c2.Get("dagger_type").String() != "weapon" {
+		t.Errorf("Expected dagger type 'weapon', got %q", c2.Get("dagger_type").String())
+	}
+	if c2.Get("dagger_range").Int() != 1 {
+		t.Errorf("Expected dagger range 1, got %d", c2.Get("dagger_range").Int())
+	}
+	if c2.Get("dagger_damage").String() != "1d4+2" {
+		t.Errorf("Expected dagger damage '1d4+2', got %q", c2.Get("dagger_damage").String())
 	}
 }
 

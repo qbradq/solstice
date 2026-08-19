@@ -693,6 +693,8 @@ func InitScriptSystem() error {
 						"hit_points":       &tengo.Int{Value: int64(actor.HitPoints)},
 						"max_magic_points": &tengo.Int{Value: int64(actor.MaxMagicPoints)},
 						"magic_points":     &tengo.Int{Value: int64(actor.MagicPoints)},
+						"range":            &tengo.Int{Value: int64(actor.GetWeaponRange())},
+						"damage":           &tengo.String{Value: actor.GetWeaponDamage()},
 					},
 				}, nil
 			},
@@ -1069,8 +1071,18 @@ func InitScriptSystem() error {
 						"id":       &tengo.String{Value: item.ID},
 						"name":     &tengo.String{Value: item.Name},
 						"template": &tengo.String{Value: item.Template},
+						"type":     &tengo.String{Value: item.Type},
 						"x":        &tengo.Int{Value: int64(item.X)},
 						"y":        &tengo.Int{Value: int64(item.Y)},
+					}
+					if item.Meta != nil {
+						metaMap := make(map[string]tengo.Object, len(item.Meta))
+						for k, v := range item.Meta {
+							if obj, err := tengo.FromInterface(v); err == nil {
+								metaMap[k] = obj
+							}
+						}
+						itemMap["meta"] = &tengo.Map{Value: metaMap}
 					}
 					arr = append(arr, &tengo.Map{Value: itemMap})
 				}

@@ -39,26 +39,29 @@ type ActorDef struct {
 	MaxMagicPoints int          `json:"max_magic_points"`
 	MagicPoints    int          `json:"magic_points"`
 	Move           int          `json:"move"`
+	Equipment      []string     `json:"equipment,omitempty"`
 }
 
 // Actor represents an agent or character in the game world (NPC, monster, party member).
 // It embeds Entity for position and graphical representation.
 type Actor struct {
 	Entity
-	Human          bool   `json:"human,omitempty"`
-	DialogScript   string `json:"dialog_script,omitempty"`
-	IdleScript     string `json:"idle_script,omitempty"`
-	CombatScript   string `json:"combat_script,omitempty"`
-	Experience     int    `json:"experience"`
-	Level          int    `json:"level"`
-	Strength       int    `json:"strength"`
-	Dexterity      int    `json:"dexterity"`
-	Intelligence   int    `json:"intelligence"`
-	MaxHitPoints   int    `json:"max_hit_points"`
-	HitPoints      int    `json:"hit_points"`
-	MaxMagicPoints int    `json:"max_magic_points"`
-	MagicPoints    int    `json:"magic_points"`
-	Move           int    `json:"move"`
+	Human          bool     `json:"human,omitempty"`
+	DialogScript   string   `json:"dialog_script,omitempty"`
+	IdleScript     string   `json:"idle_script,omitempty"`
+	CombatScript   string   `json:"combat_script,omitempty"`
+	Experience     int      `json:"experience"`
+	Level          int      `json:"level"`
+	Strength       int      `json:"strength"`
+	Dexterity      int      `json:"dexterity"`
+	Intelligence   int      `json:"intelligence"`
+	MaxHitPoints   int      `json:"max_hit_points"`
+	HitPoints      int      `json:"hit_points"`
+	MaxMagicPoints int      `json:"max_magic_points"`
+	MagicPoints    int      `json:"magic_points"`
+	Move           int      `json:"move"`
+	Weapon         *Item    `json:"weapon,omitempty"`
+	Equipment      []string `json:"equipment,omitempty"`
 }
 
 var actorDefs = make(map[string]ActorDef)
@@ -156,5 +159,69 @@ func NewActorFromDef(id string, defKey string, x, y int) (*Actor, error) {
 	if actor.Move == 0 {
 		actor.Move = 3
 	}
+
+	if len(def.Equipment) > 0 {
+		actor.Equipment = make([]string, len(def.Equipment))
+		copy(actor.Equipment, def.Equipment)
+		for _, eqTmpl := range def.Equipment {
+			if itemDef, ok := GetItemDef(eqTmpl); ok && itemDef.Type == "weapon" {
+				actor.Weapon = NewItem(fmt.Sprintf("%s_weapon", id), eqTmpl, 0, 0)
+				break
+			}
+		}
+	}
+
 	return actor, nil
+}
+
+// EquipWeapon equips a weapon item to the actor if its item definition has type "weapon".
+func (a *Actor) EquipWeapon(item *Item) error {
+	if item == nil {
+		a.Weapon = nil
+		return nil
+	}
+	if item.Type != "weapon" {
+		if def, ok := GetItemDef(item.Template); ok && def.Type == "weapon" {
+			item.Type = "weapon"
+		} else {
+			return fmt.Errorf("item %q is not a weapon (type %q)", item.Template, item.Type)
+		}
+	}
+	a.Weapon = item
+	return nil
+}
+
+// GetWeaponRange returns the range of the equipped weapon, or 1 if unequipped / undefined.
+func (a *Actor) GetWeaponRange() int {
+	if a != nil && a.Weapon != nil && a.Weapon.Meta != nil {
+		if rVal, ok := a.Weapon.Meta["range"]; ok {
+			switch v := rVal.(type) {
+			case int:
+				if v > 0 {
+					return v
+				}
+			case int64:
+				if v > 0 {
+					return int(v)
+				}
+			case float64:
+				if v > 0 {
+					return int(v)
+				}
+			}
+		}
+	}
+	return 1
+}
+
+// GetWeaponDamage returns the damage formula of the equipped weapon, or "1d4" if unequipped / undefined.
+func (a *Actor) GetWeaponDamage() string {
+	if a != nil && a.Weapon != nil && a.Weapon.Meta != nil {
+		if dVal, ok := a.Weapon.Meta["damage"]; ok {
+			if str, ok := dVal.(string); ok && str != "" {
+				return str
+			}
+		}
+	}
+	return "1d4"
 }

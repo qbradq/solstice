@@ -37,7 +37,12 @@ if attacker != undefined && target != undefined {
 			str_bonus = 3
 		}
 
-		damage := game.roll("2d6") + str_bonus
+		damage_formula := attacker["damage"]
+		if damage_formula == undefined || damage_formula == "" {
+			damage_formula = "1d4"
+		}
+
+		damage := game.roll(damage_formula) + str_bonus
 		if damage < 1 {
 			damage = 1
 		}

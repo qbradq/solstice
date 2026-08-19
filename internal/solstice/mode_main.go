@@ -117,13 +117,17 @@ func (m *MainMode) Update(g *Game) error {
 				}
 			}
 
-			// Attack - A key, triggers targeting mode with range 1 (diamond) on locations with an actor present (once per turn)
+			// Attack - A key, triggers targeting mode with equipped weapon range (diamond) on locations with an actor present (once per turn)
 			if inpututil.IsKeyJustPressed(ebiten.KeyA) && !GetCombatMemberActed() {
 				curMap := GetMap()
 				if curMap != nil {
+					weaponRange := curMember.GetWeaponRange()
+					if weaponRange <= 0 {
+						weaponRange = 1
+					}
 					attackTiles := make(map[image.Point]bool)
-					for dx := -1; dx <= 1; dx++ {
-						for dy := -1; dy <= 1; dy++ {
+					for dx := -weaponRange; dx <= weaponRange; dx++ {
+						for dy := -weaponRange; dy <= weaponRange; dy++ {
 							adx := dx
 							if adx < 0 {
 								adx = -adx
@@ -132,7 +136,7 @@ func (m *MainMode) Update(g *Game) error {
 							if ady < 0 {
 								ady = -ady
 							}
-							if adx+ady <= 1 {
+							if adx+ady <= weaponRange {
 								tx := curMember.X + dx
 								ty := curMember.Y + dy
 								if tx >= 0 && tx < curMap.Width && ty >= 0 && ty < curMap.Height {
@@ -145,7 +149,7 @@ func (m *MainMode) Update(g *Game) error {
 					}
 					targetMode := NewTargetMode(
 						curMember.X, curMember.Y,
-						1, // Range 1
+						weaponRange,
 						DistanceDiamond,
 						func(tx, ty int) bool {
 							targetPt := image.Pt(tx, ty)
