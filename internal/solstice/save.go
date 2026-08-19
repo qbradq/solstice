@@ -91,6 +91,8 @@ type SaveGameData struct {
 	MapScale          int                       `json:"map_scale,omitempty"`
 	InCombat          bool                      `json:"in_combat,omitempty"`
 	CombatMemberIndex int                       `json:"combat_member_index,omitempty"`
+	CombatMemberMoved bool                      `json:"combat_member_moved,omitempty"`
+	CombatMemberActed bool                      `json:"combat_member_acted,omitempty"`
 	Flags             map[string]bool           `json:"flags"`
 	Strings           map[string]string         `json:"strings,omitempty"`
 	Maps              map[string]*SavedMapState `json:"maps"`
@@ -366,6 +368,8 @@ func SaveGame(slot int, pretty bool) error {
 		MapScale:          scale,
 		InCombat:          IsInCombat(),
 		CombatMemberIndex: GetCombatMemberIndex(),
+		CombatMemberMoved: GetCombatMemberMoved(),
+		CombatMemberActed: GetCombatMemberActed(),
 		Flags:             GetAllFlags(),
 		Strings:           GetAllStrings(),
 		Maps:              make(map[string]*SavedMapState),
@@ -471,6 +475,8 @@ func LoadGame(slot int) error {
 	if saveData.InCombat {
 		SetInCombat(true)
 		SetCombatMemberIndex(saveData.CombatMemberIndex)
+		SetCombatMemberMoved(saveData.CombatMemberMoved)
+		SetCombatMemberActed(saveData.CombatMemberActed)
 		if currentMap != nil && saveData.Party != nil {
 			for i := range saveData.Party.Members {
 				mem := &saveData.Party.Members[i]

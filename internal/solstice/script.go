@@ -991,6 +991,89 @@ func InitScriptSystem() error {
 				return tengo.UndefinedValue, nil
 			},
 		},
+		"effect_on_target": &tengo.UserFunction{
+			Name: "effect_on_target",
+			Value: func(args ...tengo.Object) (tengo.Object, error) {
+				if len(args) < 3 {
+					return tengo.UndefinedValue, fmt.Errorf("effect_on_target requires 3 arguments: effect_script, target_id, source_id")
+				}
+				effectScript, ok := tengo.ToString(args[0])
+				if !ok {
+					return tengo.UndefinedValue, fmt.Errorf("effect_on_target first argument must be a string")
+				}
+				targetID, ok := tengo.ToString(args[1])
+				if !ok {
+					return tengo.UndefinedValue, fmt.Errorf("effect_on_target second argument must be a string")
+				}
+				sourceID, ok := tengo.ToString(args[2])
+				if !ok {
+					return tengo.UndefinedValue, fmt.Errorf("effect_on_target third argument must be a string")
+				}
+
+				targetX, targetY := 0, 0
+				found := false
+				m := GetMap()
+				if m != nil {
+					if act := m.GetActorByID(targetID); act != nil {
+						targetX, targetY = act.X, act.Y
+						found = true
+					} else if item := m.GetItemByID(targetID); item != nil {
+						targetX, targetY = item.X, item.Y
+						found = true
+					}
+				}
+				if !found {
+					p := GetParty()
+					if p != nil {
+						for i := range p.Members {
+							if p.Members[i].ID == targetID {
+								targetX, targetY = p.Members[i].X, p.Members[i].Y
+								found = true
+								break
+							}
+						}
+					}
+				}
+
+				if !found {
+					return tengo.UndefinedValue, nil
+				}
+
+				if err := ExecuteEffectScript(effectScript, targetX, targetY, targetID, sourceID); err != nil {
+					return tengo.UndefinedValue, err
+				}
+				return tengo.UndefinedValue, nil
+			},
+		},
+		"effect_at": &tengo.UserFunction{
+			Name: "effect_at",
+			Value: func(args ...tengo.Object) (tengo.Object, error) {
+				if len(args) < 4 {
+					return tengo.UndefinedValue, fmt.Errorf("effect_at requires 4 arguments: effect_script, x, y, source_id")
+				}
+				effectScript, ok := tengo.ToString(args[0])
+				if !ok {
+					return tengo.UndefinedValue, fmt.Errorf("effect_at first argument must be a string")
+				}
+				x, ok := tengo.ToInt(args[1])
+				if !ok {
+					return tengo.UndefinedValue, fmt.Errorf("effect_at second argument must be an integer")
+				}
+				y, ok := tengo.ToInt(args[2])
+				if !ok {
+					return tengo.UndefinedValue, fmt.Errorf("effect_at third argument must be an integer")
+				}
+				sourceID, ok := tengo.ToString(args[3])
+				if !ok {
+					return tengo.UndefinedValue, fmt.Errorf("effect_at fourth argument must be a string")
+				}
+
+				if err := ExecuteEffectScript(effectScript, x, y, "", sourceID); err != nil {
+					return tengo.UndefinedValue, err
+				}
+				return tengo.UndefinedValue, nil
+			},
+		},
 	}
 	moduleMap.AddBuiltinModule("game", gameModule)
 
@@ -1283,6 +1366,10 @@ func InitScriptSystem() error {
 			_ = script.Add("reply", "")
 			_ = script.Add("map_name", "")
 			_ = script.Add("actor_id", "")
+			_ = script.Add("target_x", nil)
+			_ = script.Add("target_y", nil)
+			_ = script.Add("target_id", "")
+			_ = script.Add("source_id", "")
 			compiled, err := script.Compile()
 			if err != nil {
 				return fmt.Errorf("failed to pre-compile script %s: %w", path, err)
@@ -1403,6 +1490,30 @@ func ExecuteTriggerScript(scriptPath string, mapName string, tileX, tileY int, a
 		"tile_y":   tileY,
 		"actor_id": actorID,
 	})
+}
+
+// ExecuteEffectScript executes an effect script located in data/scripts/effects with target_x, target_y, target_id, and source_id globals.
+func ExecuteEffectScript(scriptPath string, targetX, targetY int, targetID, sourceID string) error {
+	cleanPath := scriptPath
+	if !strings.HasSuffix(cleanPath, ".tengo") {
+		cleanPath += ".tengo"
+	}
+	if !strings.HasPrefix(cleanPath, "effects/") && !strings.HasPrefix(cleanPath, "scripts/effects/") && !strings.HasPrefix(cleanPath, "data/scripts/effects/") {
+		cleanPath = "effects/" + cleanPath
+	}
+	globals := map[string]interface{}{
+		"target_x":  targetX,
+		"target_y":  targetY,
+		"target_id": targetID,
+		"source_id": sourceID,
+	}
+	err := ExecuteScriptWithGlobals(cleanPath, globals)
+	if err != nil && cleanPath != scriptPath {
+		if err2 := ExecuteScriptWithGlobals(scriptPath, globals); err2 == nil {
+			return nil
+		}
+	}
+	return err
 }
 
 // ExecuteDialogScript executes a dialog script with the specified keyword ("look", "name", "job", "bye", etc.).

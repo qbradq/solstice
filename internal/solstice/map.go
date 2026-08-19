@@ -1152,13 +1152,13 @@ func (m *Map) DrawCentered(dst *ebiten.Image, assets *Assets, p *Party, scale in
 		}
 	}
 
-	m.DrawCenteredAt(dst, assets, p, scale, centerX, centerY, centerX, centerY)
+	m.DrawCenteredAt(dst, assets, p, scale, centerX, centerY, centerX, centerY, nil)
 }
 
 // DrawCenteredAt renders the map centered on specific tile coordinates (viewCenterX, viewCenterY) into the map view area,
 // with visibility field calculations centered on (visCenterX, visCenterY).
 // For areas outside the visibility field, they are treated as non-visible.
-func (m *Map) DrawCenteredAt(dst *ebiten.Image, assets *Assets, p *Party, scale int, viewCenterX, viewCenterY int, visCenterX, visCenterY int, highlights ...map[image.Point]bool) {
+func (m *Map) DrawCenteredAt(dst *ebiten.Image, assets *Assets, p *Party, scale int, viewCenterX, viewCenterY int, visCenterX, visCenterY int, highlightTiles map[image.Point]bool, highlightColor ...color.Color) {
 	if assets == nil {
 		return
 	}
@@ -1319,11 +1319,14 @@ func (m *Map) DrawCenteredAt(dst *ebiten.Image, assets *Assets, p *Party, scale 
 	}
 
 	// 5. Render highlighted tiles (e.g. reachable tiles in targeting mode)
-	if len(highlights) > 0 && len(highlights[0]) > 0 {
+	if len(highlightTiles) > 0 {
 		mapArea := dst.SubImage(image.Rect(0, 0, 352, 352)).(*ebiten.Image)
-		greenOverlay := color.RGBA{R: 0, G: 255, B: 0, A: 89} // 35% transparent VGA bright green
+		overlay := color.Color(color.RGBA{R: 0, G: 127, B: 0, A: 15}) // Default half-intensity, low alpha green
+		if len(highlightColor) > 0 && highlightColor[0] != nil {
+			overlay = highlightColor[0]
+		}
 
-		for pt := range highlights[0] {
+		for pt := range highlightTiles {
 			stx := centerStx + (pt.X - viewCenterX)
 			sty := centerSty + (pt.Y - viewCenterY)
 
@@ -1338,7 +1341,7 @@ func (m *Map) DrawCenteredAt(dst *ebiten.Image, assets *Assets, p *Party, scale 
 					py = float32(-8 + sty*16)
 					sz = 16
 				}
-				vector.FillRect(mapArea, px, py, sz, sz, greenOverlay, false)
+				vector.FillRect(mapArea, px, py, sz, sz, overlay, false)
 			}
 		}
 	}

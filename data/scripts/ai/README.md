@@ -14,4 +14,3 @@ AI scripts have the following global objects defined at runtime.
 * `actor_id` is the ID of the actor whose script is being executed.
 * `tile_x` is the tile x coordinate of the actor.
 * `tile_y` is the tile y coordinate of the actor.
-

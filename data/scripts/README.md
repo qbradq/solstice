@@ -43,6 +43,8 @@ game := import("game")
 * `game.find_items(template)`: Returns an array of item map objects matching the named template on the current active map.
 * `game.remove(entity_id)`: Removes the entity (actor or item) with the given ID from the current active map.
 * `game.exec_map_script(script_path)`: Executes a map script located in `data/scripts/map/`.
+* `game.effect_on_target(effect_script, target_id, source_id)`: Runs the given effect script located in `data/scripts/effects/` on the entity with `target_id` (if it exists on the map or in the party), injecting `target_id`, `target_x`, `target_y`, and `source_id` globals.
+* `game.effect_at(effect_script, x, y, source_id)`: Runs the given effect script located in `data/scripts/effects/` at tile position `(x, y)` without a target entity (`target_id = ""`), injecting `target_x`, `target_y`, and `source_id` globals.
 
 #### Dialog & Interaction
 * `game.start_dialog([actor_id], dialog_script)`: Initiates a dialog interaction using the specified script (aliases: `enter_dialog`, `force_dialog`).
@@ -106,6 +108,8 @@ fmt := import("fmt")
 | **Trigger Scripts** | `data/scripts/triggers/` | `map_name`, `tile_x`, `tile_y`, `actor_id` | Triggered on step or enter into a map trigger zone |
 | **Dialog Scripts** | `data/scripts/dialog/` | `keyword` (input query), `reply` (output text) | Invoked during NPC conversation keyword responses |
 | **AI Scripts** | `data/scripts/ai/` | `actor_id`, `tile_x`, `tile_y` | Executed each turn per actor (idle scripts during normal play, combat scripts in combat) |
+| **Effect Scripts** | `data/scripts/effects/` | `target_x`, `target_y`, `target_id`, `source_id` | Executed on-demand by combat moves or script invocations |
 | **Map Scripts** | `data/scripts/map/` | Context-dependent | Map setup and cutscene orchestration scripts |
 | **REPL Autoexec** | `data/scripts/repl/autoexec.tengo` | None | Run on REPL initialization/reset, pre-loading modules |
+
 

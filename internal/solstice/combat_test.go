@@ -107,17 +107,36 @@ func TestCombatTurnAdvancement(t *testing.T) {
 	StartCombat()
 	initialTurn := homeMap.Turn
 
-	// Member 0 takes a move
+	// Member 0 takes a move and action
 	if GetCombatMemberIndex() != 0 {
 		t.Fatalf("Expected member index 0, got %d", GetCombatMemberIndex())
 	}
+	if GetCombatMemberMoved() {
+		t.Errorf("Expected CombatMemberMoved to be false initially")
+	}
+	if GetCombatMemberActed() {
+		t.Errorf("Expected CombatMemberActed to be false initially")
+	}
+	SetCombatMemberMoved(true)
+	SetCombatMemberActed(true)
+	if !GetCombatMemberMoved() || !GetCombatMemberActed() {
+		t.Errorf("Expected CombatMemberMoved and CombatMemberActed to be true after setting")
+	}
 	AdvanceCombatMember(game)
+	if GetCombatMemberMoved() || GetCombatMemberActed() {
+		t.Errorf("Expected CombatMemberMoved and CombatMemberActed to reset to false on AdvanceCombatMember")
+	}
 
 	// Member 1 takes a move
 	if GetCombatMemberIndex() != 1 {
 		t.Fatalf("Expected member index 1, got %d", GetCombatMemberIndex())
 	}
+	SetCombatMemberMoved(true)
+	SetCombatMemberActed(true)
 	AdvanceCombatMember(game)
+	if GetCombatMemberMoved() || GetCombatMemberActed() {
+		t.Errorf("Expected CombatMemberMoved and CombatMemberActed to reset to false on AdvanceCombatMember")
+	}
 
 	// Member 2 takes a move
 	if GetCombatMemberIndex() != 2 {
@@ -189,6 +208,12 @@ func TestCombatDrawing(t *testing.T) {
 	targetMode.Draw(game, screen)
 	game.mapScale = 1
 	targetMode.Draw(game, screen)
+
+	// Test MainMode.Draw overlays targeting cursor in combat mode
+	mainMode := NewMainMode()
+	mainMode.Draw(game, screen)
+	game.mapScale = 2
+	mainMode.Draw(game, screen)
 }
 
 func TestCombatTengoScriptFunctions(t *testing.T) {
@@ -245,3 +270,86 @@ game.stop_combat()
 		t.Errorf("Expected party position (22, 28), got (%d, %d)", party.X, party.Y)
 	}
 }
+
+func TestCombatAutoAdvanceWhenMovedAndActed(t *testing.T) {
+	homeMap, err := LoadMap("home")
+	if err != nil {
+		t.Fatalf("LoadMap failed: %v", err)
+	}
+	SetMap(homeMap)
+
+	m1, _ := NewActorFromDef("hero1", "kevin", 0, 0)
+	m2, _ := NewActorFromDef("hero2", "wizard", 0, 0)
+	party, err := NewParty(5, 5, *m1, *m2)
+	if err != nil {
+		t.Fatalf("NewParty failed: %v", err)
+	}
+	SetParty(party)
+
+	game := &Game{
+		currentMap: homeMap,
+		party:      party,
+	}
+
+	StartCombat()
+	defer StopCombat()
+	ClearCutScene()
+
+	mainMode := &MainMode{}
+
+	// Initially at member 0, neither moved nor acted
+	if GetCombatMemberIndex() != 0 {
+		t.Fatalf("Expected member 0, got %d", GetCombatMemberIndex())
+	}
+
+	// Moved only -> should not auto-advance
+	SetCombatMemberMoved(true)
+	_ = mainMode.Update(game)
+	if GetCombatMemberIndex() != 0 {
+		t.Fatalf("Expected member to remain 0 when only moved, got %d", GetCombatMemberIndex())
+	}
+
+	// Acted as well -> should auto-advance to member 1 and queue 2 frame delay
+	SetCombatMemberActed(true)
+	_ = mainMode.Update(game)
+	if GetCombatMemberIndex() != 1 {
+		t.Fatalf("Expected member to auto-advance to 1, got %d", GetCombatMemberIndex())
+	}
+	if GetCombatMemberMoved() || GetCombatMemberActed() {
+		t.Errorf("Expected moved and acted to be reset for member 1")
+	}
+	if !IsCutSceneActive() {
+		t.Errorf("Expected 2-frame cutscene delay to be active after auto-pass")
+	}
+	// Drain the 2-frame delay
+	for IsCutSceneActive() {
+		_ = mainMode.Update(game)
+	}
+
+	// But if another cutscene is active, should NOT auto-advance until cutscene is finished
+	SetCombatMemberMoved(true)
+	SetCombatMemberActed(true)
+	EnqueueCutSceneCommand(CutSceneCommand{
+		Type:   CmdDelay,
+		Frames: 3,
+	})
+
+	// Frame 1 of cutscene
+	_ = mainMode.Update(game)
+	if GetCombatMemberIndex() != 1 {
+		t.Fatalf("Expected member to remain 1 while cutscene is active, got %d", GetCombatMemberIndex())
+	}
+
+	// Increment animation frame so cutscene delay ticks
+	SetAnimFrame(GetAnimFrame() + 3)
+
+	// When cutscene completes, update auto-advances to member 0 and queues 2 frame delay
+	_ = mainMode.Update(game)
+	if GetCombatMemberIndex() != 0 {
+		t.Fatalf("Expected member to auto-advance back to 0 (after AI turn), got %d", GetCombatMemberIndex())
+	}
+	if !IsCutSceneActive() {
+		t.Errorf("Expected 2-frame cutscene delay to be active after auto-pass")
+	}
+}
+

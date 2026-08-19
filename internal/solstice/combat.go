@@ -3,6 +3,8 @@ package solstice
 var (
 	inCombat          bool
 	combatMemberIndex int
+	combatMemberMoved bool
+	combatMemberActed bool
 )
 
 // IsInCombat returns true if combat mode is currently active.
@@ -25,6 +27,26 @@ func SetCombatMemberIndex(idx int) {
 	combatMemberIndex = idx
 }
 
+// GetCombatMemberMoved returns true if the active party member has already moved this turn.
+func GetCombatMemberMoved() bool {
+	return combatMemberMoved
+}
+
+// SetCombatMemberMoved sets whether the active party member has moved this turn.
+func SetCombatMemberMoved(v bool) {
+	combatMemberMoved = v
+}
+
+// GetCombatMemberActed returns true if the active party member has already performed a non-move, non-pass action this turn.
+func GetCombatMemberActed() bool {
+	return combatMemberActed
+}
+
+// SetCombatMemberActed sets whether the active party member has performed a non-move, non-pass action this turn.
+func SetCombatMemberActed(v bool) {
+	combatMemberActed = v
+}
+
 // StartCombat transitions the game from party mode to combat mode.
 // It sets the starting position of each party member to the party's position (allowing them to overlap),
 // adds the party member actors to the current active map, and sets the active party member to the first member (index 0).
@@ -43,6 +65,8 @@ func StartCombat() {
 		}
 	}
 	combatMemberIndex = 0
+	combatMemberMoved = false
+	combatMemberActed = false
 	inCombat = true
 }
 
@@ -63,6 +87,8 @@ func StopCombat() {
 	}
 	inCombat = false
 	combatMemberIndex = 0
+	combatMemberMoved = false
+	combatMemberActed = false
 }
 
 // AdvanceCombatMember advances to the next party member's combat move.
@@ -74,6 +100,8 @@ func AdvanceCombatMember(g *Game) {
 		return
 	}
 
+	combatMemberMoved = false
+	combatMemberActed = false
 	combatMemberIndex++
 	if combatMemberIndex >= len(p.Members) {
 		RunCombatAI(g)

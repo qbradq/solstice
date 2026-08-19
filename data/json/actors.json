@@ -82,7 +82,7 @@
         "hit_points": 30,
         "max_magic_points": 0,
         "magic_points": 0,
-        "move": 3
+        "move": 5
     },
     "lillian": {
         "name": "Lillian",
@@ -98,7 +98,7 @@
         "hit_points": 15,
         "max_magic_points": 20,
         "magic_points": 20,
-        "move": 3
+        "move": 4
     },
     "rodent": {
         "name": "Rodent of Unusual Size",
@@ -113,6 +113,6 @@
         "hit_points": 15,
         "max_magic_points": 0,
         "magic_points": 0,
-        "move": 5
+        "move": 7
     }
 }

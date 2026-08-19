@@ -74,7 +74,11 @@ func NewTargetMode(centerX, centerY, maxRange int, metric DistanceMetric, onSele
 // SetHighlightTiles assigns a set of reachable/targetable tile positions to highlight with the specified overlay color.
 func (tm *TargetMode) SetHighlightTiles(tiles map[image.Point]bool, col color.Color) {
 	tm.highlightTiles = tiles
-	tm.highlightColor = col
+	if col != nil {
+		tm.highlightColor = col
+	} else {
+		tm.highlightColor = color.RGBA{R: 0, G: 127, B: 0, A: 15}
+	}
 }
 
 func (tm *TargetMode) Update(g *Game) error {
@@ -195,7 +199,23 @@ func (tm *TargetMode) Draw(g *Game, screen *ebiten.Image) {
 
 	// 1. Draw the map view area centered on the targeting cursor, with visibility field centered on party/combat member and highlight overlays
 	if g.currentMap != nil {
-		g.currentMap.DrawCenteredAt(screen, g.assets, g.party, scale, tm.cursorX, tm.cursorY, visCenterX, visCenterY, tm.highlightTiles)
+		g.currentMap.DrawCenteredAt(screen, g.assets, g.party, scale, tm.cursorX, tm.cursorY, visCenterX, visCenterY, tm.highlightTiles, tm.highlightColor)
+	}
+
+	// 2. Render targeting cursor border at screen center
+	DrawTargetCursor(screen, scale, tm.colorIdx)
+
+	// 3. Draw common UI (party roster area and terminal UI)
+	DrawCommonUI(screen, g.assets, g.party, g.terminal)
+}
+
+// DrawTargetCursor renders the color-cycling targeting cursor border at screen center on top of the map view area.
+func DrawTargetCursor(screen *ebiten.Image, scale int, colorIdx int) {
+	if screen == nil {
+		return
+	}
+	if scale == 0 {
+		scale = 2
 	}
 
 	centerStx := 5
@@ -205,7 +225,6 @@ func (tm *TargetMode) Draw(g *Game, screen *ebiten.Image) {
 		centerSty = 11
 	}
 
-	// 2. Render targeting cursor border at screen center
 	var px, py float32
 	if scale == 2 {
 		px = float32(centerStx * 32)
@@ -220,14 +239,11 @@ func (tm *TargetMode) Draw(g *Game, screen *ebiten.Image) {
 	bw := float32(scale) // Border width: 2px at scale 2, 1px at scale 1
 
 	mapView := screen.SubImage(image.Rect(0, 0, 352, 352)).(*ebiten.Image)
-	cursorColor := VGAPalette16[tm.colorIdx]
+	cursorColor := VGAPalette16[colorIdx%len(VGAPalette16)]
 
 	// Border rectangle around the target tile with thickness bw
 	vector.FillRect(mapView, px, py, sz, bw, cursorColor, false)      // Top
 	vector.FillRect(mapView, px, py+sz-bw, sz, bw, cursorColor, false) // Bottom
 	vector.FillRect(mapView, px, py, bw, sz, cursorColor, false)      // Left
 	vector.FillRect(mapView, px+sz-bw, py, bw, sz, cursorColor, false) // Right
-
-	// 4. Draw common UI (party roster area and terminal UI)
-	DrawCommonUI(screen, g.assets, g.party, g.terminal)
 }

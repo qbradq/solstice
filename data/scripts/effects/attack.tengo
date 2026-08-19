@@ -1,0 +1,6 @@
+game := import("game")
+
+game.log(target_id)
+game.log(target_x)
+game.log(target_y)
+game.log(source_id)

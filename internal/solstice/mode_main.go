@@ -9,7 +9,9 @@ import (
 )
 
 // MainMode encapsulates the primary gameplay controls and rendering (party movement, UI, scale toggle).
-type MainMode struct{}
+type MainMode struct {
+	colorIdx int
+}
 
 // NewMainMode creates a new instance of MainMode.
 func NewMainMode() *MainMode {
@@ -19,6 +21,9 @@ func NewMainMode() *MainMode {
 func (m *MainMode) Update(g *Game) error {
 	// Advance global animation frame ticker
 	UpdateAnimTicker()
+
+	// Advance targeting cursor color index
+	m.colorIdx = (m.colorIdx + 1) % len(VGAPalette16)
 
 	// Update cut scene runner
 	if UpdateCutScene(g) {
@@ -54,8 +59,19 @@ func (m *MainMode) Update(g *Game) error {
 			}
 			curMember := &party.Members[curIdx]
 
-			// Move - M key, allows player to move current party member using A* pathfinding
-			if inpututil.IsKeyJustPressed(ebiten.KeyM) {
+			// If the current party member has already taken an action and a move,
+			// and the cut scene queue is empty (no animation playing), pass to the next turn.
+			if GetCombatMemberMoved() && GetCombatMemberActed() && !IsCutSceneActive() {
+				EnqueueCutSceneCommand(CutSceneCommand{
+					Type:   CmdDelay,
+					Frames: 2,
+				})
+				AdvanceCombatMember(g)
+				return nil
+			}
+
+			// Move - M key, allows player to move current party member using A* pathfinding (once per turn)
+			if inpututil.IsKeyJustPressed(ebiten.KeyM) && !GetCombatMemberMoved() {
 				curMap := GetMap()
 				if curMap != nil {
 					moveRange := curMember.Move
@@ -76,6 +92,11 @@ func (m *MainMode) Update(g *Game) error {
 							if len(path) == 0 {
 								return false
 							}
+							SetCombatMemberMoved(true)
+							EnqueueCutSceneCommand(CutSceneCommand{
+								Type:   CmdDelay,
+								Frames: 1,
+							})
 							for _, dir := range path {
 								EnqueueCutSceneCommand(CutSceneCommand{
 									Type:    CmdMove,
@@ -91,7 +112,55 @@ func (m *MainMode) Update(g *Game) error {
 						},
 						nil,
 					)
-					targetMode.SetHighlightTiles(reachable, color.RGBA{R: 85, G: 255, B: 85, A: 89})
+					targetMode.SetHighlightTiles(reachable, color.RGBA{R: 0, G: 127, B: 0, A: 15})
+					g.PushMode(targetMode)
+				}
+			}
+
+			// Attack - A key, triggers targeting mode with range 1 (diamond) and executes attack.tengo (once per turn)
+			if inpututil.IsKeyJustPressed(ebiten.KeyA) && !GetCombatMemberActed() {
+				curMap := GetMap()
+				if curMap != nil {
+					attackTiles := make(map[image.Point]bool)
+					for dx := -1; dx <= 1; dx++ {
+						for dy := -1; dy <= 1; dy++ {
+							adx := dx
+							if adx < 0 {
+								adx = -adx
+							}
+							ady := dy
+							if ady < 0 {
+								ady = -ady
+							}
+							if adx+ady <= 1 {
+								tx := curMember.X + dx
+								ty := curMember.Y + dy
+								if tx >= 0 && tx < curMap.Width && ty >= 0 && ty < curMap.Height {
+									attackTiles[image.Pt(tx, ty)] = true
+								}
+							}
+						}
+					}
+					targetMode := NewTargetMode(
+						curMember.X, curMember.Y,
+						1, // Range 1
+						DistanceDiamond,
+						func(tx, ty int) bool {
+							targetPt := image.Pt(tx, ty)
+							if !attackTiles[targetPt] {
+								return false
+							}
+							SetCombatMemberActed(true)
+							targetID := ""
+							if act := curMap.GetActorAt(tx, ty); act != nil {
+								targetID = act.ID
+							}
+							_ = ExecuteEffectScript("effects/attack.tengo", tx, ty, targetID, curMember.ID)
+							return true
+						},
+						nil,
+					)
+					targetMode.SetHighlightTiles(attackTiles, color.RGBA{R: 127, G: 0, B: 0, A: 31})
 					g.PushMode(targetMode)
 				}
 			}
@@ -197,6 +266,11 @@ func (m *MainMode) Draw(g *Game, screen *ebiten.Image) {
 	// 1. Draw the map view area (map tiles, actors, and party sprite)
 	if g.currentMap != nil {
 		g.currentMap.DrawCentered(screen, g.assets, g.party, scale)
+	}
+
+	// Overlay targeting cursor on top of the active party member in combat mode
+	if IsInCombat() && g.party != nil && len(g.party.Members) > 0 {
+		DrawTargetCursor(screen, scale, m.colorIdx)
 	}
 
 	// 2. Draw common UI (party roster area and terminal UI)
