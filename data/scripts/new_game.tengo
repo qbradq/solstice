@@ -21,7 +21,7 @@ game.teleport_party(15,15)
 game.exec_map_script("map/intro.tengo")
 */
 
-// Debug code
+// Combat Debug code
 game.log("Debug code running!")
 game.load_map("home")
 game.teleport_party(0,0)
@@ -31,3 +31,11 @@ game.spawn_actor("lillian", "lillian", 2, 0)
 game.add_to_party("lillian")
 game.set_string("combat_map_pack", "rodents")
 game.load_map("cbt_test")
+
+// World map test
+/*
+game.log("World map debug code running!")
+game.load_map("world")
+game.teleport_party_on_world_map(5, 84)
+game.teleport_party(5, 84)
+*/

@@ -1,7 +1,1 @@
-ai := import("ai")
-game := import("game")
-
-if game.roll("1d4") == 1 {
-	dir := game.random("n", "e", "s", "w")
-	ai.step(dir)
-}
+// Idle wander script

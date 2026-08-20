@@ -309,9 +309,10 @@ func TestCombatAutoAdvanceWhenMovedAndActed(t *testing.T) {
 		t.Fatalf("Expected member to remain 0 when only moved, got %d", GetCombatMemberIndex())
 	}
 
-	// Acted as well -> should auto-advance to member 1 and queue 2 frame delay
+	// Acted as well -> enqueues CombatActPass on update, which processes and auto-advances to member 1 with 2 frame delay
 	SetCombatMemberActed(true)
-	_ = mainMode.Update(game)
+	_ = mainMode.Update(game) // Enqueues pass combat action
+	_ = mainMode.Update(game) // Processes pass combat action, queues 2 frame delay, advances member
 	if GetCombatMemberIndex() != 1 {
 		t.Fatalf("Expected member to auto-advance to 1, got %d", GetCombatMemberIndex())
 	}
@@ -323,10 +324,11 @@ func TestCombatAutoAdvanceWhenMovedAndActed(t *testing.T) {
 	}
 	// Drain the 2-frame delay
 	for IsCutSceneActive() {
+		SetAnimFrame(GetAnimFrame() + 1)
 		_ = mainMode.Update(game)
 	}
 
-	// But if another cutscene is active, should NOT auto-advance until cutscene is finished
+	// But if another cutscene is active, should NOT process combat action until cutscene is finished
 	SetCombatMemberMoved(true)
 	SetCombatMemberActed(true)
 	EnqueueCutSceneCommand(CutSceneCommand{
@@ -334,22 +336,133 @@ func TestCombatAutoAdvanceWhenMovedAndActed(t *testing.T) {
 		Frames: 3,
 	})
 
-	// Frame 1 of cutscene
+	// Frame 1 of cutscene: cutscene runs first
 	_ = mainMode.Update(game)
 	if GetCombatMemberIndex() != 1 {
 		t.Fatalf("Expected member to remain 1 while cutscene is active, got %d", GetCombatMemberIndex())
 	}
 
-	// Increment animation frame so cutscene delay ticks
+	// Increment animation frame so cutscene delay finishes
 	SetAnimFrame(GetAnimFrame() + 3)
+	_ = mainMode.Update(game) // Cutscene finishes
+	_ = mainMode.Update(game) // Auto-pass enqueued
+	_ = mainMode.Update(game) // Auto-pass executed -> advances back to 0
 
-	// When cutscene completes, update auto-advances to member 0 and queues 2 frame delay
-	_ = mainMode.Update(game)
 	if GetCombatMemberIndex() != 0 {
 		t.Fatalf("Expected member to auto-advance back to 0 (after AI turn), got %d", GetCombatMemberIndex())
 	}
 	if !IsCutSceneActive() {
 		t.Errorf("Expected 2-frame cutscene delay to be active after auto-pass")
+	}
+}
+
+func TestCombatActionQueueSystem(t *testing.T) {
+	homeMap, err := LoadMap("home")
+	if err != nil {
+		t.Fatalf("LoadMap failed: %v", err)
+	}
+	SetMap(homeMap)
+
+	m1, _ := NewActorFromDef("hero1", "kevin", 0, 0)
+	party, err := NewParty(5, 5, *m1)
+	if err != nil {
+		t.Fatalf("NewParty failed: %v", err)
+	}
+	SetParty(party)
+
+	game := &Game{
+		currentMap: homeMap,
+		party:      party,
+	}
+
+	StartCombat()
+	defer StopCombat()
+
+	if HasCombatActions() {
+		t.Error("Expected combat action queue to be empty initially")
+	}
+
+	// 1. Test CombatActMove
+	EnqueueCombatAction(CombatAction{
+		Type:    CombatActMove,
+		ActorID: "hero1",
+		Path:    []string{"e", "e"},
+		TargetX: 7,
+		TargetY: 5,
+	})
+
+	if !HasCombatActions() {
+		t.Error("Expected combat action to be in queue")
+	}
+
+	if !UpdateCombatActions(game) {
+		t.Error("Expected UpdateCombatActions to return true")
+	}
+
+	if !GetCombatMemberMoved() {
+		t.Error("Expected CombatMemberMoved to be true after CombatActMove")
+	}
+	if !IsCutSceneActive() {
+		t.Error("Expected cut scene move commands to be queued by CombatActMove")
+	}
+
+	// Drain cut scenes
+	for IsCutSceneActive() {
+		SetAnimFrame(GetAnimFrame() + 1)
+		UpdateCutScene(game)
+	}
+
+	if party.Members[0].X != 7 || party.Members[0].Y != 5 {
+		t.Errorf("Expected hero1 to move to (7, 5), got (%d, %d)", party.Members[0].X, party.Members[0].Y)
+	}
+
+	// 2. Test CombatActCustom
+	customExecuted := false
+	EnqueueCombatAction(CombatAction{
+		Type: CombatActCustom,
+		Execute: func(g *Game) {
+			customExecuted = true
+		},
+	})
+	if !UpdateCombatActions(game) {
+		t.Error("Expected UpdateCombatActions to return true for custom action")
+	}
+	if !customExecuted {
+		t.Error("Expected custom combat action to execute")
+	}
+
+	// 3. Test that CombatActions do not process while cutscenes are active
+	EnqueueCutSceneCommand(CutSceneCommand{
+		Type:   CmdDelay,
+		Frames: 2,
+	})
+	actionExecutedWhileCutScene := false
+	EnqueueCombatAction(CombatAction{
+		Type: CombatActCustom,
+		Execute: func(g *Game) {
+			actionExecutedWhileCutScene = true
+		},
+	})
+
+	if UpdateCombatActions(game) {
+		t.Error("Expected UpdateCombatActions to return false while cut scene is active")
+	}
+	if actionExecutedWhileCutScene {
+		t.Error("Combat action should not execute while cut scene is active")
+	}
+
+	// Finish cutscene
+	for IsCutSceneActive() {
+		SetAnimFrame(GetAnimFrame() + 1)
+		UpdateCutScene(game)
+	}
+
+	// Now combat action can process
+	if !UpdateCombatActions(game) {
+		t.Error("Expected UpdateCombatActions to process after cutscene finished")
+	}
+	if !actionExecutedWhileCutScene {
+		t.Error("Expected combat action to execute after cutscene finished")
 	}
 }
 

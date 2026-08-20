@@ -93,15 +93,15 @@ game.log(act["damage"])
 		t.Errorf("Expected damage '1d4+1', got %q", last7[6])
 	}
 
-	// Test hero (kevin) weapon range and damage (dagger: range 1, damage "2d4+2")
-	if hero.Weapon == nil || hero.Weapon.Template != "dagger" {
-		t.Errorf("Expected hero to equip dagger, got %v", hero.Weapon)
+	// Test hero (kevin) weapon range and damage (long_sword: range 1, damage "3d8+6")
+	if hero.Weapon == nil || hero.Weapon.Template != "long_sword" {
+		t.Errorf("Expected hero to equip long_sword, got %v", hero.Weapon)
 	}
 	if hero.GetWeaponRange() != 1 {
 		t.Errorf("Expected hero weapon range 1, got %d", hero.GetWeaponRange())
 	}
-	if hero.GetWeaponDamage() != "2d4+2" {
-		t.Errorf("Expected hero weapon damage '2d4+2', got %q", hero.GetWeaponDamage())
+	if hero.GetWeaponDamage() != "3d8+6" {
+		t.Errorf("Expected hero weapon damage '3d8+6', got %q", hero.GetWeaponDamage())
 	}
 
 	// Test game.damage_actor damaging enemy
@@ -354,8 +354,14 @@ func TestAttackCombatMoveTargeting(t *testing.T) {
 		if act == nil {
 			return false
 		}
-		SetCombatMemberActed(true)
-		_ = ExecuteEffectScript("effects/attack.tengo", tx, ty, act.ID, hero.ID)
+		EnqueueCombatAction(CombatAction{
+			Type:         CombatActAttack,
+			ActorID:      hero.ID,
+			TargetID:     act.ID,
+			TargetX:      tx,
+			TargetY:      ty,
+			EffectScript: "effects/attack.tengo",
+		})
 		attackExecuted = true
 		return true
 	}, nil)
@@ -373,16 +379,31 @@ func TestAttackCombatMoveTargeting(t *testing.T) {
 	if GetCombatMemberActed() {
 		t.Errorf("Expected CombatMemberActed to remain false after rejected target")
 	}
+	if HasCombatActions() {
+		t.Errorf("Expected no combat actions queued on rejected target")
+	}
 
 	// Valid target at enemy position (6, 5)
 	if !tm.onSelected(6, 5) {
 		t.Errorf("Expected target at (6, 5) to be accepted")
 	}
 	if !attackExecuted {
-		t.Errorf("Expected attack effect script to execute")
+		t.Errorf("Expected attack callback to execute")
+	}
+	if !HasCombatActions() {
+		t.Errorf("Expected combat action to be enqueued after selecting target")
+	}
+
+	// Process combat action queue
+	game := &Game{
+		currentMap: homeMap,
+		party:      party,
+	}
+	if !UpdateCombatActions(game) {
+		t.Errorf("Expected UpdateCombatActions to return true when processing action")
 	}
 	if !GetCombatMemberActed() {
-		t.Errorf("Expected CombatMemberActed to be true after successful attack")
+		t.Errorf("Expected CombatMemberActed to be true after processing attack combat action")
 	}
 
 	// Verify terminal output from attack.tengo (hit or miss message)

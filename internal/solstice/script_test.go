@@ -699,35 +699,6 @@ near2 := ai.get_nearest_party_member(21, 20)
 	if c1.Get("near2").String() != "hero2" {
 		t.Errorf("Expected near2 to be 'hero2', got %q", c1.Get("near2").String())
 	}
-
-	// 2. Test ai.step(dir)
-	testActor := NewActor("test_actor", 13, 12, "guard")
-	homeMap.AddActor(testActor)
-
-	scriptSrc2 := `
-ai := import("ai")
-res := ai.step("e")
-`
-	s2 := tengo.NewScript([]byte(scriptSrc2))
-	s2.SetImports(moduleMap)
-	_ = s2.Add("actor_id", "test_actor")
-	_ = s2.Add("tile_x", 13)
-	_ = s2.Add("tile_y", 12)
-	c2, err := s2.Compile()
-	if err != nil {
-		t.Fatalf("Compile failed: %v", err)
-	}
-
-	// Run with testActor as current AI actor
-	SetCurrentAIActor(testActor)
-	if err := c2.Run(); err != nil {
-		t.Fatalf("Run failed: %v", err)
-	}
-	SetCurrentAIActor(nil)
-
-	if testActor.X != 14 || testActor.Y != 12 {
-		t.Errorf("Expected testActor to move to (14, 12), got (%d, %d)", testActor.X, testActor.Y)
-	}
 }
 
 func TestActorIdleAndCombatScripts(t *testing.T) {

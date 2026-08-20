@@ -66,7 +66,6 @@ ai := import("ai")
 ```
 
 * `ai.get_nearest_party_member(x, y)`: Returns the ID string of the party member actor closest to coordinates `(x, y)` on the current map.
-* `ai.step(direction)`: Moves the executing AI actor by 1 tile in the specified direction (`"n"`, `"e"`, `"s"`, or `"w"`), respecting map boundaries, tile walkability, and actor collisions. Returns `true` if moved, `false` if blocked.
 
 ---
 

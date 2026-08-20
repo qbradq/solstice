@@ -1,11 +1,107 @@
 package solstice
 
+// CombatActionType represents the type of a combat action command.
+type CombatActionType int
+
+const (
+	CombatActMove CombatActionType = iota
+	CombatActAttack
+	CombatActPass
+	CombatActCustom
+)
+
+// CombatAction represents an action in the combat action queue.
+type CombatAction struct {
+	Type         CombatActionType
+	ActorID      string
+	TargetID     string
+	TargetX      int
+	TargetY      int
+	EffectScript string
+	Path         []string
+	Execute      func(g *Game)
+}
+
 var (
 	inCombat          bool
 	combatMemberIndex int
 	combatMemberMoved bool
 	combatMemberActed bool
+	combatActionQueue []CombatAction
 )
+
+// EnqueueCombatAction adds a combat action to the queue.
+func EnqueueCombatAction(action CombatAction) {
+	combatActionQueue = append(combatActionQueue, action)
+}
+
+// ClearCombatActions clears the combat action queue.
+func ClearCombatActions() {
+	combatActionQueue = nil
+}
+
+// HasCombatActions returns true if there are queued combat actions.
+func HasCombatActions() bool {
+	return len(combatActionQueue) > 0
+}
+
+// UpdateCombatActions processes queued combat actions if cutscenes are not currently active.
+// Returns true if a combat action was processed or the queue is active, indicating
+// normal input handling should be bypassed.
+func UpdateCombatActions(g *Game) bool {
+	if IsCutSceneActive() {
+		return false
+	}
+
+	if len(combatActionQueue) == 0 {
+		return false
+	}
+
+	action := combatActionQueue[0]
+	combatActionQueue = combatActionQueue[1:]
+
+	switch action.Type {
+	case CombatActMove:
+		SetCombatMemberMoved(true)
+		EnqueueCutSceneCommand(CutSceneCommand{
+			Type:   CmdDelay,
+			Frames: 1,
+		})
+		for _, dir := range action.Path {
+			EnqueueCutSceneCommand(CutSceneCommand{
+				Type:    CmdMove,
+				ActorID: action.ActorID,
+				Dir:     dir,
+			})
+			EnqueueCutSceneCommand(CutSceneCommand{
+				Type:   CmdDelay,
+				Frames: 1,
+			})
+		}
+
+	case CombatActAttack:
+		SetCombatMemberActed(true)
+		script := action.EffectScript
+		if script == "" {
+			script = "effects/attack.tengo"
+		}
+		_ = ExecuteEffectScript(script, action.TargetX, action.TargetY, action.TargetID, action.ActorID)
+
+	case CombatActPass:
+		EnqueueCutSceneCommand(CutSceneCommand{
+			Type:   CmdDelay,
+			Frames: 2,
+		})
+		AdvanceCombatMember(g)
+
+	case CombatActCustom:
+		if action.Execute != nil {
+			action.Execute(g)
+		}
+	}
+
+	return true
+}
 
 // IsInCombat returns true if combat mode is currently active.
 func IsInCombat() bool {
@@ -67,6 +163,8 @@ func StartCombat() {
 	combatMemberIndex = 0
 	combatMemberMoved = false
 	combatMemberActed = false
+	ClearCombatActions()
+	ClearCutScene()
 	inCombat = true
 }
 
@@ -89,6 +187,8 @@ func StopCombat() {
 	combatMemberIndex = 0
 	combatMemberMoved = false
 	combatMemberActed = false
+	ClearCombatActions()
+	ClearCutScene()
 }
 
 // AdvanceCombatMember advances to the next party member's combat move.

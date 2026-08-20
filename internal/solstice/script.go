@@ -1420,48 +1420,6 @@ func InitScriptSystem() error {
 				return &tengo.String{Value: nearestID}, nil
 			},
 		},
-		"step": &tengo.UserFunction{
-			Name: "step",
-			Value: func(args ...tengo.Object) (tengo.Object, error) {
-				if len(args) < 1 {
-					return tengo.UndefinedValue, fmt.Errorf("step requires 1 argument: direction")
-				}
-				dir, ok := tengo.ToString(args[0])
-				if !ok {
-					return tengo.UndefinedValue, fmt.Errorf("step argument must be a string")
-				}
-
-				actor := GetCurrentAIActor()
-				if actor == nil {
-					return tengo.UndefinedValue, fmt.Errorf("no active AI actor context for step")
-				}
-
-				m := GetMap()
-				if m == nil {
-					return tengo.UndefinedValue, fmt.Errorf("no active map")
-				}
-
-				dx, dy := 0, 0
-				switch strings.ToLower(dir) {
-				case "n", "north", "up":
-					dy = -1
-				case "s", "south", "down":
-					dy = 1
-				case "e", "east", "right":
-					dx = 1
-				case "w", "west", "left":
-					dx = -1
-				default:
-					return tengo.UndefinedValue, fmt.Errorf("invalid direction %q (expected n, e, s, w)", dir)
-				}
-
-				moved := m.MoveActor(actor, dx, dy)
-				if moved {
-					return tengo.TrueValue, nil
-				}
-				return tengo.FalseValue, nil
-			},
-		},
 	}
 	moduleMap.AddBuiltinModule("ai", aiModule)
 

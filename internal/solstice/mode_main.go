@@ -45,6 +45,11 @@ func (m *MainMode) Update(g *Game) error {
 	}
 
 	if IsInCombat() {
+		// Only do combat actions when cut scenes are not playing
+		if UpdateCombatActions(g) {
+			return nil
+		}
+
 		// Combat mode: control the current party member
 		party := g.party
 		if party == nil {
@@ -59,14 +64,12 @@ func (m *MainMode) Update(g *Game) error {
 			}
 			curMember := &party.Members[curIdx]
 
-			// If the current party member has already taken an action and a move,
-			// and the cut scene queue is empty (no animation playing), pass to the next turn.
-			if GetCombatMemberMoved() && GetCombatMemberActed() && !IsCutSceneActive() {
-				EnqueueCutSceneCommand(CutSceneCommand{
-					Type:   CmdDelay,
-					Frames: 2,
+			// If the current party member has already taken an action and a move, pass to the next turn.
+			if GetCombatMemberMoved() && GetCombatMemberActed() {
+				EnqueueCombatAction(CombatAction{
+					Type:    CombatActPass,
+					ActorID: curMember.ID,
 				})
-				AdvanceCombatMember(g)
 				return nil
 			}
 
@@ -92,22 +95,13 @@ func (m *MainMode) Update(g *Game) error {
 							if len(path) == 0 {
 								return false
 							}
-							SetCombatMemberMoved(true)
-							EnqueueCutSceneCommand(CutSceneCommand{
-								Type:   CmdDelay,
-								Frames: 1,
+							EnqueueCombatAction(CombatAction{
+								Type:    CombatActMove,
+								ActorID: curMember.ID,
+								Path:    path,
+								TargetX: tx,
+								TargetY: ty,
 							})
-							for _, dir := range path {
-								EnqueueCutSceneCommand(CutSceneCommand{
-									Type:    CmdMove,
-									ActorID: curMember.ID,
-									Dir:     dir,
-								})
-								EnqueueCutSceneCommand(CutSceneCommand{
-									Type:   CmdDelay,
-									Frames: 1,
-								})
-							}
 							return true
 						},
 						nil,
@@ -160,8 +154,14 @@ func (m *MainMode) Update(g *Game) error {
 							if act == nil {
 								return false
 							}
-							SetCombatMemberActed(true)
-							_ = ExecuteEffectScript("effects/attack.tengo", tx, ty, act.ID, curMember.ID)
+							EnqueueCombatAction(CombatAction{
+								Type:         CombatActAttack,
+								ActorID:      curMember.ID,
+								TargetID:     act.ID,
+								TargetX:      tx,
+								TargetY:      ty,
+								EffectScript: "effects/attack.tengo",
+							})
 							return true
 						},
 						nil,
@@ -176,7 +176,10 @@ func (m *MainMode) Update(g *Game) error {
 				inpututil.IsKeyJustPressed(ebiten.KeyPeriod) ||
 				inpututil.IsKeyJustPressed(ebiten.KeyKP5) ||
 				inpututil.IsKeyJustPressed(ebiten.KeyNumpad5) {
-				AdvanceCombatMember(g)
+				EnqueueCombatAction(CombatAction{
+					Type:    CombatActPass,
+					ActorID: curMember.ID,
+				})
 			}
 		}
 	} else {
