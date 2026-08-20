@@ -80,8 +80,8 @@ game.log(act["damage"])
 	if last7[2] != "8" {
 		t.Errorf("Expected strength '8', got %q", last7[2])
 	}
-	if last7[3] != "15" {
-		t.Errorf("Expected hit points '15', got %q", last7[3])
+	if last7[3] != "5" {
+		t.Errorf("Expected hit points '5', got %q", last7[3])
 	}
 	if last7[4] != "false" {
 		t.Errorf("Expected human 'false', got %q", last7[4])
@@ -93,20 +93,20 @@ game.log(act["damage"])
 		t.Errorf("Expected damage '1d4+1', got %q", last7[6])
 	}
 
-	// Test hero (kevin) weapon range and damage (dagger: range 1, damage "1d4+2")
+	// Test hero (kevin) weapon range and damage (dagger: range 1, damage "2d4+2")
 	if hero.Weapon == nil || hero.Weapon.Template != "dagger" {
 		t.Errorf("Expected hero to equip dagger, got %v", hero.Weapon)
 	}
 	if hero.GetWeaponRange() != 1 {
 		t.Errorf("Expected hero weapon range 1, got %d", hero.GetWeaponRange())
 	}
-	if hero.GetWeaponDamage() != "1d4+2" {
-		t.Errorf("Expected hero weapon damage '1d4+2', got %q", hero.GetWeaponDamage())
+	if hero.GetWeaponDamage() != "2d4+2" {
+		t.Errorf("Expected hero weapon damage '2d4+2', got %q", hero.GetWeaponDamage())
 	}
 
 	// Test game.damage_actor damaging enemy
 	err = repl.Execute(`
-game.damage_actor("enemy1", 6)
+game.damage_actor("enemy1", 2)
 act2 := game.get_actor("enemy1")
 game.log(string(act2["hit_points"]))
 `)
@@ -115,8 +115,8 @@ game.log(string(act2["hit_points"]))
 	}
 
 	lines = term.GetLineTexts()
-	if lines[len(lines)-1] != "9" {
-		t.Errorf("Expected updated hit points '9', got %q", lines[len(lines)-1])
+	if lines[len(lines)-1] != "3" {
+		t.Errorf("Expected updated hit points '3', got %q", lines[len(lines)-1])
 	}
 
 	// Test game.damage_actor killing animal actor (enemy1 has human: false)

@@ -3,13 +3,13 @@
     "player_start": {},
     "enemy_start": {},
     "human_corpse": {
-        "sprite": "human-corpse"
+        "sprite": "human_corpse"
     },
     "animal_corpse": {
-        "sprite": "animal-corpse"
+        "sprite": "animal_corpse"
     },
     "hands": {
-        "sprite": "item-weapon",
+        "sprite": "item_weapon",
         "type": "weapon",
         "meta": {
             "range": 1,
@@ -17,7 +17,7 @@
         }
     },
     "rodent-teeth": {
-        "sprite": "item-weapon",
+        "sprite": "item_weapon",
         "type": "weapon",
         "meta": {
             "range": 1,
@@ -25,11 +25,35 @@
         }
     },
     "dagger": {
-        "sprite": "item-weapon",
+        "sprite": "item_weapon",
         "type": "weapon",
         "meta": {
             "range": 1,
-            "damage": "1d4+2"
+            "damage": "2d4+2"
+        }
+    },
+    "short_sword": {
+        "sprite": "item_weapon",
+        "type": "weapon",
+        "meta": {
+            "range": 1,
+            "damage": "2d6+4"
+        }
+    },
+    "broadsword": {
+        "sprite": "item_weapon",
+        "type": "weapon",
+        "meta": {
+            "range": 1,
+            "damage": "3d6+4"
+        }
+    },
+    "long_sword": {
+        "sprite": "item_weapon",
+        "type": "weapon",
+        "meta": {
+            "range": 1,
+            "damage": "3d8+6"
         }
     }
 }

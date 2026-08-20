@@ -8,9 +8,9 @@ func TestPreloadSpriteDefs(t *testing.T) {
 		t.Fatalf("PreloadSpriteDefs failed: %v", err)
 	}
 
-	partyStanding, ok := defs["party-standing"]
+	partyStanding, ok := defs["party_standing"]
 	if !ok {
-		t.Fatal("Expected 'party-standing' sprite def in loaded map")
+		t.Fatal("Expected 'party_standing' sprite def in loaded map")
 	}
 
 	if partyStanding.Tile != 332 {

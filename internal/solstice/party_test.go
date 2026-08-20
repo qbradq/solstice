@@ -41,13 +41,13 @@ func TestPartySpiritModeAndMembers(t *testing.T) {
 		t.Error("Expected 0-member party to be in Spirit Mode")
 	}
 
-	// Spirit mode sprite: "party-spirit-mode" (Tile: 372)
+	// Spirit mode sprite: "party_spirit_mode" (Tile: 372)
 	sdSpirit := party.GetSpriteDef()
 	if sdSpirit.Tile != 372 {
 		t.Errorf("Expected spirit mode party Tile to be 372, got %d", sdSpirit.Tile)
 	}
 
-	// 2. Add member (non-spirit mode) -> "party-standing" (Tile: 332)
+	// 2. Add member (non-spirit mode) -> "party_standing" (Tile: 332)
 	actor := *NewActor("kevin", 15, 15, "warrior")
 	if err := party.AddMember(actor); err != nil {
 		t.Fatalf("AddMember failed: %v", err)
@@ -62,11 +62,11 @@ func TestPartySpiritModeAndMembers(t *testing.T) {
 		t.Errorf("Expected non-spirit mode party Tile to be 332, got %d", sdStanding.Tile)
 	}
 
-	// 3. Test tile with party_sprite property override (e.g. tile 144 has party_sprite = "party-sitting-north", Tile: 304)
+	// 3. Test tile with party_sprite property override (e.g. tile 144 has party_sprite = "party_sitting_north", Tile: 304)
 	m.SetTile(15, 15, 144)
 	sdSitting := party.GetSpriteDef()
 	if sdSitting.Tile != 304 {
-		t.Errorf("Expected party Tile standing on tile 144 to be 304 (party-sitting-north), got %d", sdSitting.Tile)
+		t.Errorf("Expected party Tile standing on tile 144 to be 304 (party_sitting_north), got %d", sdSitting.Tile)
 	}
 
 	// Reset tile

@@ -105,7 +105,7 @@
         "magic_points": 0,
         "move": 5,
         "equipment": [
-            "dagger"
+            "long_sword"
         ]
     },
     "lillian": {
@@ -138,8 +138,8 @@
         "strength": 8,
         "dexterity": 8,
         "intelligence": 3,
-        "max_hit_points": 15,
-        "hit_points": 15,
+        "max_hit_points": 5,
+        "hit_points": 5,
         "max_magic_points": 0,
         "magic_points": 0,
         "move": 7,

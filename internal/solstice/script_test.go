@@ -891,8 +891,8 @@ dagger_damage := daggers[0].meta.damage
 	if c2.Get("dagger_range").Int() != 1 {
 		t.Errorf("Expected dagger range 1, got %d", c2.Get("dagger_range").Int())
 	}
-	if c2.Get("dagger_damage").String() != "1d4+2" {
-		t.Errorf("Expected dagger damage '1d4+2', got %q", c2.Get("dagger_damage").String())
+	if c2.Get("dagger_damage").String() != "2d4+2" {
+		t.Errorf("Expected dagger damage '2d4+2', got %q", c2.Get("dagger_damage").String())
 	}
 }
 

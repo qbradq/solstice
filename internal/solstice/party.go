@@ -36,7 +36,7 @@ type Party struct {
 }
 
 // NewParty creates a new Party with the specified position and initial actor members.
-// Sets party sprite to "party-standing" when not in spirit mode, and "party-spirit-mode" when in spirit mode.
+// Sets party sprite to "party_standing" when not in spirit mode, and "party_spirit_mode" when in spirit mode.
 // Hard codes the party's starting world map position to (38, 103).
 func NewParty(x, y int, members ...Actor) (*Party, error) {
 	if len(members) > MaxPartyMembers {
@@ -68,17 +68,17 @@ func (p *Party) IsSpiritMode() bool {
 }
 
 // GetSpriteDef returns the active SpriteDef for the party:
-// - "party-spirit-mode" when in spirit mode (0 members).
+// - "party_spirit_mode" when in spirit mode (0 members).
 // - When not in spirit mode, if the tile the party is standing on defines a non-empty "party_sprite" property, use that sprite.
-// - Otherwise, default to "party-standing".
+// - Otherwise, default to "party_standing".
 func (p *Party) GetSpriteDef() SpriteDef {
 	if p == nil {
-		sd, _ := GetSpriteDef("party-spirit-mode")
+		sd, _ := GetSpriteDef("party_spirit_mode")
 		return sd
 	}
 
 	if p.IsSpiritMode() {
-		if sd, ok := GetSpriteDef("party-spirit-mode"); ok {
+		if sd, ok := GetSpriteDef("party_spirit_mode"); ok {
 			return sd
 		}
 		return p.SpriteDef
@@ -95,7 +95,7 @@ func (p *Party) GetSpriteDef() SpriteDef {
 		}
 	}
 
-	if sd, ok := GetSpriteDef("party-standing"); ok {
+	if sd, ok := GetSpriteDef("party_standing"); ok {
 		return sd
 	}
 	return p.SpriteDef

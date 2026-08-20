@@ -1,75 +1,75 @@
 {
-    "party-spirit-mode": {
+    "party_spirit_mode": {
         "tile": 372,
         "animated": true,
         "frames": 4
     },
-    "party-standing": {
+    "party_standing": {
         "tile": 332,
         "animated": true,
         "frames": 4
     },
-    "human-corpse": {
+    "human_corpse": {
         "tile": 286
     },
-    "animal-corpse": {
+    "animal_corpse": {
         "tile": 287
     },
-    "party-sitting-north": {
+    "party_sitting_north": {
         "tile": 304
     },
-    "party-sitting-east": {
+    "party_sitting_east": {
         "tile": 305
     },
-    "party-sitting-south": {
+    "party_sitting_south": {
         "tile": 306
     },
-    "party-sitting-west": {
+    "party_sitting_west": {
         "tile": 307
     },
-    "item-chest": {
+    "item_chest": {
         "tile": 257
     },
-    "item-money": {
+    "item_money": {
         "tile": 258
     },
-    "item-potion": {
+    "item_potion": {
         "tile": 259
     },
-    "item-scroll": {
+    "item_scroll": {
         "tile": 260
     },
-    "item-weapon": {
+    "item_weapon": {
         "tile": 261
     },
-    "item-shield": {
+    "item_shield": {
         "tile": 262
     },
-    "item-key": {
+    "item_key": {
         "tile": 263
     },
-    "item-gem": {
+    "item_gem": {
         "tile": 264
     },
-    "item-helm": {
+    "item_helm": {
         "tile": 265
     },
-    "item-ring": {
+    "item_ring": {
         "tile": 266
     },
-    "item-armor": {
+    "item_armor": {
         "tile": 267
     },
-    "item-necklace": {
+    "item_necklace": {
         "tile": 268
     },
-    "item-torch": {
+    "item_torch": {
         "tile": 269
     },
-    "item-box": {
+    "item_box": {
         "tile": 270
     },
-    "item-food": {
+    "item_food": {
         "tile": 271
     },
     "wizard": {
@@ -232,7 +232,7 @@
         "animated": true,
         "frames": 4
     },
-    "will-o-wisp": {
+    "will_o_wisp": {
         "tile": 468,
         "animated": true,
         "frames": 4
@@ -247,7 +247,7 @@
         "animated": true,
         "frames": 4
     },
-    "sand-worm": {
+    "sand_worm": {
         "tile": 480,
         "animated": true,
         "frames": 4
@@ -277,7 +277,7 @@
         "animated": true,
         "frames": 4
     },
-    "dark-lord": {
+    "dark_lord": {
         "tile": 508,
         "animated": true,
         "frames": 4

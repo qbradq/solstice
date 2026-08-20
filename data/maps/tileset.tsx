@@ -411,25 +411,25 @@
  </tile>
  <tile id="144">
   <properties>
-   <property name="party_sprite" value="party-sitting-north"/>
+   <property name="party_sprite" value="party_sitting_north"/>
    <property name="walkable" type="bool" value="true"/>
   </properties>
  </tile>
  <tile id="145">
   <properties>
-   <property name="party_sprite" value="party-sitting-east"/>
+   <property name="party_sprite" value="party_sitting_east"/>
    <property name="walkable" type="bool" value="true"/>
   </properties>
  </tile>
  <tile id="146">
   <properties>
-   <property name="party_sprite" value="party-sitting-south"/>
+   <property name="party_sprite" value="party_sitting_south"/>
    <property name="walkable" type="bool" value="true"/>
   </properties>
  </tile>
  <tile id="147">
   <properties>
-   <property name="party_sprite" value="party-sitting-west"/>
+   <property name="party_sprite" value="party_sitting_west"/>
    <property name="walkable" type="bool" value="true"/>
   </properties>
  </tile>
