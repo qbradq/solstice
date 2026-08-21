@@ -27,6 +27,12 @@ type TileProperties struct {
 	UseScript       string `json:"use_script"`
 	PartySprite     string `json:"party_sprite"`
 	ActorHalfSprite bool   `json:"actor_half_sprite"`
+	AWTBasic        bool   `json:"awt_basic"`
+	AWTMaskTL       bool   `json:"awt_mask_tl"`
+	AWTMaskTR       bool   `json:"awt_mask_tr"`
+	AWTMaskBL       bool   `json:"awt_mask_bl"`
+	AWTMaskBR       bool   `json:"awt_mask_br"`
+	AWTMaskRiver    bool   `json:"awt_mask_river"`
 }
 
 // TileSet holds tileset information loaded from a Tiled .tsx file.
@@ -267,6 +273,18 @@ func LoadTileSet(path string) (*TileSet, error) {
 				tp.PartySprite = p.Value
 			case "actor_half_sprite", "party_half_sprite":
 				tp.ActorHalfSprite = val
+			case "awt_basic":
+				tp.AWTBasic = val
+			case "awt_mask_tl":
+				tp.AWTMaskTL = val
+			case "awt_mask_tr":
+				tp.AWTMaskTR = val
+			case "awt_mask_bl":
+				tp.AWTMaskBL = val
+			case "awt_mask_br":
+				tp.AWTMaskBR = val
+			case "awt_mask_river":
+				tp.AWTMaskRiver = val
 			default:
 				return nil, fmt.Errorf("unknown tile property %q on tile ID %d", p.Name, t.ID)
 			}
@@ -275,6 +293,9 @@ func LoadTileSet(path string) (*TileSet, error) {
 	}
 
 	defaultTileSet = ts
+	if defaultAssets != nil {
+		UpdateAnimatedWaterTiles(defaultAssets, defaultTileSet, globalAnimFrame)
+	}
 	return ts, nil
 }
 

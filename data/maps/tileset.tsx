@@ -3,18 +3,21 @@
  <image source="../gfx/TILES.16.png" width="256" height="512"/>
  <tile id="1">
   <properties>
+   <property name="awt_basic" type="bool" value="true"/>
    <property name="deep_water" type="bool" value="true"/>
    <property name="water" type="bool" value="true"/>
   </properties>
  </tile>
  <tile id="2">
   <properties>
+   <property name="awt_basic" type="bool" value="true"/>
    <property name="deep_water" type="bool" value="true"/>
    <property name="water" type="bool" value="true"/>
   </properties>
  </tile>
  <tile id="3">
   <properties>
+   <property name="awt_basic" type="bool" value="true"/>
    <property name="water" type="bool" value="true"/>
   </properties>
  </tile>
@@ -238,24 +241,28 @@
  </tile>
  <tile id="52">
   <properties>
+   <property name="awt_mask_tl" type="bool" value="true"/>
    <property name="walkable" type="bool" value="true"/>
    <property name="water" type="bool" value="true"/>
   </properties>
  </tile>
  <tile id="53">
   <properties>
+   <property name="awt_mask_tr" type="bool" value="true"/>
    <property name="walkable" type="bool" value="true"/>
    <property name="water" type="bool" value="true"/>
   </properties>
  </tile>
  <tile id="54">
   <properties>
+   <property name="awt_mask_br" type="bool" value="true"/>
    <property name="walkable" type="bool" value="true"/>
    <property name="water" type="bool" value="true"/>
   </properties>
  </tile>
  <tile id="55">
   <properties>
+   <property name="awt_mask_bl" type="bool" value="true"/>
    <property name="walkable" type="bool" value="true"/>
    <property name="water" type="bool" value="true"/>
   </properties>
@@ -324,89 +331,110 @@
  </tile>
  <tile id="96">
   <properties>
+   <property name="awt_mask_river" type="bool" value="true"/>
    <property name="water" type="bool" value="true"/>
   </properties>
  </tile>
  <tile id="97">
   <properties>
+   <property name="awt_mask_river" type="bool" value="true"/>
    <property name="water" type="bool" value="true"/>
   </properties>
  </tile>
  <tile id="98">
   <properties>
+   <property name="awt_mask_river" type="bool" value="true"/>
    <property name="water" type="bool" value="true"/>
   </properties>
  </tile>
  <tile id="99">
   <properties>
+   <property name="awt_mask_river" type="bool" value="true"/>
    <property name="water" type="bool" value="true"/>
   </properties>
  </tile>
  <tile id="100">
   <properties>
+   <property name="awt_mask_river" type="bool" value="true"/>
    <property name="water" type="bool" value="true"/>
   </properties>
  </tile>
  <tile id="101">
   <properties>
+   <property name="awt_mask_river" type="bool" value="true"/>
    <property name="water" type="bool" value="true"/>
   </properties>
  </tile>
  <tile id="102">
   <properties>
+   <property name="awt_mask_river" type="bool" value="true"/>
    <property name="water" type="bool" value="true"/>
   </properties>
  </tile>
  <tile id="103">
   <properties>
+   <property name="awt_mask_river" type="bool" value="true"/>
    <property name="water" type="bool" value="true"/>
   </properties>
  </tile>
  <tile id="104">
   <properties>
+   <property name="awt_mask_river" type="bool" value="true"/>
    <property name="water" type="bool" value="true"/>
   </properties>
  </tile>
  <tile id="105">
   <properties>
+   <property name="awt_mask_river" type="bool" value="true"/>
    <property name="water" type="bool" value="true"/>
   </properties>
  </tile>
  <tile id="106">
   <properties>
+   <property name="awt_mask_river" type="bool" value="true"/>
    <property name="walkable" type="bool" value="true"/>
    <property name="water" type="bool" value="true"/>
   </properties>
  </tile>
  <tile id="107">
   <properties>
+   <property name="awt_mask_river" type="bool" value="true"/>
    <property name="walkable" type="bool" value="true"/>
    <property name="water" type="bool" value="true"/>
   </properties>
  </tile>
  <tile id="108">
   <properties>
+   <property name="awt_mask_river" type="bool" value="true"/>
    <property name="water" type="bool" value="true"/>
   </properties>
  </tile>
  <tile id="109">
   <properties>
+   <property name="awt_mask_river" type="bool" value="true"/>
    <property name="water" type="bool" value="true"/>
   </properties>
  </tile>
  <tile id="110">
   <properties>
+   <property name="awt_mask_river" type="bool" value="true"/>
    <property name="water" type="bool" value="true"/>
   </properties>
  </tile>
  <tile id="111">
   <properties>
+   <property name="awt_mask_river" type="bool" value="true"/>
    <property name="water" type="bool" value="true"/>
   </properties>
  </tile>
  <tile id="133">
   <properties>
    <property name="walkable" type="bool" value="true"/>
+  </properties>
+ </tile>
+ <tile id="143">
+  <properties>
+   <property name="awt_basic" type="bool" value="true"/>
   </properties>
  </tile>
  <tile id="144">
@@ -515,6 +543,26 @@
  <tile id="203">
   <properties>
    <property name="spirit_passable" type="bool" value="true"/>
+  </properties>
+ </tile>
+ <tile id="228">
+  <properties>
+   <property name="awt_mask_br" type="bool" value="true"/>
+  </properties>
+ </tile>
+ <tile id="229">
+  <properties>
+   <property name="awt_mask_bl" type="bool" value="true"/>
+  </properties>
+ </tile>
+ <tile id="230">
+  <properties>
+   <property name="awt_mask_tl" type="bool" value="true"/>
+  </properties>
+ </tile>
+ <tile id="231">
+  <properties>
+   <property name="awt_mask_tr" type="bool" value="true"/>
   </properties>
  </tile>
 </tileset>

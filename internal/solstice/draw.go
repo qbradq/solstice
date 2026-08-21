@@ -27,6 +27,9 @@ func UpdateAnimTicker() {
 	if globalAnimTicks >= 15 {
 		globalAnimTicks = 0
 		globalAnimFrame++
+		if defaultAssets != nil {
+			UpdateAnimatedWaterTiles(defaultAssets, defaultTileSet, globalAnimFrame)
+		}
 	}
 }
 
@@ -38,6 +41,9 @@ func GetAnimFrame() int {
 // SetAnimFrame sets the global animation frame ticker value (useful for tests).
 func SetAnimFrame(frame int) {
 	globalAnimFrame = frame
+	if defaultAssets != nil {
+		UpdateAnimatedWaterTiles(defaultAssets, defaultTileSet, globalAnimFrame)
+	}
 }
 
 // Assets holds graphical assets for Solstice.
@@ -47,6 +53,9 @@ type Assets struct {
 	FontRune8x8    *ebiten.Image
 	FontRune16x12  *ebiten.Image
 	Tiles16        *ebiten.Image
+	OriginalTiles  *image.RGBA
+	CurrentTiles   *image.RGBA
+	awtLastFrame   int
 
 	blackTile8x8   *ebiten.Image
 	blackTile16x16 *ebiten.Image
@@ -76,10 +85,14 @@ func LoadAssets() (*Assets, error) {
 		return nil, err
 	}
 
-	tiles16, err := loadImage("gfx/TILES.16.png")
+	rawTiles, err := loadRGBA("gfx/TILES.16.png")
 	if err != nil {
 		return nil, err
 	}
+	currentTiles := image.NewRGBA(rawTiles.Bounds())
+	copy(currentTiles.Pix, rawTiles.Pix)
+
+	tiles16 := ebiten.NewImageFromImage(currentTiles)
 
 	blackTile8 := ebiten.NewImage(8, 8)
 	blackTile8.Fill(color.Black)
@@ -93,12 +106,40 @@ func LoadAssets() (*Assets, error) {
 		FontRune8x8:    rune8x8,
 		FontRune16x12:  rune16x12,
 		Tiles16:        tiles16,
+		OriginalTiles:  rawTiles,
+		CurrentTiles:   currentTiles,
+		awtLastFrame:   -1,
 		blackTile8x8:   blackTile8,
 		blackTile16x16: blackTile16,
 	}
 
 	defaultAssets = assets
+	UpdateAnimatedWaterTiles(assets, defaultTileSet, globalAnimFrame)
 	return assets, nil
+}
+
+func loadRGBA(name string) (*image.RGBA, error) {
+	cleanPath := strings.TrimPrefix(name, "data/")
+	if !strings.HasPrefix(cleanPath, "gfx/") {
+		cleanPath = "gfx/" + cleanPath
+	}
+
+	b, err := data.FS.ReadFile(cleanPath)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read embedded asset %s: %w", name, err)
+	}
+	img, _, err := image.Decode(bytes.NewReader(b))
+	if err != nil {
+		return nil, fmt.Errorf("failed to decode image %s: %w", name, err)
+	}
+	bounds := img.Bounds()
+	rgba := image.NewRGBA(bounds)
+	for y := bounds.Min.Y; y < bounds.Max.Y; y++ {
+		for x := bounds.Min.X; x < bounds.Max.X; x++ {
+			rgba.Set(x, y, img.At(x, y))
+		}
+	}
+	return rgba, nil
 }
 
 func loadImage(name string) (*ebiten.Image, error) {
@@ -116,6 +157,114 @@ func loadImage(name string) (*ebiten.Image, error) {
 		return nil, fmt.Errorf("failed to decode image %s: %w", name, err)
 	}
 	return ebiten.NewImageFromImage(img), nil
+}
+
+// UpdateAnimatedWaterTiles modifies the tileset image directly according to Ultima 5 AWT rules for the given animation frame.
+func UpdateAnimatedWaterTiles(assets *Assets, ts *TileSet, animFrame int) {
+	if assets == nil || assets.OriginalTiles == nil || assets.CurrentTiles == nil || assets.Tiles16 == nil {
+		return
+	}
+
+	if ts == nil {
+		ts = defaultTileSet
+	}
+	if ts == nil {
+		return
+	}
+
+	// Step 0: Copy original unaltered tileset to current working copy
+	copy(assets.CurrentTiles.Pix, assets.OriginalTiles.Pix)
+
+	// Step 1: Update awt_basic tiles first. Every pixel row is moved down, last row moved to top.
+	shift := (animFrame % 16 + 16) % 16
+	for tileID, props := range ts.Properties {
+		if props.AWTBasic {
+			tileCol := tileID % 16
+			tileTRow := tileID / 16
+			for dstRow := 0; dstRow < 16; dstRow++ {
+				srcRow := (dstRow - shift + 16) % 16
+				dstOffset := ((tileTRow*16 + dstRow) * assets.CurrentTiles.Stride) + (tileCol * 16 * 4)
+				srcOffset := ((tileTRow*16 + srcRow) * assets.OriginalTiles.Stride) + (tileCol * 16 * 4)
+				copy(assets.CurrentTiles.Pix[dstOffset:dstOffset+16*4], assets.OriginalTiles.Pix[srcOffset:srcOffset+16*4])
+			}
+		}
+	}
+
+	// Step 2: Update masked tiles.
+	for tileID, props := range ts.Properties {
+		var maskTileID int
+		var waterTileID int
+		var isWhiteMask bool
+		var isMasked bool
+
+		if props.AWTMaskTL {
+			maskTileID = 210
+			waterTileID = 3
+			isWhiteMask = true
+			isMasked = true
+		} else if props.AWTMaskTR {
+			maskTileID = 211
+			waterTileID = 3
+			isWhiteMask = true
+			isMasked = true
+		} else if props.AWTMaskBL {
+			maskTileID = 209
+			waterTileID = 3
+			isWhiteMask = true
+			isMasked = true
+		} else if props.AWTMaskBR {
+			maskTileID = 208
+			waterTileID = 3
+			isWhiteMask = true
+			isMasked = true
+		} else if props.AWTMaskRiver {
+			maskTileID = tileID + 16
+			waterTileID = 2
+			isWhiteMask = false // black mask mode
+			isMasked = true
+		}
+
+		if !isMasked {
+			continue
+		}
+
+		tileCol := tileID % 16
+		tileTRow := tileID / 16
+		maskCol := maskTileID % 16
+		maskTRow := maskTileID / 16
+		waterCol := waterTileID % 16
+		waterTRow := waterTileID / 16
+
+		for y := 0; y < 16; y++ {
+			for x := 0; x < 16; x++ {
+				maskOffset := (((maskTRow*16 + y) * assets.OriginalTiles.Stride) + ((maskCol*16 + x) * 4))
+				mr := assets.OriginalTiles.Pix[maskOffset]
+				mg := assets.OriginalTiles.Pix[maskOffset+1]
+				mb := assets.OriginalTiles.Pix[maskOffset+2]
+
+				srcOffset := (((tileTRow*16 + y) * assets.OriginalTiles.Stride) + ((tileCol*16 + x) * 4))
+				waterOffset := (((waterTRow*16 + y) * assets.CurrentTiles.Stride) + ((waterCol*16 + x) * 4))
+				dstOffset := (((tileTRow*16 + y) * assets.CurrentTiles.Stride) + ((tileCol*16 + x) * 4))
+
+				if isWhiteMask {
+					if mr == 255 && mg == 255 && mb == 255 {
+						copy(assets.CurrentTiles.Pix[dstOffset:dstOffset+4], assets.OriginalTiles.Pix[srcOffset:srcOffset+4])
+					} else {
+						copy(assets.CurrentTiles.Pix[dstOffset:dstOffset+4], assets.CurrentTiles.Pix[waterOffset:waterOffset+4])
+					}
+				} else { // black mask
+					if mr == 0 && mg == 0 && mb == 0 {
+						copy(assets.CurrentTiles.Pix[dstOffset:dstOffset+4], assets.OriginalTiles.Pix[srcOffset:srcOffset+4])
+					} else {
+						copy(assets.CurrentTiles.Pix[dstOffset:dstOffset+4], assets.CurrentTiles.Pix[waterOffset:waterOffset+4])
+					}
+				}
+			}
+		}
+	}
+
+	assets.Tiles16.WritePixels(assets.CurrentTiles.Pix)
+	assets.awtLastFrame = animFrame
 }
 
 // DrawGlyph8x8 draws a single 8x8 font glyph onto dst at cell coordinates (cellX, cellY).

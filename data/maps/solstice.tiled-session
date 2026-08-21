@@ -12,6 +12,14 @@
                 "y": 126.84684684684684
             }
         },
+        "cbt_test.tmx": {
+            "scale": 3.2953124999999996,
+            "selectedLayer": 1,
+            "viewCenter": {
+                "x": 71.9203413940256,
+                "y": 216.06448553816975
+            }
+        },
         "home.tmx": {
             "expandedObjectLayers": [
                 2
@@ -70,7 +78,7 @@
         "world.tmx"
     ],
     "project": "solstice.tiled-project",
-    "property.type": "string",
+    "property.type": "bool",
     "recentFiles": [
         "tileset.tsx",
         "world.tmx",
