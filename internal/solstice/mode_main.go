@@ -197,16 +197,22 @@ func (m *MainMode) Update(g *Game) error {
 
 		// Enter targeting mode on U key press
 		if inpututil.IsKeyJustPressed(ebiten.KeyU) {
-			if g.party != nil {
+			party := g.party
+			if party == nil {
+				party = GetParty()
+			}
+			curMap := g.currentMap
+			if curMap == nil {
+				curMap = GetMap()
+			}
+			if party != nil && curMap != nil {
 				targetMode := NewTargetMode(
-					g.party.X, g.party.Y, // Centerpoint on party location
-					1,                   // Maximum range of 1
-					DistanceDiamond,     // Manhattan / diamond distance for "use tile/object"
+					party.X, party.Y, // Centerpoint on party location
+					1,               // Maximum range of 1
+					DistanceDiamond, // Manhattan / diamond distance for "use tile/object"
 					func(tx, ty int) bool { // On selected callback: execute tile use_script
-						if g.currentMap != nil {
-							_ = g.currentMap.ExecuteTileUseScript(tx, ty)
-							g.currentMap.AdvanceTurn()
-						}
+						_ = curMap.ExecuteTileUseScript(tx, ty)
+						curMap.AdvanceTurn()
 						return true
 					},
 					nil, // On canceled callback: nil
@@ -217,19 +223,26 @@ func (m *MainMode) Update(g *Game) error {
 
 		// Enter dialog targeting mode on T key press
 		if inpututil.IsKeyJustPressed(ebiten.KeyT) {
-			if g.party != nil {
+			party := g.party
+			if party == nil {
+				party = GetParty()
+			}
+			curMap := g.currentMap
+			if curMap == nil {
+				curMap = GetMap()
+			}
+			if party != nil && curMap != nil {
 				targetMode := NewTargetMode(
-					g.party.X, g.party.Y, // Centerpoint on party location
-					5,                   // Maximum range of 5
-					DistanceSquare,      // Square distance
+					party.X, party.Y, // Centerpoint on party location
+					5,              // Maximum range of 5
+					DistanceSquare, // Square distance
 					func(tx, ty int) bool { // On selected callback: talk to targeted actor
-						if g.currentMap != nil {
-							actor := g.currentMap.GetActorAt(tx, ty)
-							if actor != nil && actor.DialogScript != "" {
-								g.PushMode(NewDialogMode(actor, actor.DialogScript))
-							}
+						actor := curMap.GetActorAt(tx, ty)
+						if actor != nil && actor.DialogScript != "" {
+							g.PushMode(NewDialogMode(actor, actor.DialogScript))
+							return true
 						}
-						return true
+						return false
 					},
 					nil, // On canceled callback: nil
 				)

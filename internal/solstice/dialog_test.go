@@ -208,3 +208,87 @@ func TestDialogEscapeWithoutEnd(t *testing.T) {
 		t.Errorf("Expected 'Will you lend us AID?' in terminal lines, got %v", lines)
 	}
 }
+
+func TestTalkTargetingModeOpensDialog(t *testing.T) {
+	term := NewTerminal()
+	SetTerminal(term)
+
+	if err := InitScriptSystem(); err != nil {
+		t.Fatalf("InitScriptSystem failed: %v", err)
+	}
+
+	m, err := LoadMap("home")
+	if err != nil {
+		t.Fatalf("LoadMap failed: %v", err)
+	}
+	SetMap(m)
+
+	lillian, err := NewActorFromDef("lillian", "lillian", 16, 15)
+	if err != nil {
+		t.Fatalf("NewActorFromDef failed: %v", err)
+	}
+	m.AddActor(lillian)
+
+	party, err := NewParty(15, 15)
+	if err != nil {
+		t.Fatalf("NewParty failed: %v", err)
+	}
+	SetParty(party)
+
+	game := &Game{
+		terminal:   term,
+		currentMap: m,
+		party:      party,
+	}
+	mainMode := NewMainMode()
+	game.PushMode(mainMode)
+
+	// Create Talk target mode callback as configured in MainMode KeyT
+	var targetMode *TargetMode
+	targetMode = NewTargetMode(
+		party.X, party.Y,
+		5,
+		DistanceSquare,
+		func(tx, ty int) bool {
+			actor := m.GetActorAt(tx, ty)
+			if actor != nil && actor.DialogScript != "" {
+				game.PushMode(NewDialogMode(actor, actor.DialogScript))
+				return true
+			}
+			return false
+		},
+		nil,
+	)
+	game.PushMode(targetMode)
+
+	if game.GetMode() != targetMode {
+		t.Fatalf("Expected active mode to be targetMode, got %T", game.GetMode())
+	}
+
+	// 1. Selecting empty tile (15, 14) -> targetMode should reject (return false) and remain active mode
+	targetMode.cursorX = 15
+	targetMode.cursorY = 14
+	if targetMode.onSelected(15, 14) {
+		t.Error("Expected selecting empty tile to return false")
+	}
+
+	// 2. Selecting Lillian at (16, 15) -> should pop targetMode and push DialogMode
+	targetMode.cursorX = 16
+	targetMode.cursorY = 15
+
+	// Simulate Enter selection in TargetMode
+	cb := targetMode.onSelected
+	game.PopMode()
+	if !cb(targetMode.cursorX, targetMode.cursorY) {
+		game.PushMode(targetMode)
+	}
+
+	activeMode := game.GetMode()
+	dialogMode, ok := activeMode.(*DialogMode)
+	if !ok || dialogMode == nil {
+		t.Fatalf("Expected active mode to be *DialogMode, got %T", activeMode)
+	}
+	if dialogMode.actor.ID != "lillian" {
+		t.Errorf("Expected dialog actor to be lillian, got %s", dialogMode.actor.ID)
+	}
+}

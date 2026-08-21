@@ -154,8 +154,10 @@ func (tm *TargetMode) Update(g *Game) error {
 	// Confirm target selection on Enter, Keypad Enter, or Space bar
 	if inpututil.IsKeyJustPressed(ebiten.KeyEnter) || inpututil.IsKeyJustPressed(ebiten.KeyKPEnter) || inpututil.IsKeyJustPressed(ebiten.KeySpace) {
 		if tm.onSelected != nil {
-			if tm.onSelected(tm.cursorX, tm.cursorY) {
-				g.PopMode()
+			cb := tm.onSelected
+			g.PopMode()
+			if !cb(tm.cursorX, tm.cursorY) {
+				g.PushMode(tm)
 			}
 		} else {
 			g.PopMode()
