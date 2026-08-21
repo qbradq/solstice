@@ -50,6 +50,12 @@ func (m *MainMode) Update(g *Game) error {
 			return nil
 		}
 
+		// If in AI phase, execute enemy AI turns sequentially
+		if IsCombatAIPhase() {
+			UpdateCombatAI(g)
+			return nil
+		}
+
 		// Combat mode: control the current party member
 		party := g.party
 		if party == nil {
@@ -290,8 +296,8 @@ func (m *MainMode) Draw(g *Game, screen *ebiten.Image) {
 		g.currentMap.DrawCentered(screen, g.assets, g.party, scale)
 	}
 
-	// Overlay targeting cursor on top of the active party member in combat mode
-	if IsInCombat() && g.party != nil && len(g.party.Members) > 0 {
+	// Overlay targeting cursor on top of the active party member in combat mode during party member turns
+	if IsInCombat() && !IsCombatAIPhase() && GetCombatFocusActor() == nil && g.party != nil && len(g.party.Members) > 0 {
 		DrawTargetCursor(screen, scale, m.colorIdx)
 	}
 

@@ -23,12 +23,30 @@ type CombatAction struct {
 }
 
 var (
-	inCombat          bool
-	combatMemberIndex int
-	combatMemberMoved bool
-	combatMemberActed bool
-	combatActionQueue []CombatAction
+	inCombat           bool
+	combatMemberIndex  int
+	combatMemberMoved  bool
+	combatMemberActed  bool
+	combatActionQueue  []CombatAction
+	combatFocusActor   *Actor
+	combatAIPhase      bool
+	combatAIActorIndex int
 )
+
+// GetCombatFocusActor returns the actor currently focused by the camera/action during combat.
+func GetCombatFocusActor() *Actor {
+	return combatFocusActor
+}
+
+// SetCombatFocusActor sets the actor currently focused by the camera/action during combat.
+func SetCombatFocusActor(a *Actor) {
+	combatFocusActor = a
+}
+
+// IsCombatAIPhase returns true if non-party enemy AI turns are currently executing.
+func IsCombatAIPhase() bool {
+	return combatAIPhase
+}
 
 // EnqueueCombatAction adds a combat action to the queue.
 func EnqueueCombatAction(action CombatAction) {
@@ -163,6 +181,9 @@ func StartCombat() {
 	combatMemberIndex = 0
 	combatMemberMoved = false
 	combatMemberActed = false
+	combatAIPhase = false
+	combatAIActorIndex = 0
+	SetCombatFocusActor(nil)
 	ClearCombatActions()
 	ClearCutScene()
 	inCombat = true
@@ -187,13 +208,15 @@ func StopCombat() {
 	combatMemberIndex = 0
 	combatMemberMoved = false
 	combatMemberActed = false
+	combatAIPhase = false
+	combatAIActorIndex = 0
+	SetCombatFocusActor(nil)
 	ClearCombatActions()
 	ClearCutScene()
 }
 
 // AdvanceCombatMember advances to the next party member's combat move.
-// When all party members have completed their combat moves, it runs the combat AI for all actors on the map
-// for one turn and loops back to the first party member.
+// When all party members have completed their combat moves, it initiates the enemy AI phase.
 func AdvanceCombatMember(g *Game) {
 	p := GetParty()
 	if p == nil || len(p.Members) == 0 {
@@ -204,24 +227,33 @@ func AdvanceCombatMember(g *Game) {
 	combatMemberActed = false
 	combatMemberIndex++
 	if combatMemberIndex >= len(p.Members) {
-		RunCombatAI(g)
-		combatMemberIndex = 0
+		combatAIPhase = true
+		combatAIActorIndex = 0
 	}
 }
 
-// RunCombatAI runs the combat AI for every actor on the map for one turn.
-func RunCombatAI(g *Game) {
+// UpdateCombatAI steps through non-party actors on the map one at a time during the combat AI phase.
+// Returns true if an action or phase advancement occurred.
+func UpdateCombatAI(g *Game) bool {
+	if !combatAIPhase {
+		return false
+	}
+	if IsCutSceneActive() || HasCombatActions() {
+		return false
+	}
+
 	m := GetMap()
 	if g != nil && g.currentMap != nil {
 		m = g.currentMap
 	}
 	if m == nil {
-		return
+		combatAIPhase = false
+		combatAIActorIndex = 0
+		combatMemberIndex = 0
+		SetCombatFocusActor(nil)
+		return false
 	}
 
-	m.Turn++
-
-	// Run combat scripts for non-party actors
 	p := GetParty()
 	isPartyMember := func(id string) bool {
 		if p == nil {
@@ -235,14 +267,41 @@ func RunCombatAI(g *Game) {
 		return false
 	}
 
+	// Find non-party actors in current map actor order
+	var enemyActors []*Actor
 	for _, actor := range m.Actors {
-		if actor == nil || isPartyMember(actor.ID) {
-			continue
-		}
-		if actor.CombatScript != "" {
-			_ = RunActorAIScript(actor, actor.CombatScript)
+		if actor != nil && !isPartyMember(actor.ID) {
+			enemyActors = append(enemyActors, actor)
 		}
 	}
+
+	for combatAIActorIndex < len(enemyActors) {
+		actor := enemyActors[combatAIActorIndex]
+		combatAIActorIndex++
+
+		// Verify actor is still on the map (not killed by a previous actor)
+		if m.GetActorByID(actor.ID) == nil {
+			continue
+		}
+
+		if actor.CombatScript != "" {
+			SetCombatFocusActor(actor)
+			EnqueueCutSceneCommand(CutSceneCommand{
+				Type:   CmdDelay,
+				Frames: 2,
+			})
+			_ = RunActorAIScript(actor, actor.CombatScript)
+			return true
+		}
+	}
+
+	// All non-party actors have acted -> finish round
+	combatAIPhase = false
+	combatAIActorIndex = 0
+	combatMemberIndex = 0
+	SetCombatFocusActor(nil)
+
+	m.Turn++
 
 	// Advance map timers
 	if len(m.Timers) > 0 {
@@ -262,6 +321,26 @@ func RunCombatAI(g *Game) {
 
 		for _, timer := range expiredTimers {
 			_ = ExecuteScriptWithGlobals(timer.ScriptPath, timer.Globals)
+		}
+	}
+
+	return true
+}
+
+// RunCombatAI runs the combat AI for every actor on the map for one turn.
+func RunCombatAI(g *Game) {
+	combatAIPhase = true
+	combatAIActorIndex = 0
+	for combatAIPhase {
+		UpdateCombatAI(g)
+		for IsCutSceneActive() || HasCombatActions() {
+			if IsCutSceneActive() {
+				SetAnimFrame(GetAnimFrame() + 1)
+				UpdateCutScene(g)
+			}
+			if !IsCutSceneActive() && HasCombatActions() {
+				UpdateCombatActions(g)
+			}
 		}
 	}
 }

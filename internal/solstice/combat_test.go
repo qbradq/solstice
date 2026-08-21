@@ -148,6 +148,9 @@ func TestCombatTurnAdvancement(t *testing.T) {
 
 	// Final member moves -> AI runs, map turn advances, member index resets to 0
 	AdvanceCombatMember(game)
+	if IsCombatAIPhase() {
+		RunCombatAI(game)
+	}
 	if GetCombatMemberIndex() != 0 {
 		t.Errorf("Expected member index to reset to 0, got %d", GetCombatMemberIndex())
 	}
@@ -346,13 +349,15 @@ func TestCombatAutoAdvanceWhenMovedAndActed(t *testing.T) {
 	SetAnimFrame(GetAnimFrame() + 3)
 	_ = mainMode.Update(game) // Cutscene finishes
 	_ = mainMode.Update(game) // Auto-pass enqueued
-	_ = mainMode.Update(game) // Auto-pass executed -> advances back to 0
+	_ = mainMode.Update(game) // Auto-pass executed (queues 2-frame delay and enters AI phase)
+
+	for IsCutSceneActive() || IsCombatAIPhase() || HasCombatActions() {
+		SetAnimFrame(GetAnimFrame() + 1)
+		_ = mainMode.Update(game)
+	}
 
 	if GetCombatMemberIndex() != 0 {
 		t.Fatalf("Expected member to auto-advance back to 0 (after AI turn), got %d", GetCombatMemberIndex())
-	}
-	if !IsCutSceneActive() {
-		t.Errorf("Expected 2-frame cutscene delay to be active after auto-pass")
 	}
 }
 
@@ -465,4 +470,149 @@ func TestCombatActionQueueSystem(t *testing.T) {
 		t.Error("Expected combat action to execute after cutscene finished")
 	}
 }
+
+func TestEnemyCombatAISequentialExecution(t *testing.T) {
+	term := NewTerminal()
+	SetTerminal(term)
+
+	if _, err := PreloadSpriteDefs(); err != nil {
+		t.Fatalf("PreloadSpriteDefs failed: %v", err)
+	}
+	if _, err := PreloadActorDefs(); err != nil {
+		t.Fatalf("PreloadActorDefs failed: %v", err)
+	}
+	if err := InitScriptSystem(); err != nil {
+		t.Fatalf("InitScriptSystem failed: %v", err)
+	}
+
+	cbtMap, err := ReloadMap("cbt_grass")
+	if err != nil || cbtMap == nil {
+		cbtMap, err = LoadMap("cbt_grass")
+		if err != nil {
+			t.Fatalf("LoadMap failed: %v", err)
+		}
+	}
+	cbtMap.Actors = nil
+	SetMap(cbtMap)
+
+	// Create 2 enemy rodents
+	mouse1, err := NewActorFromDef("mouse_1", "rodent", 10, 10)
+	if err != nil {
+		t.Fatalf("NewActorFromDef mouse_1 failed: %v", err)
+	}
+	cbtMap.AddActor(mouse1)
+
+	mouse2, err := NewActorFromDef("mouse_2", "rodent", 12, 12)
+	if err != nil {
+		t.Fatalf("NewActorFromDef mouse_2 failed: %v", err)
+	}
+	cbtMap.AddActor(mouse2)
+
+	// Create party with 2 members
+	hero, err := NewActorFromDef("hero", "warrior", 5, 5)
+	if err != nil {
+		t.Fatalf("NewActorFromDef hero failed: %v", err)
+	}
+	lillian, err := NewActorFromDef("lillian", "lillian", 5, 5)
+	if err != nil {
+		t.Fatalf("NewActorFromDef lillian failed: %v", err)
+	}
+
+	p, err := NewParty(5, 5, *hero, *lillian)
+	if err != nil {
+		t.Fatalf("NewParty failed: %v", err)
+	}
+	SetParty(p)
+
+	game := &Game{
+		terminal:   term,
+		currentMap: cbtMap,
+		party:      p,
+	}
+
+	StartCombat()
+	initialTurn := cbtMap.Turn
+
+	// Party member 0 turn -> Advance
+	AdvanceCombatMember(game)
+	if GetCombatMemberIndex() != 1 || IsCombatAIPhase() {
+		t.Errorf("Expected member index 1 and IsCombatAIPhase false, got index %d, ai %v", GetCombatMemberIndex(), IsCombatAIPhase())
+	}
+
+	// Party member 1 turn -> Advance triggers AI phase
+	AdvanceCombatMember(game)
+	if !IsCombatAIPhase() {
+		t.Fatalf("Expected IsCombatAIPhase true after all party members advance")
+	}
+
+	// Step 1: First enemy (mouse1) acts
+	if !UpdateCombatAI(game) {
+		t.Fatal("Expected UpdateCombatAI to initiate mouse1 turn")
+	}
+	if GetCombatFocusActor() == nil || GetCombatFocusActor().ID != "mouse_1" {
+		t.Errorf("Expected combat focus on mouse_1, got %+v", GetCombatFocusActor())
+	}
+	if !IsCutSceneActive() {
+		t.Errorf("Expected cutscene delay active for mouse_1")
+	}
+
+	// While cutscene is active, UpdateCombatAI should return false and not run mouse2 yet
+	if UpdateCombatAI(game) {
+		t.Errorf("UpdateCombatAI should return false while cutscene is active")
+	}
+
+	// Resolve mouse1's delay
+	for IsCutSceneActive() {
+		SetAnimFrame(GetAnimFrame() + 1)
+		UpdateCutScene(game)
+	}
+
+	// Step 2: Second enemy (mouse2) acts
+	if !UpdateCombatAI(game) {
+		t.Fatal("Expected UpdateCombatAI to initiate mouse2 turn")
+	}
+	if GetCombatFocusActor() == nil || GetCombatFocusActor().ID != "mouse_2" {
+		t.Errorf("Expected combat focus on mouse_2, got %+v", GetCombatFocusActor())
+	}
+	if !IsCutSceneActive() {
+		t.Errorf("Expected cutscene delay active for mouse_2")
+	}
+
+	// Resolve mouse2's delay
+	for IsCutSceneActive() {
+		SetAnimFrame(GetAnimFrame() + 1)
+		UpdateCutScene(game)
+	}
+
+	// Step 3: Finish AI phase and round
+	if !UpdateCombatAI(game) {
+		t.Fatal("Expected UpdateCombatAI to finish AI phase and complete round")
+	}
+	if IsCombatAIPhase() {
+		t.Errorf("Expected IsCombatAIPhase false after all enemies acted")
+	}
+	if GetCombatFocusActor() != nil {
+		t.Errorf("Expected combat focus cleared, got %+v", GetCombatFocusActor())
+	}
+	if GetCombatMemberIndex() != 0 {
+		t.Errorf("Expected combat member index reset to 0, got %d", GetCombatMemberIndex())
+	}
+	if cbtMap.Turn != initialTurn+1 {
+		t.Errorf("Expected map turn to advance from %d to %d, got %d", initialTurn, initialTurn+1, cbtMap.Turn)
+	}
+
+	// Verify terminal output contains attacking logs from melee.tengo
+	lines := term.GetLineTexts()
+	foundMouse1Log := false
+	for _, l := range lines {
+		if l == "Rodent of Unusual Size is attacking!" {
+			foundMouse1Log = true
+			break
+		}
+	}
+	if !foundMouse1Log {
+		t.Errorf("Expected 'Rodent of Unusual Size is attacking!' in terminal lines, got %v", lines)
+	}
+}
+
 

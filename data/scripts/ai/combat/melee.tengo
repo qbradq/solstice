@@ -1,0 +1,6 @@
+game := import("game")
+
+self := game.get_actor(actor_id)
+if self != undefined {
+	game.log("%s is attacking!", self["name"])
+}

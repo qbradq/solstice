@@ -1160,13 +1160,21 @@ func (m *Map) DrawCentered(dst *ebiten.Image, assets *Assets, p *Party, scale in
 	centerX := 16
 	centerY := 16
 	if p != nil {
-		if IsInCombat() && len(p.Members) > 0 {
-			curIdx := GetCombatMemberIndex()
-			if curIdx >= len(p.Members) {
-				curIdx = 0
+		if IsInCombat() {
+			if focus := GetCombatFocusActor(); focus != nil {
+				centerX = focus.X
+				centerY = focus.Y
+			} else if len(p.Members) > 0 {
+				curIdx := GetCombatMemberIndex()
+				if curIdx >= len(p.Members) {
+					curIdx = 0
+				}
+				centerX = p.Members[curIdx].X
+				centerY = p.Members[curIdx].Y
+			} else {
+				centerX = p.X
+				centerY = p.Y
 			}
-			centerX = p.Members[curIdx].X
-			centerY = p.Members[curIdx].Y
 		} else {
 			centerX = p.X
 			centerY = p.Y
