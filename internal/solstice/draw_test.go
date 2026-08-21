@@ -83,6 +83,63 @@ func TestAnimTicker(t *testing.T) {
 	}
 }
 
+func TestAnimatedTiles(t *testing.T) {
+	ts, err := PreloadTileSet()
+	if err != nil {
+		t.Fatalf("PreloadTileSet failed: %v", err)
+	}
+
+	// 1. Verify tile 212 properties (fireplace)
+	p212 := ts.GetTileProperties(212)
+	if !p212.Animated || p212.Frames != 4 {
+		t.Errorf("Expected tile 212 Animated=true, Frames=4, got Animated=%v, Frames=%d", p212.Animated, p212.Frames)
+	}
+
+	// 2. Verify tile 250 properties (energy field)
+	p250 := ts.GetTileProperties(250)
+	if !p250.Animated || p250.Frames != 2 {
+		t.Errorf("Expected tile 250 Animated=true, Frames=2, got Animated=%v, Frames=%d", p250.Animated, p250.Frames)
+	}
+
+	// 3. Test frame cycling for tile 212
+	expected212 := []int{212, 213, 214, 215, 212}
+	for frame, expected := range expected212 {
+		SetAnimFrame(frame)
+		if got := ResolveAnimatedTile(212); got != expected {
+			t.Errorf("ResolveAnimatedTile(212) at frame %d = %d, want %d", frame, got, expected)
+		}
+	}
+
+	// 4. Test frame cycling for tile 250
+	expected250 := []int{250, 251, 250, 251}
+	for frame, expected := range expected250 {
+		SetAnimFrame(frame)
+		if got := ResolveAnimatedTile(250); got != expected {
+			t.Errorf("ResolveAnimatedTile(250) at frame %d = %d, want %d", frame, got, expected)
+		}
+	}
+
+	// 5. Un-animated tile (e.g. tile 6) should not change
+	for frame := 0; frame < 5; frame++ {
+		SetAnimFrame(frame)
+		if got := ResolveAnimatedTile(6); got != 6 {
+			t.Errorf("ResolveAnimatedTile(6) at frame %d = %d, want 6", frame, got)
+		}
+	}
+
+	// 6. Draw with DrawMapTile across frames
+	assets, err := LoadAssets()
+	if err != nil {
+		t.Fatalf("LoadAssets failed: %v", err)
+	}
+	screen := ebiten.NewImage(352, 352)
+	for frame := 0; frame < 4; frame++ {
+		SetAnimFrame(frame)
+		assets.DrawMapTile(screen, 212, 1, 1, 2)
+		DrawMapTile(screen, 250, 2, 2, 2)
+	}
+}
+
 func TestFormatCommasAndDrawPartyRoster(t *testing.T) {
 	if got := formatCommas(0); got != "0" {
 		t.Errorf("formatCommas(0) = %q, want %q", got, "0")

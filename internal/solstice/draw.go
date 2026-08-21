@@ -375,30 +375,7 @@ func DrawString8x8Colored(dst *ebiten.Image, str string, cellX, cellY int, c col
 //   - Scale 1: 23x23 matrix, top-left at (-8, -8), top-left corner at (-8 + tileX * 16, -8 + tileY * 16)
 // All draw operations are clipped to the sub-image 0,0-351,351 (352x352).
 func (a *Assets) DrawMapTile(dst *ebiten.Image, tileIdx int, tileX, tileY int, scale int) {
-	if a == nil || a.Tiles16 == nil {
-		return
-	}
-
-	mapArea := dst.SubImage(image.Rect(0, 0, 352, 352)).(*ebiten.Image)
-
-	gx := (tileIdx % 16) * 16
-	gy := (tileIdx / 16) * 16
-	sub := a.Tiles16.SubImage(image.Rect(gx, gy, gx+16, gy+16)).(*ebiten.Image)
-
-	op := &ebiten.DrawImageOptions{}
-
-	if scale == 2 {
-		op.GeoM.Scale(2, 2)
-		px := float64(tileX * 32)
-		py := float64(tileY * 32)
-		op.GeoM.Translate(px, py)
-	} else {
-		px := float64(-8 + tileX*16)
-		py := float64(-8 + tileY*16)
-		op.GeoM.Translate(px, py)
-	}
-
-	mapArea.DrawImage(sub, op)
+	a.DrawMapTileHalf(dst, tileIdx, tileX, tileY, scale, false)
 }
 
 // DrawMapTile draws a tile into the map view area using defaultAssets.
@@ -457,6 +434,8 @@ func (a *Assets) DrawMapTileHalf(dst *ebiten.Image, tileIdx int, tileX, tileY in
 	if a == nil || a.Tiles16 == nil {
 		return
 	}
+
+	tileIdx = ResolveAnimatedTile(tileIdx)
 
 	mapArea := dst.SubImage(image.Rect(0, 0, 352, 352)).(*ebiten.Image)
 

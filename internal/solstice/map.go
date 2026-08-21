@@ -27,6 +27,8 @@ type TileProperties struct {
 	UseScript       string `json:"use_script"`
 	PartySprite     string `json:"party_sprite"`
 	ActorHalfSprite bool   `json:"actor_half_sprite"`
+	Animated        bool   `json:"animated"`
+	Frames          int    `json:"frames"`
 	AWTBasic        bool   `json:"awt_basic"`
 	AWTMaskTL       bool   `json:"awt_mask_tl"`
 	AWTMaskTR       bool   `json:"awt_mask_tr"`
@@ -273,6 +275,11 @@ func LoadTileSet(path string) (*TileSet, error) {
 				tp.PartySprite = p.Value
 			case "actor_half_sprite", "party_half_sprite":
 				tp.ActorHalfSprite = val
+			case "animated":
+				tp.Animated = val
+			case "frames":
+				f, _ := strconv.Atoi(p.Value)
+				tp.Frames = f
 			case "awt_basic":
 				tp.AWTBasic = val
 			case "awt_mask_tl":
@@ -313,6 +320,15 @@ func GetTileProperties(tileID int) TileProperties {
 		return defaultTileSet.GetTileProperties(tileID)
 	}
 	return TileProperties{}
+}
+
+// ResolveAnimatedTile returns the animated frame tile index if tileID has Animated=true and Frames > 1.
+func ResolveAnimatedTile(tileID int) int {
+	props := GetTileProperties(tileID)
+	if props.Animated && props.Frames > 1 {
+		return tileID + (GetAnimFrame() % props.Frames)
+	}
+	return tileID
 }
 
 var (

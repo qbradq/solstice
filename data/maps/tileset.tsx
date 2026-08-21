@@ -545,6 +545,18 @@
    <property name="spirit_passable" type="bool" value="true"/>
   </properties>
  </tile>
+ <tile id="212">
+  <properties>
+   <property name="animated" type="bool" value="true"/>
+   <property name="frames" type="int" value="4"/>
+  </properties>
+ </tile>
+ <tile id="216">
+  <properties>
+   <property name="animated" type="bool" value="true"/>
+   <property name="frames" type="int" value="4"/>
+  </properties>
+ </tile>
  <tile id="228">
   <properties>
    <property name="awt_mask_br" type="bool" value="true"/>
@@ -563,6 +575,30 @@
  <tile id="231">
   <properties>
    <property name="awt_mask_tr" type="bool" value="true"/>
+  </properties>
+ </tile>
+ <tile id="232">
+  <properties>
+   <property name="animated" type="bool" value="true"/>
+   <property name="frames" type="int" value="4"/>
+  </properties>
+ </tile>
+ <tile id="236">
+  <properties>
+   <property name="animated" type="bool" value="true"/>
+   <property name="frames" type="int" value="4"/>
+  </properties>
+ </tile>
+ <tile id="250">
+  <properties>
+   <property name="animated" type="bool" value="true"/>
+   <property name="frames" type="int" value="2"/>
+  </properties>
+ </tile>
+ <tile id="252">
+  <properties>
+   <property name="animated" type="bool" value="true"/>
+   <property name="frames" type="int" value="2"/>
   </properties>
  </tile>
 </tileset>
