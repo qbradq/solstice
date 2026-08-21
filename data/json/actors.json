@@ -99,6 +99,8 @@
         "name": "Kevin",
         "sprite": "warrior",
         "human": "true",
+        "dialog_script": "dialog/kevin.tengo",
+        "idle_script": "ai/idle/wander.tengo",
         "combat_script": "ai/combat/melee.tengo",
         "level": 1,
         "experience": 0,

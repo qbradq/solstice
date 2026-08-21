@@ -1,0 +1,62 @@
+game := import("game")
+
+if keyword == "look" {
+    reply = "You see a tall, young man clad in chain armor with a SWORD at " +
+            "his side. Although he looks young, his face is stern and " +
+            "determined."
+} else if keyword == "name" {
+    reply = "My name is Kevin."
+} else if keyword == "job" {
+    reply = "I am a member of the Onlet MILITIA. I protect the town against " +
+            "BANDITS and MONSTERS alike. Attacks have been frequent as of " +
+            "LATE. I have been searching for the SOURCE of the monsters."
+} else if keyword == "swor" {
+    reply = "It's a fine broadsword. I received it as a gift from the " +
+            "DUKE after my service in the last war."
+} else if keyword == "duke" {
+    reply = "Duke Lafey, protector of this island and advisor to King Rondal " +
+            "III."
+} else if keyword == "mili" {
+    reply = "Onlet, being such a small settlement, doesn't really have it's " +
+            "own militia force. Instead, the garrison at Castle Bradley " +
+            "posts members of it's own militia force here. This is how I came" +
+            "to be stationed here. And should I JOIN another cause take my " +
+            "and leave of this place, another will take position."
+} else if keyword == "band" {
+    reply = "Bandits have always been a problem in the area, being so " +
+            "remote. But recently, the biggest problem has come from the " +
+            "MONSTERS emerging from the wilds."
+} else if keyword == "mons" {
+    reply = "Monsters of all sorts have been appearing in the wilds. They " +
+            "have voracious appetites! They run in packs and eat through the " +
+            "unripened crops. And when every morsel is gone, they turn on " +
+            "the villagers! It's all we can do to keep our crops safe now." +
+            "And with all of the losses, food will be short come winter."
+} else if keyword == "late" {
+    reply = "The monsters appeared suddenly on the night of the last " +
+            "new moon. I've seen no sign of them slowing since then."
+} else if keyword == "sour" {
+    reply = "At the source of the RIVER Overlet to, which lies to the East " +
+            "of Onlet, the river flows from the yawning mouth of Dungeon " +
+            "Calamity, an ancient place of EVIL."
+} else if keyword == "rive" {
+    reply = "The RIVER Overlet flows from the yawning mouth of Dungeon " +
+            "Calamity to the East of Onlet."
+} else if keyword == "evil" {
+    reply = "The lich of Solomon the Mad is said to haunt the depths of " +
+            "Dungeon Calamity! His evil was immeasurable in life, and " +
+            "it's said that his power has only grown since his death! But " +
+            "he is bound forever to that place of darkness."
+} else if keyword == "join" {
+    reply = "Would you have me join your search for the source of this great " +
+            "evil? I am honored!"
+    game.add_to_party("kevin")
+    game.end_dialog()
+} else {
+    reply = game.random(
+        "Perhaps we can talk about something else?",
+        "I'm sorry, I don't know much about that.",
+        "I can't speak on that subject.",
+        "There's no more I can tell you about that. I'm sorry."
+    )
+}

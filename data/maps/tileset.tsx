@@ -484,7 +484,7 @@
  </tile>
  <tile id="171">
   <properties>
-   <property name="actor_half_sprite" type="bool" value="true"/>
+   <property name="party_sprite" value="party_sleeping"/>
    <property name="walkable" type="bool" value="true"/>
   </properties>
  </tile>

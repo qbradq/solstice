@@ -443,12 +443,12 @@ game.exec_map_script("intro")
 
 	// Verify actors from intro.tengo were spawned on map
 	w1 := m.GetActorByID("wizard-1")
-	if w1 == nil || w1.X != 15 || w1.Y != 14 {
-		t.Errorf("Expected wizard-1 at (15, 14), got %v", w1)
+	if w1 == nil || w1.X != 7 || w1.Y != 6 {
+		t.Errorf("Expected wizard-1 at (7, 6), got %v", w1)
 	}
 	duke := m.GetActorByID("duke-lafey")
-	if duke == nil || duke.X != 15 || duke.Y != 16 {
-		t.Errorf("Expected duke-lafey at (15, 16), got %v", duke)
+	if duke == nil || duke.X != 7 || duke.Y != 8 {
+		t.Errorf("Expected duke-lafey at (7, 8), got %v", duke)
 	}
 }
 
@@ -736,8 +736,28 @@ func TestActorIdleAndCombatScripts(t *testing.T) {
 	}
 	SetParty(party)
 
+	// Test game.move_actor directly
+	lillian.X = 15
+	lillian.Y = 15
+	script := []byte(`
+		game := import("game")
+		res := game.move_actor("lillian", "s")
+	`)
+	s := tengo.NewScript(script)
+	s.SetImports(GetScriptModuleMap())
+	compiled, err := s.Compile()
+	if err != nil {
+		t.Fatalf("Failed to compile script: %v", err)
+	}
+	if err := compiled.Run(); err != nil {
+		t.Fatalf("Failed to run script: %v", err)
+	}
+	if IsCutSceneActive() {
+		t.Error("game.move_actor should not activate cutscenes")
+	}
+
 	// Advance turn should execute Lillian's idle script (wander.tengo) without error
-	for i := 0; i < 10; i++ {
+	for i := 0; i < 50; i++ {
 		homeMap.AdvanceTurn()
 	}
 }

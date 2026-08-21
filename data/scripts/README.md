@@ -34,6 +34,7 @@ game := import("game")
 #### Actors, Entities & Combat
 * `game.add_to_party(actor_id)`: Adds the identified actor to the party as a new member, removing it from the current map and logging `"[actor_name] joins the party!"` (or `"Too many party members!"` if the party already contains 4 members). Alias: `game.add_party_member(actor_id)`.
 * `game.get_party_members()`: Returns an array of map objects representing the current party members (`id`, `name`, `template`, `x`, `y`). Alias: `game.get_party()`.
+* `game.move_actor(entity_id, dir)`: Moves an actor on the current map by 1 tile in the specified direction (`"n"`, `"s"`, `"w"`, `"e"`), enforcing movement and collision rules immediately without queueing cutscene animations. Returns `true` if movement succeeded, `false` otherwise.
 * `game.teleport_actor(actor_id, x, y)`: Moves the actor with the given ID (and corresponding party member if applicable) to tile `(x, y)` on the current active map. Aliases: `game.set_actor_pos(actor_id, x, y)`, `game.move_actor_to(actor_id, x, y)`.
 * `game.start_combat()`: Transitions from party mode to combat mode, setting each member's starting position to the party's location and selecting the first party member.
 * `game.stop_combat()`: Transitions from combat mode back to party mode, setting the party's location to the first party member's position.

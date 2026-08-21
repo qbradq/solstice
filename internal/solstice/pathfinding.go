@@ -53,6 +53,15 @@ func isTileValidDestination(m *Map, x, y int, isPartyMember bool, startPt image.
 	if m.GetActorAt(x, y) != nil {
 		return false
 	}
+	if isPartyMember {
+		if party := GetParty(); party != nil {
+			for _, mem := range party.Members {
+				if mem.X == x && mem.Y == y {
+					return false
+				}
+			}
+		}
+	}
 	return true
 }
 

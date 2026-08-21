@@ -622,6 +622,45 @@ func InitScriptSystem() error {
 				return tengo.UndefinedValue, nil
 			},
 		},
+		"move_actor": &tengo.UserFunction{
+			Name: "move_actor",
+			Value: func(args ...tengo.Object) (tengo.Object, error) {
+				if len(args) < 2 {
+					return tengo.UndefinedValue, fmt.Errorf("move_actor requires 2 arguments: entity_id, dir")
+				}
+				actorID, ok1 := tengo.ToString(args[0])
+				dir, ok2 := tengo.ToString(args[1])
+				if !ok1 || !ok2 {
+					return tengo.UndefinedValue, fmt.Errorf("move_actor arguments must be (string, string)")
+				}
+
+				dx, dy := 0, 0
+				switch dir {
+				case "n", "N", "north", "North", "NORTH", "up", "Up":
+					dy = -1
+				case "s", "S", "south", "South", "SOUTH", "down", "Down":
+					dy = 1
+				case "w", "W", "west", "West", "WEST", "left", "Left":
+					dx = -1
+				case "e", "E", "east", "East", "EAST", "right", "Right":
+					dx = 1
+				}
+
+				m := GetMap()
+				if m == nil {
+					return tengo.FalseValue, nil
+				}
+				actor := m.GetActorByID(actorID)
+				if actor == nil {
+					return tengo.FalseValue, nil
+				}
+
+				if m.MoveActor(actor, dx, dy) {
+					return tengo.TrueValue, nil
+				}
+				return tengo.FalseValue, nil
+			},
+		},
 		"get_party": &tengo.UserFunction{
 			Name: "get_party",
 			Value: func(args ...tengo.Object) (tengo.Object, error) {

@@ -895,7 +895,7 @@ func (m *Map) IsWalkable(x, y int) bool {
 
 // CanActorMoveTo returns true if an actor can step into tile (x, y).
 // It verifies the tile is within bounds, is walkable, is not occupied by another actor,
-// and is not occupied by the party (when not in combat mode).
+// and is not occupied by the party (when not in combat mode) or any party member (in combat mode).
 func (m *Map) CanActorMoveTo(x, y int) bool {
 	if m == nil || x < 0 || x >= m.Width || y < 0 || y >= m.Height {
 		return false
@@ -906,10 +906,18 @@ func (m *Map) CanActorMoveTo(x, y int) bool {
 	if m.HasActorAt(x, y) {
 		return false
 	}
-	if !IsInCombat() {
-		p := GetParty()
-		if p != nil && p.X == x && p.Y == y {
-			return false
+	p := GetParty()
+	if p != nil {
+		if !IsInCombat() {
+			if p.X == x && p.Y == y {
+				return false
+			}
+		} else {
+			for _, mem := range p.Members {
+				if mem.X == x && mem.Y == y {
+					return false
+				}
+			}
 		}
 	}
 	return true
@@ -949,7 +957,7 @@ func (m *Map) ExecuteTileUseScript(x, y int) error {
 
 // GetActorAt returns the actor occupying tile coordinates (x, y) if present, or nil if unoccupied.
 func (m *Map) GetActorAt(x, y int) *Actor {
-	if m == nil || len(m.Actors) == 0 {
+	if m == nil {
 		return nil
 	}
 	for _, a := range m.Actors {
@@ -966,8 +974,10 @@ func (m *Map) HasActorAt(x, y int) bool {
 }
 
 // MoveParty handles relative party movement on the map.
-// The party can move onto a tile if the tile is "walkable" (or "spirit_passable" in spirit mode)
-// AND the tile is not occupied by an Actor.
+// The party can move onto a tile if the tile is "walkable" (or "spirit_passable" in spirit mode).
+// If in spirit mode or combat mode, the party cannot move onto a tile occupied by an actor.
+// In normal main mode, stepping onto a tile occupied by another actor causes the party
+// and that actor to trade places, allowing the party to move past stuck NPCs.
 // Simulates one game turn within the current map upon a successful move.
 // Returns true if movement succeeded, or false if blocked.
 func (m *Map) MoveParty(p *Party, dx, dy int) bool {
@@ -993,8 +1003,8 @@ func (m *Map) MoveParty(p *Party, dx, dy int) bool {
 		return false
 	}
 
-	// Prevent party from moving onto a tile occupied by an Actor (unless in Spirit Mode)
-	if !p.IsSpiritMode() && m.HasActorAt(targetX, targetY) {
+	// In combat mode, no actors may overlap
+	if IsInCombat() && m.HasActorAt(targetX, targetY) {
 		return false
 	}
 
@@ -1004,6 +1014,15 @@ func (m *Map) MoveParty(p *Party, dx, dy int) bool {
 	passable := props.Walkable || (p.IsSpiritMode() && props.SpiritPassable)
 	if !passable {
 		return false
+	}
+
+	// When the party steps into the same tile as another actor in normal main mode,
+	// the party and the other actor trade places (works for both living and spirit mode party).
+	if !IsInCombat() {
+		if otherActor := m.GetActorAt(targetX, targetY); otherActor != nil {
+			otherActor.X = p.X
+			otherActor.Y = p.Y
+		}
 	}
 
 	p.X = targetX

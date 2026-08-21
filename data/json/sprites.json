@@ -9,12 +9,6 @@
         "animated": true,
         "frames": 4
     },
-    "human_corpse": {
-        "tile": 286
-    },
-    "animal_corpse": {
-        "tile": 287
-    },
     "party_sitting_north": {
         "tile": 304
     },
@@ -26,6 +20,15 @@
     },
     "party_sitting_west": {
         "tile": 307
+    },
+    "party_sleeping": {
+        "tile": 282
+    },
+    "human_corpse": {
+        "tile": 286
+    },
+    "animal_corpse": {
+        "tile": 287
     },
     "item_chest": {
         "tile": 257

@@ -40,7 +40,7 @@ if keyword == "look" {
             "bandits. Now I get accosted by monsters along the roads! But " +
             "I'm not as frail as I may look at first glance."
 } else if keyword == "join" {
-    reply = "Would your really have me join your cause? I suppose I could " +
+    reply = "Would you really have me join your cause? I suppose I could " +
             "be some help to you. I may be old, but I'm not without my uses."
     game.add_to_party("lillian")
     game.end_dialog()

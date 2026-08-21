@@ -363,14 +363,39 @@ func TestSpiritModePartyMovement(t *testing.T) {
 	livingParty.X = 11
 	livingParty.Y = 10
 
-	// Spirit party SHOULD be able to move onto tile with actor
+	// Spirit party in normal mode SHOULD step into tile with actor and trade places (no overlap)
+	npc := m.GetActorByID("test-npc")
 	if !m.MoveParty(spiritParty, 1, 0) {
-		t.Error("Expected spirit mode party to be able to move onto tile occupied by an actor")
+		t.Error("Expected spirit mode party in normal mode to move onto tile with actor and trade places")
+	}
+	if spiritParty.X != 12 || spiritParty.Y != 10 {
+		t.Errorf("Expected spirit party at (12, 10), got (%d, %d)", spiritParty.X, spiritParty.Y)
+	}
+	if npc.X != 11 || npc.Y != 10 {
+		t.Errorf("Expected npc to be swapped to (11, 10), got (%d, %d)", npc.X, npc.Y)
 	}
 
-	// Living party SHOULD NOT be able to move onto tile with actor
-	if m.MoveParty(livingParty, 1, 0) {
-		t.Error("Expected living party to be blocked by an actor")
+	// Living party in normal mode SHOULD also step into tile with actor and trade places
+	// livingParty is at (11, 10) and npc was swapped to (11, 10), so let's move livingParty right from (10, 10) to (11, 10)
+	livingParty.X = 10
+	livingParty.Y = 10
+	m.SetTile(10, 10, 4)
+	if !m.MoveParty(livingParty, 1, 0) {
+		t.Error("Expected living party in normal mode to move onto tile with actor and trade places")
+	}
+	if livingParty.X != 11 || livingParty.Y != 10 {
+		t.Errorf("Expected living party at (11, 10), got (%d, %d)", livingParty.X, livingParty.Y)
+	}
+	if npc.X != 10 || npc.Y != 10 {
+		t.Errorf("Expected npc to be swapped to (10, 10), got (%d, %d)", npc.X, npc.Y)
+	}
+
+	// In combat mode, living party SHOULD NOT be able to move onto tile with actor
+	SetInCombat(true)
+	defer SetInCombat(false)
+	// Try moving back from (12, 10) to (11, 10) where npc is standing
+	if m.MoveParty(livingParty, -1, 0) {
+		t.Error("Expected party movement onto actor tile to be blocked in combat mode")
 	}
 }
 
@@ -537,7 +562,7 @@ func TestTriggersAndWizardMode(t *testing.T) {
 	homeMap.AddTrigger(stepTrig)
 	homeMap.SetTile(14, 15, 4) // Walkable tile
 
-	party, err := NewParty(13, 15)
+	party, err := NewParty(13, 15, Actor{Entity: Entity{Name: "Hero"}})
 	if err != nil {
 		t.Fatalf("NewParty failed: %v", err)
 	}

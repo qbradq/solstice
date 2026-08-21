@@ -1,1 +1,6 @@
-// Idle wander script
+game := import("game")
+
+if game.roll("1d4") == 1 {
+	dir := game.random("n", "e", "s", "w")
+	game.move_actor(actor_id, dir)
+}

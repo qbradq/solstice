@@ -35,19 +35,19 @@
             "scale": 2,
             "selectedLayer": 0,
             "viewCenter": {
-                "x": 247,
-                "y": 350.5
+                "x": 147.5,
+                "y": 175
             }
         },
         "onlet.tmx": {
             "expandedObjectLayers": [
                 2
             ],
-            "scale": 0.75,
+            "scale": 2,
             "selectedLayer": 0,
             "viewCenter": {
-                "x": 482.66666666666663,
-                "y": 467.99999999999994
+                "x": 381.5,
+                "y": 261.5
             }
         },
         "tileset.tsx": {
@@ -78,7 +78,7 @@
         "world.tmx"
     ],
     "project": "solstice.tiled-project",
-    "property.type": "int",
+    "property.type": "string",
     "recentFiles": [
         "tileset.tsx",
         "world.tmx",

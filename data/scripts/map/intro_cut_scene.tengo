@@ -2,7 +2,7 @@ game := import("game")
 cs := import("cut-scene")
 
 // Open the portcullis.
-cs.set_tile(15, 17, 68)
+cs.set_tile(7, 9, 68)
 cs.next()
 
 // Walk everyone out of the temple.
@@ -39,55 +39,7 @@ cs.move("wizard-1", "s")
 cs.move("wizard-2", "s")
 cs.move("wizard-3", "s")
 cs.move("duke-lafey", "s")
-cs.set_tile(15, 17, 153) // Close the portcullis back
-cs.next()
-
-cs.move("wizard-1", "s")
-cs.move("wizard-2", "s")
-cs.move("wizard-3", "s")
-cs.move("duke-lafey", "s")
-cs.next()
-
-cs.move("wizard-1", "s")
-cs.move("wizard-2", "s")
-cs.move("wizard-3", "s")
-cs.move("duke-lafey", "s")
-cs.next()
-
-cs.move("wizard-1", "s")
-cs.move("wizard-2", "s")
-cs.move("wizard-3", "s")
-cs.move("duke-lafey", "s")
-cs.next()
-
-cs.move("wizard-1", "s")
-cs.move("wizard-2", "s")
-cs.move("wizard-3", "s")
-cs.move("duke-lafey", "s")
-cs.next()
-
-cs.move("wizard-1", "s")
-cs.move("wizard-2", "s")
-cs.move("wizard-3", "s")
-cs.move("duke-lafey", "s")
-cs.next()
-
-cs.move("wizard-1", "s")
-cs.move("wizard-2", "s")
-cs.move("wizard-3", "s")
-cs.move("duke-lafey", "s")
-cs.next()
-
-cs.move("wizard-1", "s")
-cs.move("wizard-2", "s")
-cs.move("wizard-3", "s")
-cs.move("duke-lafey", "s")
-cs.next()
-
-cs.move("wizard-1", "s")
-cs.move("wizard-2", "s")
-cs.move("wizard-3", "s")
-cs.move("duke-lafey", "s")
+cs.set_tile(7, 9, 153) // Close the portcullis back
 cs.next()
 
 cs.move("wizard-1", "s")
