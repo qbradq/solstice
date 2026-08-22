@@ -132,6 +132,7 @@ func (tm *TargetMode) Update(g *Game) error {
 			if g.currentMap != nil && newX >= 0 && newX < g.currentMap.Width && newY >= 0 && newY < g.currentMap.Height {
 				tm.cursorX = newX
 				tm.cursorY = newY
+				UpdateTopViewCenter(image.Pt(tm.cursorX, tm.cursorY))
 			}
 		}
 	}
@@ -199,9 +200,11 @@ func (tm *TargetMode) Draw(g *Game, screen *ebiten.Image) {
 		}
 	}
 
-	// 1. Draw the map view area centered on the targeting cursor, with visibility field centered on party/combat member and highlight overlays
+	// 1. Draw the map view area centered on the top of the view stack (targeting cursor), with visibility field centered on party/combat member and highlight overlays
+	UpdateTopViewCenter(image.Pt(tm.cursorX, tm.cursorY))
+	center := GetViewCenter()
 	if g.currentMap != nil {
-		g.currentMap.DrawCenteredAt(screen, g.assets, g.party, scale, tm.cursorX, tm.cursorY, visCenterX, visCenterY, tm.highlightTiles, tm.highlightColor)
+		g.currentMap.DrawCenteredAt(screen, g.assets, g.party, scale, center.X, center.Y, visCenterX, visCenterY, tm.highlightTiles, tm.highlightColor)
 	}
 
 	// 2. Render targeting cursor border at screen center

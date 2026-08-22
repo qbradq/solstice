@@ -1,5 +1,7 @@
 package solstice
 
+import "image"
+
 // CutSceneCmdType represents the type of a cut scene command.
 type CutSceneCmdType int
 
@@ -115,6 +117,14 @@ func UpdateCutScene(g *Game) bool {
 									party.Members[i].X = actor.X
 									party.Members[i].Y = actor.Y
 								}
+							}
+						}
+
+						if IsInCombat() {
+							if focus := GetCombatFocusActor(); focus != nil && focus.ID == cmd.ActorID {
+								UpdateTopViewCenter(image.Pt(actor.X, actor.Y))
+							} else if party := GetParty(); party != nil && combatMemberIndex < len(party.Members) && party.Members[combatMemberIndex].ID == cmd.ActorID {
+								UpdateTopViewCenter(image.Pt(actor.X, actor.Y))
 							}
 						}
 					}

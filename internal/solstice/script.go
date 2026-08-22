@@ -2,6 +2,7 @@ package solstice
 
 import (
 	"fmt"
+	"image"
 	"io/fs"
 	"math/rand"
 	"path/filepath"
@@ -475,6 +476,7 @@ func InitScriptSystem() error {
 				if party != nil {
 					party.X = x
 					party.Y = y
+					SetPartyViewCenter(image.Pt(x, y))
 				}
 				return tengo.UndefinedValue, nil
 			},

@@ -996,6 +996,7 @@ func (m *Map) MoveParty(p *Party, dx, dy int) bool {
 				p.X = p.WorldX
 				p.Y = p.WorldY
 				p.UpdateSpriteDef()
+				SetPartyViewCenter(image.Pt(p.X, p.Y))
 				worldMap.AdvanceTurn()
 				return true
 			}
@@ -1032,6 +1033,7 @@ func (m *Map) MoveParty(p *Party, dx, dy int) bool {
 		p.WorldY = targetY
 	}
 	p.UpdateSpriteDef()
+	SetPartyViewCenter(image.Pt(p.X, p.Y))
 
 	// Check and activate on_step triggers for party
 	m.ActivateTriggersOnStep(p.X, p.Y, "party")
@@ -1185,41 +1187,31 @@ func (m *Map) CalculateVisibility(centerX, centerY, radius int) *bitset.BitSet {
 	return vis2
 }
 
-// DrawCentered renders the map centered on the party's position (or the active party member in combat mode)
+// DrawCentered renders the map centered on the location at the top of the view centering stack
 // into the map view area using assets at scale 1 or 2.
 func (m *Map) DrawCentered(dst *ebiten.Image, assets *Assets, p *Party, scale int) {
 	if p == nil {
 		p = GetParty()
 	}
 
-	centerX := 16
-	centerY := 16
-	if activeAnim := GetActiveTileAnim(); activeAnim != nil {
-		centerX = activeAnim.X
-		centerY = activeAnim.Y
-	} else if p != nil {
-		if IsInCombat() {
-			if focus := GetCombatFocusActor(); focus != nil {
-				centerX = focus.X
-				centerY = focus.Y
-			} else if len(p.Members) > 0 {
-				curIdx := GetCombatMemberIndex()
-				if curIdx >= len(p.Members) {
-					curIdx = 0
-				}
-				centerX = p.Members[curIdx].X
-				centerY = p.Members[curIdx].Y
-			} else {
-				centerX = p.X
-				centerY = p.Y
+	center := GetViewCenter()
+	visCenterX := center.X
+	visCenterY := center.Y
+	if p != nil {
+		if IsInCombat() && len(p.Members) > 0 {
+			curIdx := GetCombatMemberIndex()
+			if curIdx >= len(p.Members) {
+				curIdx = 0
 			}
+			visCenterX = p.Members[curIdx].X
+			visCenterY = p.Members[curIdx].Y
 		} else {
-			centerX = p.X
-			centerY = p.Y
+			visCenterX = p.X
+			visCenterY = p.Y
 		}
 	}
 
-	m.DrawCenteredAt(dst, assets, p, scale, centerX, centerY, centerX, centerY, nil)
+	m.DrawCenteredAt(dst, assets, p, scale, center.X, center.Y, visCenterX, visCenterY, nil)
 }
 
 // DrawCenteredAt renders the map centered on specific tile coordinates (viewCenterX, viewCenterY) into the map view area,

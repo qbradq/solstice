@@ -1,5 +1,7 @@
 package solstice
 
+import "image"
+
 // CombatActionType represents the type of a combat action command.
 type CombatActionType int
 
@@ -41,6 +43,9 @@ func GetCombatFocusActor() *Actor {
 // SetCombatFocusActor sets the actor currently focused by the camera/action during combat.
 func SetCombatFocusActor(a *Actor) {
 	combatFocusActor = a
+	if inCombat && a != nil {
+		UpdateTopViewCenter(image.Pt(a.X, a.Y))
+	}
 }
 
 // IsCombatAIPhase returns true if non-party enemy AI turns are currently executing.
@@ -139,6 +144,12 @@ func GetCombatMemberIndex() int {
 // SetCombatMemberIndex sets the 0-based index of the currently active party member in combat.
 func SetCombatMemberIndex(idx int) {
 	combatMemberIndex = idx
+	if inCombat {
+		p := GetParty()
+		if p != nil && idx >= 0 && idx < len(p.Members) {
+			UpdateTopViewCenter(image.Pt(p.Members[idx].X, p.Members[idx].Y))
+		}
+	}
 }
 
 // GetCombatMemberMoved returns true if the active party member has already moved this turn.
@@ -187,12 +198,21 @@ func StartCombat() {
 	ClearCombatActions()
 	ClearCutScene()
 	inCombat = true
+
+	if p != nil && len(p.Members) > 0 {
+		PushViewCenter(image.Pt(p.Members[0].X, p.Members[0].Y))
+	} else if p != nil {
+		PushViewCenter(image.Pt(p.X, p.Y))
+	} else {
+		PushViewCenter(image.Pt(16, 16))
+	}
 }
 
 // StopCombat transitions the game from combat mode back to party mode.
 // It removes party member actors from the active map, sets the party's position to the first
 // party member's location, and disables combat mode.
 func StopCombat() {
+	wasInCombat := inCombat
 	p := GetParty()
 	m := GetMap()
 	if p != nil && len(p.Members) > 0 {
@@ -213,6 +233,13 @@ func StopCombat() {
 	SetCombatFocusActor(nil)
 	ClearCombatActions()
 	ClearCutScene()
+
+	if wasInCombat {
+		PopViewCenter()
+	}
+	if p != nil {
+		SetPartyViewCenter(image.Pt(p.X, p.Y))
+	}
 }
 
 // AdvanceCombatMember advances to the next party member's combat move.
@@ -229,6 +256,8 @@ func AdvanceCombatMember(g *Game) {
 	if combatMemberIndex >= len(p.Members) {
 		combatAIPhase = true
 		combatAIActorIndex = 0
+	} else {
+		UpdateTopViewCenter(image.Pt(p.Members[combatMemberIndex].X, p.Members[combatMemberIndex].Y))
 	}
 }
 
@@ -300,6 +329,9 @@ func UpdateCombatAI(g *Game) bool {
 	combatAIActorIndex = 0
 	combatMemberIndex = 0
 	SetCombatFocusActor(nil)
+	if p != nil && len(p.Members) > 0 {
+		UpdateTopViewCenter(image.Pt(p.Members[0].X, p.Members[0].Y))
+	}
 
 	m.Turn++
 

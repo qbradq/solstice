@@ -2,6 +2,7 @@ package solstice
 
 import (
 	"fmt"
+	"image"
 	"log"
 
 	"github.com/hajimehoshi/ebiten/v2"
@@ -69,6 +70,9 @@ type Game struct {
 func (g *Game) PushMode(m Mode) {
 	if m != nil {
 		g.modeStack = append(g.modeStack, m)
+		if tm, ok := m.(*TargetMode); ok {
+			PushViewCenter(image.Pt(tm.cursorX, tm.cursorY))
+		}
 	}
 }
 
@@ -80,6 +84,9 @@ func (g *Game) PopMode() Mode {
 	topIdx := len(g.modeStack) - 1
 	top := g.modeStack[topIdx]
 	g.modeStack = g.modeStack[:topIdx]
+	if _, ok := top.(*TargetMode); ok {
+		PopViewCenter()
+	}
 	return top
 }
 
@@ -93,7 +100,9 @@ func (g *Game) GetMode() Mode {
 
 // SetMode clears the mode stack and pushes m as the active mode.
 func (g *Game) SetMode(m Mode) {
-	g.modeStack = nil
+	for len(g.modeStack) > 0 {
+		g.PopMode()
+	}
 	if m != nil {
 		g.PushMode(m)
 	}
