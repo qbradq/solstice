@@ -5,6 +5,9 @@
     ],
     "fileStates": {
         "cbt_grass.tmx": {
+            "expandedObjectLayers": [
+                2
+            ],
             "scale": 3.2953124999999996,
             "selectedLayer": 1,
             "viewCenter": {
@@ -13,8 +16,11 @@
             }
         },
         "cbt_test.tmx": {
+            "expandedObjectLayers": [
+                2
+            ],
             "scale": 3.2953124999999996,
-            "selectedLayer": 1,
+            "selectedLayer": 0,
             "viewCenter": {
                 "x": 71.9203413940256,
                 "y": 216.06448553816975
@@ -43,11 +49,11 @@
             "expandedObjectLayers": [
                 2
             ],
-            "scale": 2,
+            "scale": 4,
             "selectedLayer": 0,
             "viewCenter": {
-                "x": 381.5,
-                "y": 261.5
+                "x": 350.5,
+                "y": 374
             }
         },
         "tileset.tsx": {

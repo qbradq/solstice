@@ -607,6 +607,13 @@ func TestEnemyCombatAISequentialExecution(t *testing.T) {
 		t.Errorf("Expected map turn to advance from %d to %d, got %d", initialTurn, initialTurn+1, cbtMap.Turn)
 	}
 
+	if GetCombatMemberMoved() {
+		t.Errorf("Expected CombatMemberMoved false after round finishes")
+	}
+	if GetCombatMemberActed() {
+		t.Errorf("Expected CombatMemberActed false after round finishes")
+	}
+
 	// Verify terminal output contains attacking logs from effects/attack.tengo
 	lines := term.GetLineTexts()
 	foundLog := false
@@ -618,6 +625,121 @@ func TestEnemyCombatAISequentialExecution(t *testing.T) {
 	}
 	if !foundLog {
 		t.Errorf("Expected 'Rodent of Unusual Size...' in terminal lines, got %v", lines)
+	}
+}
+
+func TestEnemyMovementDoesNotPreventPartyMovementInNextTurn(t *testing.T) {
+	term := NewTerminal()
+	SetTerminal(term)
+
+	if _, err := PreloadSpriteDefs(); err != nil {
+		t.Fatalf("PreloadSpriteDefs failed: %v", err)
+	}
+	if _, err := PreloadActorDefs(); err != nil {
+		t.Fatalf("PreloadActorDefs failed: %v", err)
+	}
+	if err := InitScriptSystem(); err != nil {
+		t.Fatalf("InitScriptSystem failed: %v", err)
+	}
+
+	cbtMap, err := ReloadMap("cbt_grass")
+	if err != nil || cbtMap == nil {
+		cbtMap, err = LoadMap("cbt_grass")
+		if err != nil {
+			t.Fatalf("LoadMap failed: %v", err)
+		}
+	}
+	cbtMap.Actors = nil
+	SetMap(cbtMap)
+
+	// Create enemy rodent at (5, 2) (distance away from party at (5, 5))
+	mouse, err := NewActorFromDef("mouse_dist", "rodent", 5, 2)
+	if err != nil {
+		t.Fatalf("NewActorFromDef mouse_dist failed: %v", err)
+	}
+	cbtMap.AddActor(mouse)
+
+	// Create party with 2 members at (5, 5)
+	hero, err := NewActorFromDef("hero", "warrior", 5, 5)
+	if err != nil {
+		t.Fatalf("NewActorFromDef hero failed: %v", err)
+	}
+	lillian, err := NewActorFromDef("lillian", "lillian", 5, 5)
+	if err != nil {
+		t.Fatalf("NewActorFromDef lillian failed: %v", err)
+	}
+
+	p, err := NewParty(5, 5, *hero, *lillian)
+	if err != nil {
+		t.Fatalf("NewParty failed: %v", err)
+	}
+	SetParty(p)
+
+	game := &Game{
+		terminal:   term,
+		currentMap: cbtMap,
+		party:      p,
+	}
+
+	StartCombat()
+	defer StopCombat()
+
+	// Turn 1: Party members pass
+	AdvanceCombatMember(game) // hero -> lillian
+	AdvanceCombatMember(game) // lillian -> AI phase
+
+	if !IsCombatAIPhase() {
+		t.Fatalf("Expected IsCombatAIPhase true after party advances")
+	}
+
+	// Enemy turn: enemy should move closer
+	if !UpdateCombatAI(game) {
+		t.Fatal("Expected UpdateCombatAI to run enemy turn")
+	}
+
+	// Enemy move should NOT set combatMemberMoved
+	if GetCombatMemberMoved() {
+		t.Errorf("Enemy movement should NOT set CombatMemberMoved to true")
+	}
+
+	// Drain cut scenes and actions for enemy
+	for IsCutSceneActive() || HasCombatActions() {
+		if !IsCutSceneActive() && HasCombatActions() {
+			UpdateCombatActions(game)
+		}
+		SetAnimFrame(GetAnimFrame() + 1)
+		UpdateCutScene(game)
+	}
+
+	// Finish AI phase
+	if !UpdateCombatAI(game) {
+		t.Fatal("Expected UpdateCombatAI to finish AI phase and complete round")
+	}
+
+	if IsCombatAIPhase() {
+		t.Errorf("Expected IsCombatAIPhase false")
+	}
+	if GetCombatMemberIndex() != 0 {
+		t.Errorf("Expected active member index to be 0 for turn 2, got %d", GetCombatMemberIndex())
+	}
+	if GetCombatMemberMoved() {
+		t.Errorf("Expected CombatMemberMoved to be false at start of turn 2 for member 0")
+	}
+	if GetCombatMemberActed() {
+		t.Errorf("Expected CombatMemberActed to be false at start of turn 2 for member 0")
+	}
+
+	// Hero can move in turn 2
+	EnqueueCombatAction(CombatAction{
+		Type:    CombatActMove,
+		ActorID: "hero",
+		Path:    []string{"w"},
+		TargetX: 4,
+		TargetY: 5,
+	})
+
+	if !GetCombatMemberMoved() {
+		t.Errorf("Expected CombatMemberMoved to be true after hero enqueues move in turn 2")
 	}
 }
 

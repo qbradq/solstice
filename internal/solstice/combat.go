@@ -57,7 +57,12 @@ func IsCombatAIPhase() bool {
 // For move actions, the cut scene commands are queued immediately.
 func EnqueueCombatAction(action CombatAction) {
 	if action.Type == CombatActMove {
-		SetCombatMemberMoved(true)
+		p := GetParty()
+		if p != nil && p.GetMember(action.ActorID) != nil {
+			SetCombatMemberMoved(true)
+		} else if p == nil && !IsCombatAIPhase() {
+			SetCombatMemberMoved(true)
+		}
 		EnqueueCutSceneCommand(CutSceneCommand{
 			Type:   CmdDelay,
 			Frames: 1,
@@ -107,7 +112,12 @@ func UpdateCombatActions(g *Game) bool {
 		// Movement cut scene commands are queued immediately when EnqueueCombatAction is called.
 
 	case CombatActAttack:
-		SetCombatMemberActed(true)
+		p := GetParty()
+		if p != nil && p.GetMember(action.ActorID) != nil {
+			SetCombatMemberActed(true)
+		} else if p == nil && !IsCombatAIPhase() {
+			SetCombatMemberActed(true)
+		}
 		script := action.EffectScript
 		if script == "" {
 			script = "effects/attack.tengo"
@@ -305,6 +315,8 @@ func UpdateCombatAI(g *Game) bool {
 		combatAIPhase = false
 		combatAIActorIndex = 0
 		combatMemberIndex = 0
+		combatMemberMoved = false
+		combatMemberActed = false
 		SetCombatFocusActor(nil)
 		return false
 	}
@@ -354,6 +366,8 @@ func UpdateCombatAI(g *Game) bool {
 	combatAIPhase = false
 	combatAIActorIndex = 0
 	combatMemberIndex = 0
+	combatMemberMoved = false
+	combatMemberActed = false
 	SetCombatFocusActor(nil)
 	if p != nil && len(p.Members) > 0 {
 		UpdateTopViewCenter(image.Pt(p.Members[0].X, p.Members[0].Y))
