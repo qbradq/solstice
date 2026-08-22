@@ -54,7 +54,26 @@ func IsCombatAIPhase() bool {
 }
 
 // EnqueueCombatAction adds a combat action to the queue.
+// For move actions, the cut scene commands are queued immediately.
 func EnqueueCombatAction(action CombatAction) {
+	if action.Type == CombatActMove {
+		SetCombatMemberMoved(true)
+		EnqueueCutSceneCommand(CutSceneCommand{
+			Type:   CmdDelay,
+			Frames: 1,
+		})
+		for _, dir := range action.Path {
+			EnqueueCutSceneCommand(CutSceneCommand{
+				Type:    CmdMove,
+				ActorID: action.ActorID,
+				Dir:     dir,
+			})
+			EnqueueCutSceneCommand(CutSceneCommand{
+				Type:   CmdDelay,
+				Frames: 1,
+			})
+		}
+	}
 	combatActionQueue = append(combatActionQueue, action)
 }
 
@@ -85,22 +104,7 @@ func UpdateCombatActions(g *Game) bool {
 
 	switch action.Type {
 	case CombatActMove:
-		SetCombatMemberMoved(true)
-		EnqueueCutSceneCommand(CutSceneCommand{
-			Type:   CmdDelay,
-			Frames: 1,
-		})
-		for _, dir := range action.Path {
-			EnqueueCutSceneCommand(CutSceneCommand{
-				Type:    CmdMove,
-				ActorID: action.ActorID,
-				Dir:     dir,
-			})
-			EnqueueCutSceneCommand(CutSceneCommand{
-				Type:   CmdDelay,
-				Frames: 1,
-			})
-		}
+		// Movement cut scene commands are queued immediately when EnqueueCombatAction is called.
 
 	case CombatActAttack:
 		SetCombatMemberActed(true)

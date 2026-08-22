@@ -400,22 +400,21 @@ func TestCombatActionQueueSystem(t *testing.T) {
 	if !HasCombatActions() {
 		t.Error("Expected combat action to be in queue")
 	}
-
-	if !UpdateCombatActions(game) {
-		t.Error("Expected UpdateCombatActions to return true")
-	}
-
 	if !GetCombatMemberMoved() {
-		t.Error("Expected CombatMemberMoved to be true after CombatActMove")
+		t.Error("Expected CombatMemberMoved to be true immediately after enqueueing CombatActMove")
 	}
 	if !IsCutSceneActive() {
-		t.Error("Expected cut scene move commands to be queued by CombatActMove")
+		t.Error("Expected cut scene move commands to be queued immediately by EnqueueCombatAction")
 	}
 
 	// Drain cut scenes
 	for IsCutSceneActive() {
 		SetAnimFrame(GetAnimFrame() + 1)
 		UpdateCutScene(game)
+	}
+
+	if !UpdateCombatActions(game) {
+		t.Error("Expected UpdateCombatActions to return true")
 	}
 
 	if party.Members[0].X != 7 || party.Members[0].Y != 5 {
