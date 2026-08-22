@@ -5,6 +5,7 @@ import (
 	"image/color"
 	"testing"
 
+	"github.com/d5/tengo/v2"
 	"github.com/hajimehoshi/ebiten/v2"
 )
 
@@ -168,3 +169,60 @@ func TestMapDrawCenteredPreservesArbitraryVisibility(t *testing.T) {
 	highlights := map[image.Point]bool{{X: 20, Y: 20}: true}
 	m.DrawCenteredAt(screen, assets, party, 2, 20, 20, 15, 15, highlights, color.RGBA{R: 0, G: 127, B: 0, A: 15})
 }
+
+func TestCombatStagingEnd(t *testing.T) {
+	if err := InitScriptSystem(); err != nil {
+		t.Fatalf("InitScriptSystem failed: %v", err)
+	}
+
+	StopCombat()
+	party, err := NewParty(5, 5)
+	if err != nil {
+		t.Fatalf("NewParty failed: %v", err)
+	}
+	m1, _ := NewActorFromDef("hero1", "kevin", 0, 0)
+	_ = party.AddMember(*m1)
+	SetParty(party)
+	ResetViewCenterStack()
+
+	// 1. Outside combat, CombatStagingEnd does nothing
+	CombatStagingEnd()
+	center := GetViewCenter()
+	if center != image.Pt(5, 5) {
+		t.Errorf("Expected view center (5, 5) outside combat, got %+v", center)
+	}
+
+	// 2. Start combat (initial view center on active member at (5, 5))
+	StartCombat()
+	defer StopCombat()
+
+	// Move party member during combat staging (e.g. teleporting to player_start tile at (24, 30))
+	party.Members[0].X = 24
+	party.Members[0].Y = 30
+
+	// Before staging end, top is still old pos
+	// Calling CombatStagingEnd updates view centering to member 0's new staged position
+	CombatStagingEnd()
+	center = GetViewCenter()
+	if center != image.Pt(24, 30) {
+		t.Errorf("Expected view center to update to (24, 30) after CombatStagingEnd, got %+v", center)
+	}
+
+	// 3. Test script function game.combat_staging_end()
+	party.Members[0].X = 40
+	party.Members[0].Y = 42
+	scriptSrc := `
+game := import("game")
+game.combat_staging_end()
+`
+	s := tengo.NewScript([]byte(scriptSrc))
+	s.SetImports(moduleMap)
+	if _, err := s.Run(); err != nil {
+		t.Fatalf("Script run failed: %v", err)
+	}
+	center = GetViewCenter()
+	if center != image.Pt(40, 42) {
+		t.Errorf("Expected view center (40, 42) after game.combat_staging_end(), got %+v", center)
+	}
+}
+

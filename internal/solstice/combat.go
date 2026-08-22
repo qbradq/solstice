@@ -261,6 +261,28 @@ func AdvanceCombatMember(g *Game) {
 	}
 }
 
+// CombatStagingEnd updates the view centering on the currently active actor in combat mode.
+// If called outside of combat mode, it does nothing.
+func CombatStagingEnd() {
+	if !IsInCombat() {
+		return
+	}
+	if focus := GetCombatFocusActor(); focus != nil {
+		UpdateTopViewCenter(image.Pt(focus.X, focus.Y))
+		return
+	}
+	p := GetParty()
+	if p != nil && len(p.Members) > 0 {
+		curIdx := GetCombatMemberIndex()
+		if curIdx >= len(p.Members) {
+			curIdx = 0
+		}
+		UpdateTopViewCenter(image.Pt(p.Members[curIdx].X, p.Members[curIdx].Y))
+	} else if p != nil {
+		UpdateTopViewCenter(image.Pt(p.X, p.Y))
+	}
+}
+
 // UpdateCombatAI steps through non-party actors on the map one at a time during the combat AI phase.
 // Returns true if an action or phase advancement occurred.
 func UpdateCombatAI(g *Game) bool {
