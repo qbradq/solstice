@@ -2,6 +2,7 @@ package solstice
 
 import (
 	"fmt"
+	"image"
 
 	"github.com/hajimehoshi/ebiten/v2"
 	"github.com/hajimehoshi/ebiten/v2/inpututil"
@@ -22,6 +23,9 @@ func SetParty(p *Party) {
 	defaultParty = p
 	if defaultGame != nil {
 		defaultGame.party = p
+	}
+	if p != nil {
+		SetPartyViewCenter(image.Pt(p.X, p.Y))
 	}
 }
 
@@ -58,6 +62,7 @@ func NewParty(x, y int, members ...Actor) (*Party, error) {
 	}
 
 	p.UpdateSpriteDef()
+	SetPartyViewCenter(image.Pt(x, y))
 	return p, nil
 }
 
@@ -182,6 +187,7 @@ func (p *Party) HandleInput(m *Map) {
 		} else {
 			p.X += dx
 			p.Y += dy
+			SetPartyViewCenter(image.Pt(p.X, p.Y))
 		}
 	}
 }

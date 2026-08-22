@@ -2,6 +2,7 @@ package solstice
 
 import (
 	"fmt"
+	"image"
 	"io/fs"
 	"math/rand"
 	"path/filepath"
@@ -475,6 +476,7 @@ func InitScriptSystem() error {
 				if party != nil {
 					party.X = x
 					party.Y = y
+					SetPartyViewCenter(image.Pt(x, y))
 				}
 				return tengo.UndefinedValue, nil
 			},
@@ -562,6 +564,13 @@ func InitScriptSystem() error {
 			Name: "start_combat",
 			Value: func(args ...tengo.Object) (tengo.Object, error) {
 				StartCombat()
+				return tengo.UndefinedValue, nil
+			},
+		},
+		"combat_staging_end": &tengo.UserFunction{
+			Name: "combat_staging_end",
+			Value: func(args ...tengo.Object) (tengo.Object, error) {
+				CombatStagingEnd()
 				return tengo.UndefinedValue, nil
 			},
 		},

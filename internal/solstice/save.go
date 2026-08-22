@@ -467,6 +467,7 @@ func LoadGame(slot int) error {
 
 	// 3. Restore party
 	SetParty(saveData.Party)
+	ResetViewCenterStack()
 	if saveData.Party != nil {
 		saveData.Party.UpdateSpriteDef()
 	}

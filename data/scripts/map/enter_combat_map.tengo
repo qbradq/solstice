@@ -50,3 +50,7 @@ for tmpl in enemy_templates {
 		game.spawn_actor(tmpl, tmpl, start_item.x, start_item.y)
 	}
 }
+
+// 5. Update view centering after combat staging is complete
+game.combat_staging_end()
+
