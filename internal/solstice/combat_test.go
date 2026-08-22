@@ -1,10 +1,11 @@
 package solstice
 
 import (
+	"strings"
 	"testing"
 
-	"github.com/hajimehoshi/ebiten/v2"
 	"github.com/d5/tengo/v2"
+	"github.com/hajimehoshi/ebiten/v2"
 )
 
 func TestCombatModeTransitions(t *testing.T) {
@@ -495,14 +496,14 @@ func TestEnemyCombatAISequentialExecution(t *testing.T) {
 	cbtMap.Actors = nil
 	SetMap(cbtMap)
 
-	// Create 2 enemy rodents
-	mouse1, err := NewActorFromDef("mouse_1", "rodent", 10, 10)
+	// Create 2 enemy rodents adjacent to party
+	mouse1, err := NewActorFromDef("mouse_1", "rodent", 6, 5)
 	if err != nil {
 		t.Fatalf("NewActorFromDef mouse_1 failed: %v", err)
 	}
 	cbtMap.AddActor(mouse1)
 
-	mouse2, err := NewActorFromDef("mouse_2", "rodent", 12, 12)
+	mouse2, err := NewActorFromDef("mouse_2", "rodent", 5, 6)
 	if err != nil {
 		t.Fatalf("NewActorFromDef mouse_2 failed: %v", err)
 	}
@@ -561,8 +562,11 @@ func TestEnemyCombatAISequentialExecution(t *testing.T) {
 		t.Errorf("UpdateCombatAI should return false while cutscene is active")
 	}
 
-	// Resolve mouse1's delay
-	for IsCutSceneActive() {
+	// Resolve mouse1's delay and actions
+	for IsCutSceneActive() || HasCombatActions() {
+		if !IsCutSceneActive() && HasCombatActions() {
+			UpdateCombatActions(game)
+		}
 		SetAnimFrame(GetAnimFrame() + 1)
 		UpdateCutScene(game)
 	}
@@ -578,8 +582,11 @@ func TestEnemyCombatAISequentialExecution(t *testing.T) {
 		t.Errorf("Expected cutscene delay active for mouse_2")
 	}
 
-	// Resolve mouse2's delay
-	for IsCutSceneActive() {
+	// Resolve mouse2's delay and actions
+	for IsCutSceneActive() || HasCombatActions() {
+		if !IsCutSceneActive() && HasCombatActions() {
+			UpdateCombatActions(game)
+		}
 		SetAnimFrame(GetAnimFrame() + 1)
 		UpdateCutScene(game)
 	}
@@ -601,17 +608,17 @@ func TestEnemyCombatAISequentialExecution(t *testing.T) {
 		t.Errorf("Expected map turn to advance from %d to %d, got %d", initialTurn, initialTurn+1, cbtMap.Turn)
 	}
 
-	// Verify terminal output contains attacking logs from melee.tengo
+	// Verify terminal output contains attacking logs from effects/attack.tengo
 	lines := term.GetLineTexts()
-	foundMouse1Log := false
+	foundLog := false
 	for _, l := range lines {
-		if l == "Rodent of Unusual Size is attacking!" {
-			foundMouse1Log = true
+		if strings.Contains(l, "Rodent of Unusual Size") {
+			foundLog = true
 			break
 		}
 	}
-	if !foundMouse1Log {
-		t.Errorf("Expected 'Rodent of Unusual Size is attacking!' in terminal lines, got %v", lines)
+	if !foundLog {
+		t.Errorf("Expected 'Rodent of Unusual Size...' in terminal lines, got %v", lines)
 	}
 }
 

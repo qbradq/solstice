@@ -138,3 +138,57 @@ func TestTargetModeUnlimitedRangeAndCallbacks(t *testing.T) {
 		t.Error("Expected selected flag to be true")
 	}
 }
+
+func TestFindPathToClosestString(t *testing.T) {
+	if _, err := PreloadTileSet(); err != nil {
+		t.Fatalf("PreloadTileSet failed: %v", err)
+	}
+
+	// 10x10 grass map
+	tiles := make([]int, 100)
+	for i := range tiles {
+		tiles[i] = 4 // walkable
+	}
+	m := &Map{
+		Name:       "test_path_map",
+		Width:      10,
+		Height:     10,
+		TileWidth:  16,
+		TileHeight: 16,
+		Tiles:      tiles,
+	}
+
+	// 1. Direct path within maxMoves
+	p1 := FindPathToClosestString(m, 5, 5, 5, 2, 4, false)
+	if p1 != "nnn" {
+		t.Errorf("Expected 'nnn', got %q", p1)
+	}
+
+	// 2. Direct path exceeding maxMoves (truncated)
+	p2 := FindPathToClosestString(m, 5, 5, 5, 1, 2, false)
+	if p2 != "nn" {
+		t.Errorf("Expected 'nn' truncated, got %q", p2)
+	}
+
+	// 3. Same tile returns ""
+	p3 := FindPathToClosestString(m, 5, 5, 5, 5, 4, false)
+	if p3 != "" {
+		t.Errorf("Expected empty path for same tile, got %q", p3)
+	}
+
+	// 4. Target tile occupied by an actor: should path to closest adjacent tile
+	targetActor := &Actor{Entity: Entity{ID: "hero", X: 5, Y: 2}}
+	m.AddActor(targetActor)
+
+	p4 := FindPathToClosestString(m, 5, 5, 5, 2, 4, false)
+	// (5, 3) is the closest adjacent tile to (5, 2) from (5, 5), distance 2 steps -> "nn"
+	if p4 != "nn" {
+		t.Errorf("Expected 'nn' towards occupied target, got %q", p4)
+	}
+
+	// 5. Target adjacent returns ""
+	p5 := FindPathToClosestString(m, 5, 3, 5, 2, 4, false)
+	if p5 != "" {
+		t.Errorf("Expected empty path when already adjacent to target, got %q", p5)
+	}
+}

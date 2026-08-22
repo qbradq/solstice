@@ -1194,7 +1194,10 @@ func (m *Map) DrawCentered(dst *ebiten.Image, assets *Assets, p *Party, scale in
 
 	centerX := 16
 	centerY := 16
-	if p != nil {
+	if activeAnim := GetActiveTileAnim(); activeAnim != nil {
+		centerX = activeAnim.X
+		centerY = activeAnim.Y
+	} else if p != nil {
 		if IsInCombat() {
 			if focus := GetCombatFocusActor(); focus != nil {
 				centerX = focus.X
@@ -1350,7 +1353,25 @@ func (m *Map) DrawCenteredAt(dst *ebiten.Image, assets *Assets, p *Party, scale 
 		}
 	}
 
-	// 4. In Wizard Mode, render 35% transparent blue rectangle over every covered tile in triggers
+	// 4. Render active cutscene tile animation (if any)
+	if activeAnim := GetActiveTileAnim(); activeAnim != nil {
+		currentFrame := GetAnimFrame()
+		elapsed := currentFrame - activeAnim.StartFrame
+		if elapsed >= 0 && elapsed < activeAnim.Duration {
+			frameIdx := 0
+			if activeAnim.AnimFrames > 1 {
+				frameIdx = elapsed % activeAnim.AnimFrames
+			}
+			tileToDraw := activeAnim.BaseTile + frameIdx
+			stx := centerStx + (activeAnim.X - viewCenterX)
+			sty := centerSty + (activeAnim.Y - viewCenterY)
+			if stx >= 0 && stx < cols && sty >= 0 && sty < rows && isTileVisible(activeAnim.X, activeAnim.Y) {
+				assets.DrawMapTile(dst, tileToDraw, stx, sty, scale)
+			}
+		}
+	}
+
+	// 5. In Wizard Mode, render 35% transparent blue rectangle over every covered tile in triggers
 	if IsWizardMode() && m != nil && len(m.Triggers) > 0 {
 		mapArea := dst.SubImage(image.Rect(0, 0, 352, 352)).(*ebiten.Image)
 		blueOverlay := color.RGBA{R: 0, G: 0, B: 255, A: 89} // 35% transparent blue

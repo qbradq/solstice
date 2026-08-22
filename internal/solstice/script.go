@@ -724,6 +724,10 @@ func InitScriptSystem() error {
 						"id":               &tengo.String{Value: actor.ID},
 						"name":             &tengo.String{Value: actor.Name},
 						"human":            humanVal,
+						"x":                &tengo.Int{Value: int64(actor.X)},
+						"y":                &tengo.Int{Value: int64(actor.Y)},
+						"tile_x":           &tengo.Int{Value: int64(actor.X)},
+						"tile_y":           &tengo.Int{Value: int64(actor.Y)},
 						"level":            &tengo.Int{Value: int64(actor.Level)},
 						"strength":         &tengo.Int{Value: int64(actor.Strength)},
 						"dexterity":        &tengo.Int{Value: int64(actor.Dexterity)},
@@ -732,6 +736,7 @@ func InitScriptSystem() error {
 						"hit_points":       &tengo.Int{Value: int64(actor.HitPoints)},
 						"max_magic_points": &tengo.Int{Value: int64(actor.MaxMagicPoints)},
 						"magic_points":     &tengo.Int{Value: int64(actor.MagicPoints)},
+						"move":             &tengo.Int{Value: int64(actor.Move)},
 						"range":            &tengo.Int{Value: int64(actor.GetWeaponRange())},
 						"damage":           &tengo.String{Value: actor.GetWeaponDamage()},
 					},
@@ -1245,6 +1250,30 @@ func InitScriptSystem() error {
 				return tengo.UndefinedValue, nil
 			},
 		},
+		"distance": &tengo.UserFunction{
+			Name: "distance",
+			Value: func(args ...tengo.Object) (tengo.Object, error) {
+				if len(args) < 4 {
+					return tengo.UndefinedValue, fmt.Errorf("distance requires 4 arguments: from_x, from_y, to_x, to_y")
+				}
+				fromX, ok1 := tengo.ToInt(args[0])
+				fromY, ok2 := tengo.ToInt(args[1])
+				toX, ok3 := tengo.ToInt(args[2])
+				toY, ok4 := tengo.ToInt(args[3])
+				if !ok1 || !ok2 || !ok3 || !ok4 {
+					return tengo.UndefinedValue, fmt.Errorf("distance arguments must be integers: (from_x, from_y, to_x, to_y)")
+				}
+				dx := fromX - toX
+				if dx < 0 {
+					dx = -dx
+				}
+				dy := fromY - toY
+				if dy < 0 {
+					dy = -dy
+				}
+				return &tengo.Int{Value: int64(dx + dy)}, nil
+			},
+		},
 	}
 	moduleMap.AddBuiltinModule("game", gameModule)
 
@@ -1330,6 +1359,31 @@ func InitScriptSystem() error {
 				EnqueueCutSceneCommand(CutSceneCommand{
 					Type:    CmdRemoveActor,
 					ActorID: actorID,
+				})
+				return tengo.UndefinedValue, nil
+			},
+		},
+		"animate": &tengo.UserFunction{
+			Name: "animate",
+			Value: func(args ...tengo.Object) (tengo.Object, error) {
+				if len(args) < 5 {
+					return tengo.UndefinedValue, fmt.Errorf("animate requires 5 arguments: x, y, duration, base_tile, anim_frames")
+				}
+				x, ok1 := tengo.ToInt(args[0])
+				y, ok2 := tengo.ToInt(args[1])
+				duration, ok3 := tengo.ToInt(args[2])
+				baseTile, ok4 := tengo.ToInt(args[3])
+				animFrames, ok5 := tengo.ToInt(args[4])
+				if !ok1 || !ok2 || !ok3 || !ok4 || !ok5 {
+					return tengo.UndefinedValue, fmt.Errorf("animate arguments must be integers: (x, y, duration, base_tile, anim_frames)")
+				}
+				EnqueueCutSceneCommand(CutSceneCommand{
+					Type:       CmdAnimate,
+					X:          x,
+					Y:          y,
+					Frames:     duration,
+					TileID:     baseTile,
+					AnimFrames: animFrames,
 				})
 				return tengo.UndefinedValue, nil
 			},
@@ -1457,6 +1511,171 @@ func InitScriptSystem() error {
 				}
 
 				return &tengo.String{Value: nearestID}, nil
+			},
+		},
+		"path_to": &tengo.UserFunction{
+			Name: "path_to",
+			Value: func(args ...tengo.Object) (tengo.Object, error) {
+				if len(args) < 3 {
+					return tengo.UndefinedValue, fmt.Errorf("path_to requires 3 arguments: actor_id, x, y")
+				}
+				actorID, ok1 := tengo.ToString(args[0])
+				targetX, ok2 := tengo.ToInt(args[1])
+				targetY, ok3 := tengo.ToInt(args[2])
+				if !ok1 || !ok2 || !ok3 {
+					return tengo.UndefinedValue, fmt.Errorf("path_to arguments must be (string, int, int)")
+				}
+
+				m := GetMap()
+				if m == nil {
+					return &tengo.String{Value: ""}, nil
+				}
+
+				var actor *Actor
+				isPartyMember := false
+				actor = m.GetActorByID(actorID)
+				if actor == nil {
+					if p := GetParty(); p != nil {
+						if mem := p.GetMember(actorID); mem != nil {
+							actor = mem
+							isPartyMember = true
+						}
+					}
+				}
+				if actor == nil {
+					return &tengo.String{Value: ""}, nil
+				}
+
+				maxMoves := actor.Move
+				if maxMoves <= 0 {
+					maxMoves = 4
+				}
+
+				pathStr := FindPathToClosestString(m, actor.X, actor.Y, targetX, targetY, maxMoves, isPartyMember)
+				return &tengo.String{Value: pathStr}, nil
+			},
+		},
+		"move_along_path": &tengo.UserFunction{
+			Name: "move_along_path",
+			Value: func(args ...tengo.Object) (tengo.Object, error) {
+				if len(args) < 2 {
+					return tengo.UndefinedValue, fmt.Errorf("move_along_path requires 2 arguments: actor_id, path_string")
+				}
+				actorID, ok1 := tengo.ToString(args[0])
+				pathStr, ok2 := tengo.ToString(args[1])
+				if !ok1 || !ok2 {
+					return tengo.UndefinedValue, fmt.Errorf("move_along_path arguments must be (string, string)")
+				}
+
+				m := GetMap()
+				if m == nil {
+					return tengo.UndefinedValue, nil
+				}
+
+				var actor *Actor
+				actor = m.GetActorByID(actorID)
+				if actor == nil {
+					if p := GetParty(); p != nil {
+						actor = p.GetMember(actorID)
+					}
+				}
+				if actor == nil {
+					return tengo.UndefinedValue, nil
+				}
+
+				if len(pathStr) == 0 {
+					return &tengo.Map{
+						Value: map[string]tengo.Object{
+							"x":      &tengo.Int{Value: int64(actor.X)},
+							"y":      &tengo.Int{Value: int64(actor.Y)},
+							"tile_x": &tengo.Int{Value: int64(actor.X)},
+							"tile_y": &tengo.Int{Value: int64(actor.Y)},
+						},
+					}, nil
+				}
+
+				dirs := make([]string, 0, len(pathStr))
+				curX, curY := actor.X, actor.Y
+				for _, ch := range pathStr {
+					switch ch {
+					case 'n', 'N':
+						dirs = append(dirs, "n")
+						curY--
+					case 'e', 'E':
+						dirs = append(dirs, "e")
+						curX++
+					case 's', 'S':
+						dirs = append(dirs, "s")
+						curY++
+					case 'w', 'W':
+						dirs = append(dirs, "w")
+						curX--
+					}
+				}
+
+				if len(dirs) > 0 {
+					EnqueueCombatAction(CombatAction{
+						Type:    CombatActMove,
+						ActorID: actorID,
+						Path:    dirs,
+						TargetX: curX,
+						TargetY: curY,
+					})
+				}
+
+				return &tengo.Map{
+					Value: map[string]tengo.Object{
+						"x":      &tengo.Int{Value: int64(curX)},
+						"y":      &tengo.Int{Value: int64(curY)},
+						"tile_x": &tengo.Int{Value: int64(curX)},
+						"tile_y": &tengo.Int{Value: int64(curY)},
+					},
+				}, nil
+			},
+		},
+		"attack": &tengo.UserFunction{
+			Name: "attack",
+			Value: func(args ...tengo.Object) (tengo.Object, error) {
+				if len(args) < 2 {
+					return tengo.UndefinedValue, fmt.Errorf("attack requires 2 arguments: source_id, target_id")
+				}
+				sourceID, ok1 := tengo.ToString(args[0])
+				targetID, ok2 := tengo.ToString(args[1])
+				if !ok1 || !ok2 {
+					return tengo.UndefinedValue, fmt.Errorf("attack arguments must be (string, string)")
+				}
+
+				targetX, targetY := 0, 0
+				found := false
+				m := GetMap()
+				if m != nil {
+					if act := m.GetActorByID(targetID); act != nil {
+						targetX, targetY = act.X, act.Y
+						found = true
+					}
+				}
+				if !found {
+					p := GetParty()
+					if p != nil {
+						for i := range p.Members {
+							if p.Members[i].ID == targetID {
+								targetX, targetY = p.Members[i].X, p.Members[i].Y
+								found = true
+								break
+							}
+						}
+					}
+				}
+
+				if !found {
+					return tengo.UndefinedValue, nil
+				}
+
+				if err := ExecuteEffectScript("effects/attack.tengo", targetX, targetY, targetID, sourceID); err != nil {
+					return tengo.UndefinedValue, err
+				}
+
+				return tengo.UndefinedValue, nil
 			},
 		},
 	}

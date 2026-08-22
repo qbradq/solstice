@@ -699,9 +699,105 @@ near2 := ai.get_nearest_party_member(21, 20)
 	if c1.Get("near2").String() != "hero2" {
 		t.Errorf("Expected near2 to be 'hero2', got %q", c1.Get("near2").String())
 	}
+
+	// 2. Test ai.path_to and ai.move_along_path
+	m, err := LoadMap("home")
+	if err != nil {
+		t.Fatalf("LoadMap failed: %v", err)
+	}
+	SetMap(m)
+
+	// Add a test monster at (10, 14) with Move=3
+	monster := &Actor{
+		Entity: Entity{
+			ID: "monster",
+			X:  10,
+			Y:  14,
+		},
+		Move: 3,
+	}
+	m.AddActor(monster)
+
+	// Ensure tiles from (10, 11) to (10, 14) are walkable
+	for y := 10; y <= 14; y++ {
+		m.SetTile(10, y, 4)
+	}
+
+	// Party member hero1 is at (10, 10). Closest adjacent valid destination is (10, 11) (3 tiles away: 13, 12, 11)
+	scriptSrc2 := `
+ai := import("ai")
+path := ai.path_to("monster", 10, 10)
+pos := ai.move_along_path("monster", path)
+`
+	s2 := tengo.NewScript([]byte(scriptSrc2))
+	s2.SetImports(moduleMap)
+	c2, err := s2.Compile()
+	if err != nil {
+		t.Fatalf("Compile script 2 failed: %v", err)
+	}
+	if err := c2.Run(); err != nil {
+		t.Fatalf("Run script 2 failed: %v", err)
+	}
+
+	pathStr := c2.Get("path").String()
+	if pathStr != "nnn" {
+		t.Errorf("Expected path 'nnn', got %q", pathStr)
+	}
+
+	posMap := c2.Get("pos").Map()
+	if posMap["x"] != int64(10) || posMap["y"] != int64(11) {
+		t.Errorf("Expected pos {x:10, y:11}, got %v", posMap)
+	}
+
+	// Verify combat move was queued
+	if !HasCombatActions() {
+		t.Fatal("Expected combat move action to be queued by ai.move_along_path")
+	}
+
+	// Execute combat action
+	g := &Game{}
+	UpdateCombatActions(g)
+
+	// Drain cutscene queue
+	for IsCutSceneActive() {
+		SetAnimFrame(GetAnimFrame() + 1)
+		UpdateCutScene(g)
+	}
+
+	if monster.X != 10 || monster.Y != 11 {
+		t.Errorf("Expected monster to move to (10, 11), got (%d, %d)", monster.X, monster.Y)
+	}
+
+	// 3. Test game.distance and ai.attack
+	scriptSrc3 := `
+game := import("game")
+ai := import("ai")
+
+dist1 := game.distance(10, 10, 10, 11)
+dist2 := game.distance(5, 5, 8, 9)
+
+ai.attack("monster", "hero1")
+`
+	s3 := tengo.NewScript([]byte(scriptSrc3))
+	s3.SetImports(moduleMap)
+	c3, err := s3.Compile()
+	if err != nil {
+		t.Fatalf("Compile script 3 failed: %v", err)
+	}
+	if err := c3.Run(); err != nil {
+		t.Fatalf("Run script 3 failed: %v", err)
+	}
+
+	if c3.Get("dist1").Int() != 1 {
+		t.Errorf("Expected dist1 to be 1, got %d", c3.Get("dist1").Int())
+	}
+	if c3.Get("dist2").Int() != 7 { // abs(5-8) + abs(5-9) = 3 + 4 = 7
+		t.Errorf("Expected dist2 to be 7, got %d", c3.Get("dist2").Int())
+	}
 }
 
 func TestActorIdleAndCombatScripts(t *testing.T) {
+	ClearCutScene()
 	if err := InitScriptSystem(); err != nil {
 		t.Fatalf("InitScriptSystem failed: %v", err)
 	}

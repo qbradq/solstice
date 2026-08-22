@@ -1,6 +1,19 @@
 game := import("game")
+ai := import("ai")
 
-self := game.get_actor(actor_id)
-if self != undefined {
-	game.log("%s is attacking!", self["name"])
+// Target selection
+target_id = ai.get_nearest_party_member(tile_x, tile_y)
+target := game.get_actor(target_id)
+
+// Move toward the target
+path := ai.path_to(actor_id, target["tile_x"], target["tile_y"])
+pos := ai.move_along_path(actor_id, path)
+
+// Attack if within range
+if game.distance(
+	pos["x"],
+	pos["y"],
+	target["tile_x"],
+	target["tile_y"]) <= 1 {
+	ai.attack(actor_id, target_id)
 }

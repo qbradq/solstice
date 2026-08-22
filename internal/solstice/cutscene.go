@@ -8,24 +8,42 @@ const (
 	CmdMove
 	CmdSetTile
 	CmdRemoveActor
+	CmdAnimate
 )
+
+// ActiveTileAnim represents a currently playing tile animation in a cut scene.
+type ActiveTileAnim struct {
+	X          int
+	Y          int
+	BaseTile   int
+	AnimFrames int
+	Duration   int
+	StartFrame int
+}
 
 // CutSceneCommand represents an action in the cut scene queue.
 type CutSceneCommand struct {
-	Type    CutSceneCmdType
-	ActorID string
-	Dir     string
-	X       int
-	Y       int
-	TileID  int
-	Frames  int
+	Type       CutSceneCmdType
+	ActorID    string
+	Dir        string
+	X          int
+	Y          int
+	TileID     int // Base tile
+	Frames     int // Duration in animation frames
+	AnimFrames int // Number of frames in the animation loop
 }
 
 var (
 	csQueue                []CutSceneCommand
 	csLastAnimFrame        int = -1
 	csDelayFramesRemaining int
+	csActiveAnim           *ActiveTileAnim
 )
+
+// GetActiveTileAnim returns the currently active cutscene tile animation, or nil if none.
+func GetActiveTileAnim() *ActiveTileAnim {
+	return csActiveAnim
+}
 
 // EnqueueCutSceneCommand adds a command to the cut scene command queue.
 func EnqueueCutSceneCommand(cmd CutSceneCommand) {
@@ -37,6 +55,7 @@ func ClearCutScene() {
 	csQueue = nil
 	csDelayFramesRemaining = 0
 	csLastAnimFrame = -1
+	csActiveAnim = nil
 }
 
 // IsCutSceneActive returns true if there are queued cut scene commands or an active delay.
@@ -57,14 +76,16 @@ func UpdateCutScene(g *Game) bool {
 		csLastAnimFrame = currentFrame
 		if csDelayFramesRemaining > 0 {
 			csDelayFramesRemaining -= frameDelta
-			if csDelayFramesRemaining < 0 {
+			if csDelayFramesRemaining <= 0 {
 				csDelayFramesRemaining = 0
+				csActiveAnim = nil
 			}
 		}
 	}
 
 	// Drain queue only if not waiting on a delay
 	if csDelayFramesRemaining == 0 {
+		csActiveAnim = nil
 		for len(csQueue) > 0 {
 			cmd := csQueue[0]
 			csQueue = csQueue[1:]
@@ -111,6 +132,26 @@ func UpdateCutScene(g *Game) bool {
 
 			case CmdDelay:
 				csDelayFramesRemaining = cmd.Frames
+				return true
+
+			case CmdAnimate:
+				duration := cmd.Frames
+				if duration <= 0 {
+					duration = 1
+				}
+				animFrames := cmd.AnimFrames
+				if animFrames <= 0 {
+					animFrames = 1
+				}
+				csDelayFramesRemaining = duration
+				csActiveAnim = &ActiveTileAnim{
+					X:          cmd.X,
+					Y:          cmd.Y,
+					BaseTile:   cmd.TileID,
+					AnimFrames: animFrames,
+					Duration:   duration,
+					StartFrame: currentFrame,
+				}
 				return true
 			}
 		}

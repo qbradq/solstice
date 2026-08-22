@@ -4,6 +4,8 @@ import (
 	"container/heap"
 	"image"
 	"math"
+	"sort"
+	"strings"
 )
 
 // isTileTraversable checks if an actor can traverse through tile (x, y) on map m.
@@ -235,5 +237,134 @@ func FindPath(m *Map, startX, startY, targetX, targetY int, isPartyMember bool) 
 		}
 	}
 
+	return nil
+}
+
+// PathToString converts a slice of direction strings ("north", "east", "south", "west")
+// into a compact string of "n", "e", "s", "w" characters.
+func PathToString(path []string) string {
+	var sb strings.Builder
+	for _, dir := range path {
+		switch strings.ToLower(dir) {
+		case "north", "n":
+			sb.WriteByte('n')
+		case "east", "e":
+			sb.WriteByte('e')
+		case "south", "s":
+			sb.WriteByte('s')
+		case "west", "w":
+			sb.WriteByte('w')
+		}
+	}
+	return sb.String()
+}
+
+// FindPathToClosestString finds an A* path from (startX, startY) to the point closest to
+// (targetX, targetY) that can be pathed to, limited by maxMoves, and returns it as a string of "n/e/s/w".
+func FindPathToClosestString(m *Map, startX, startY, targetX, targetY, maxMoves int, isPartyMember bool) string {
+	if m == nil || maxMoves <= 0 {
+		return ""
+	}
+	startPt := image.Pt(startX, startY)
+	targetPt := image.Pt(targetX, targetY)
+	if startPt == targetPt {
+		return ""
+	}
+
+	manhattan := func(a, b image.Point) int {
+		return int(math.Abs(float64(a.X-b.X)) + math.Abs(float64(a.Y-b.Y)))
+	}
+
+	// 1. If targetPt itself is a valid destination, try finding a direct path to it.
+	if isTileValidDestination(m, targetX, targetY, isPartyMember, startPt) {
+		if path := FindPath(m, startX, startY, targetX, targetY, isPartyMember); len(path) > 0 {
+			path = truncateAndValidatePath(m, startPt, path, maxMoves, isPartyMember)
+			return PathToString(path)
+		}
+	}
+
+	// 2. If target is not a valid destination (e.g. occupied by target actor), try its unoccupied cardinal neighbors
+	cardinalNeighbors := []image.Point{
+		{X: targetX, Y: targetY - 1},
+		{X: targetX + 1, Y: targetY},
+		{X: targetX, Y: targetY + 1},
+		{X: targetX - 1, Y: targetY},
+	}
+
+	// Sort neighbors by distance to startPt
+	sort.Slice(cardinalNeighbors, func(i, j int) bool {
+		return manhattan(cardinalNeighbors[i], startPt) < manhattan(cardinalNeighbors[j], startPt)
+	})
+
+	var bestNeighborPath []string
+	for _, nPt := range cardinalNeighbors {
+		if nPt == startPt {
+			// Already adjacent to target
+			return ""
+		}
+		if isTileValidDestination(m, nPt.X, nPt.Y, isPartyMember, startPt) {
+			if path := FindPath(m, startX, startY, nPt.X, nPt.Y, isPartyMember); len(path) > 0 {
+				if len(bestNeighborPath) == 0 || len(path) < len(bestNeighborPath) {
+					bestNeighborPath = path
+				}
+			}
+		}
+	}
+
+	if len(bestNeighborPath) > 0 {
+		bestNeighborPath = truncateAndValidatePath(m, startPt, bestNeighborPath, maxMoves, isPartyMember)
+		return PathToString(bestNeighborPath)
+	}
+
+	// 3. Fallback: Search all reachable valid destination tiles and pick the one closest to targetPt
+	reachable := FindReachableTiles(m, startX, startY, maxMoves, isPartyMember)
+	bestDist := -1
+	var bestPt image.Point
+	found := false
+
+	for pt := range reachable {
+		dist := manhattan(pt, targetPt)
+		if !found || dist < bestDist || (dist == bestDist && manhattan(pt, startPt) < manhattan(bestPt, startPt)) {
+			bestDist = dist
+			bestPt = pt
+			found = true
+		}
+	}
+
+	if found && bestPt != startPt {
+		if path := FindPath(m, startX, startY, bestPt.X, bestPt.Y, isPartyMember); len(path) > 0 {
+			path = truncateAndValidatePath(m, startPt, path, maxMoves, isPartyMember)
+			return PathToString(path)
+		}
+	}
+
+	return ""
+}
+
+// truncateAndValidatePath truncates the path to maxMoves and ensures the landing point is a valid destination.
+func truncateAndValidatePath(m *Map, startPt image.Point, path []string, maxMoves int, isPartyMember bool) []string {
+	if len(path) > maxMoves {
+		path = path[:maxMoves]
+	}
+
+	for len(path) > 0 {
+		endPt := startPt
+		for _, dir := range path {
+			switch strings.ToLower(dir) {
+			case "north", "n":
+				endPt.Y--
+			case "east", "e":
+				endPt.X++
+			case "south", "s":
+				endPt.Y++
+			case "west", "w":
+				endPt.X--
+			}
+		}
+		if isTileValidDestination(m, endPt.X, endPt.Y, isPartyMember, startPt) {
+			return path
+		}
+		path = path[:len(path)-1]
+	}
 	return nil
 }

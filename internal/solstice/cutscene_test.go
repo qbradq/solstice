@@ -2,6 +2,9 @@ package solstice
 
 import (
 	"testing"
+
+	"github.com/d5/tengo/v2"
+	"github.com/hajimehoshi/ebiten/v2"
 )
 
 func TestCutSceneModuleAndExecution(t *testing.T) {
@@ -191,6 +194,91 @@ func TestCutSceneMainModeControls(t *testing.T) {
 
 	if !IsCutSceneActive() {
 		t.Error("Expected cut scene to be active")
+	}
+}
+
+func TestCutSceneAnimate(t *testing.T) {
+	if err := InitScriptSystem(); err != nil {
+		t.Fatalf("InitScriptSystem failed: %v", err)
+	}
+	if _, err := PreloadSpriteDefs(); err != nil {
+		t.Fatalf("PreloadSpriteDefs failed: %v", err)
+	}
+	if _, err := PreloadTileSet(); err != nil {
+		t.Fatalf("PreloadTileSet failed: %v", err)
+	}
+
+	m, err := LoadMap("kings_shrine")
+	if err != nil {
+		t.Fatalf("LoadMap failed: %v", err)
+	}
+	SetMap(m)
+
+	ClearCutScene()
+	SetAnimFrame(0)
+
+	scriptSrc := `
+cs := import("cut-scene")
+cs.animate(12, 12, 3, 300, 3)
+`
+	s := tengo.NewScript([]byte(scriptSrc))
+	s.SetImports(moduleMap)
+	c, err := s.Compile()
+	if err != nil {
+		t.Fatalf("Compile failed: %v", err)
+	}
+	if err := c.Run(); err != nil {
+		t.Fatalf("Run failed: %v", err)
+	}
+
+	if !IsCutSceneActive() {
+		t.Fatal("Expected cutscene to be active after cs.animate")
+	}
+
+	game := &Game{}
+
+	// Update 1: Starts animation (frame 0)
+	UpdateCutScene(game)
+	anim := GetActiveTileAnim()
+	if anim == nil {
+		t.Fatal("Expected active tile anim to be non-nil")
+	}
+	if anim.X != 12 || anim.Y != 12 || anim.BaseTile != 300 || anim.AnimFrames != 3 || anim.Duration != 3 {
+		t.Errorf("Unexpected anim props: %+v", anim)
+	}
+
+	// Verify DrawCentered renders without error and centers on the animation tile
+	screen := ebiten.NewImage(352, 352)
+	assets, err := LoadAssets()
+	if err != nil {
+		t.Fatalf("LoadAssets failed: %v", err)
+	}
+	party, _ := NewParty(5, 5)
+	m.DrawCentered(screen, assets, party, 2)
+
+	// Advance 1 animation frame (frame 1)
+	SetAnimFrame(1)
+	UpdateCutScene(game)
+	if GetActiveTileAnim() == nil {
+		t.Error("Expected active tile anim to persist at frame 1")
+	}
+	m.DrawCentered(screen, assets, party, 2)
+
+	// Advance 1 animation frame (frame 2)
+	SetAnimFrame(2)
+	UpdateCutScene(game)
+	if GetActiveTileAnim() == nil {
+		t.Error("Expected active tile anim to persist at frame 2")
+	}
+
+	// Advance 1 animation frame (frame 3 - duration expired)
+	SetAnimFrame(3)
+	UpdateCutScene(game)
+	if GetActiveTileAnim() != nil {
+		t.Error("Expected active tile anim to be cleared after duration expired")
+	}
+	if IsCutSceneActive() {
+		t.Error("Expected cutscene to be inactive after animation duration")
 	}
 }
 

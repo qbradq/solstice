@@ -52,6 +52,7 @@ game := import("game")
 * `game.end_dialog()`: Terminates the active dialog session.
 
 #### Logging, Timers & Utilities
+* `game.distance(from_x, from_y, to_x, to_y)`: Calculates and returns the Manhattan (diamond) distance between `(from_x, from_y)` and `(to_x, to_y)`.
 * `game.log(format, [args...])`: Formats and appends a message to the in-game terminal log (matching the signature of `fmt.printf`).
 * `game.roll(expression)`: Evaluates a dice roll expression string (e.g. `"1d4"`, `"3d6+2"`) and returns the integer result.
 * `game.add_timer(delay_turns, script_name, [globals])`: Schedules a map timer that executes `script_name` after `delay_turns` turns on the current map with an optional map of injected global variables.
@@ -67,6 +68,9 @@ ai := import("ai")
 ```
 
 * `ai.get_nearest_party_member(x, y)`: Returns the ID string of the party member actor closest to coordinates `(x, y)` on the current map.
+* `ai.path_to(actor_id, x, y)`: Calculates an A* path from the identified actor's location to the reachable point closest to `(x, y)`, limited to the actor's maximum movement length (`move` property). Returns a single string containing cardinal directions (`"n"`, `"e"`, `"s"`, `"w"`), e.g. `"nnne"`.
+* `ai.move_along_path(actor_id, path_string)`: Queues a combat movement action for `actor_id` along the step directions in `path_string`, executing animated step delays via the cutscene system. Returns a map `{x: int, y: int, tile_x: int, tile_y: int}` representing the actor's position following the move.
+* `ai.attack(source_id, target_id)`: Executes the `effects/attack.tengo` script targeting `target_id` from `source_id`.
 
 ---
 
@@ -82,6 +86,7 @@ cs := import("cut-scene")
 * `cs.move(actor_id, direction)`: Queues a 1-tile movement step for `actor_id` in direction `"n"`, `"s"`, `"w"`, or `"e"`.
 * `cs.set_tile(x, y, tile_id)`: Queues setting tile `(x, y)` on the current map to `tile_id`.
 * `cs.remove_actor(actor_id)`: Queues removing `actor_id` from the current map.
+* `cs.animate(x, y, duration, base_tile, anim_frames)`: Plays a tile animation at `(x, y)` for `duration` animation frames, cycling starting at `base_tile` across `anim_frames` frames.
 
 ---
 
@@ -99,6 +104,59 @@ fmt := import("fmt")
 
 ---
 
+---
+
+## Objects
+
+Functions in the scripting system return structured Tengo `map` objects representing entities in the world.
+
+### Actor Object (`game.get_actor`)
+Returned as a map by `game.get_actor(actor_id)`:
+
+| Property | Type | Description |
+| :--- | :--- | :--- |
+| `id` | `string` | Unique entity identifier (e.g. `"kevin"`, `"guard-1"`) |
+| `name` | `string` | Display name of the actor (e.g. `"Kevin"`, `"Town Guard"`) |
+| `human` | `bool` | `true` for human actors, `false` for animals/monsters |
+| `x` / `tile_x` | `int` | Current X tile coordinate on the active map |
+| `y` / `tile_y` | `int` | Current Y tile coordinate on the active map |
+| `level` | `int` | Current character/monster level |
+| `strength` | `int` | Strength attribute |
+| `dexterity` | `int` | Dexterity attribute |
+| `intelligence` | `int` | Intelligence attribute |
+| `max_hit_points` | `int` | Maximum hit points |
+| `hit_points` | `int` | Current remaining hit points |
+| `max_magic_points`| `int` | Maximum magic points |
+| `magic_points` | `int` | Current remaining magic points |
+| `move` | `int` | Movement range in tiles per combat turn |
+| `range` | `int` | Attack range derived from equipped weapon (defaults to 1) |
+| `damage` | `string` | Damage dice roll formula from equipped weapon (e.g. `"1d6"`, `"1d4"`) |
+
+### Party Member Object (`game.get_party_members`)
+Elements of the array returned by `game.get_party_members()` / `game.get_party()`:
+
+| Property | Type | Description |
+| :--- | :--- | :--- |
+| `id` | `string` | Party member actor ID |
+| `name` | `string` | Party member display name |
+| `x` | `int` | Current X tile coordinate |
+| `y` | `int` | Current Y tile coordinate |
+
+### Item Object (`game.find_items`)
+Elements of the array returned by `game.find_items(type, [meta_filter])`:
+
+| Property | Type | Description |
+| :--- | :--- | :--- |
+| `id` | `string` | Unique item entity identifier |
+| `name` | `string` | Display name of the item |
+| `template` | `string` | Template identifier key in `items.json` |
+| `type` | `string` | Classification type (e.g. `"weapon"`, `"container"`, `"potion"`) |
+| `x` | `int` | Current X tile coordinate |
+| `y` | `int` | Current Y tile coordinate |
+| `meta` | `map` | Optional custom metadata key-value pairs (e.g. `{ locked: true }`) |
+
+---
+
 ## Script Contexts & Injected Globals
 
 | Context | Location | Injected Globals | Description |
@@ -111,5 +169,3 @@ fmt := import("fmt")
 | **Effect Scripts** | `data/scripts/effects/` | `target_x`, `target_y`, `target_id`, `source_id` | Executed on-demand by combat moves or script invocations |
 | **Map Scripts** | `data/scripts/map/` | Context-dependent | Map setup and cutscene orchestration scripts |
 | **REPL Autoexec** | `data/scripts/repl/autoexec.tengo` | None | Run on REPL initialization/reset, pre-loading modules |
-
-

@@ -129,6 +129,19 @@ func (p *Party) RemoveMember(index int) error {
 	return nil
 }
 
+// GetMember returns a pointer to the party member with the given ID, or nil if not found.
+func (p *Party) GetMember(id string) *Actor {
+	if p == nil {
+		return nil
+	}
+	for i := range p.Members {
+		if p.Members[i].ID == id {
+			return &p.Members[i]
+		}
+	}
+	return nil
+}
+
 // HandleInput processes movement inputs (WASD, Arrow keys, VI-style HJKL).
 // Movement is performed using m.MoveParty, enforcing walkable terrain rules.
 func (p *Party) HandleInput(m *Map) {
